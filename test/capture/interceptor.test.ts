@@ -81,12 +81,8 @@ function makeStore(root: string): CaptureStore {
   return CaptureStore.create(root, 'example.com');
 }
 
-function findLogPath(root: string): string | undefined {
-  const { readdirSync } = require('node:fs');
-  const entries = readdirSync(root).filter((e: string) => e.startsWith('session-'));
-  if (entries.length === 0) return undefined;
-  const latest = entries[entries.length - 1];
-  return join(root, latest, 'capture.jsonl');
+function getLogPath(store: CaptureStore): string {
+  return join(store.dir, 'capture.jsonl');
 }
 
 // ---------------------------------------------------------------------------
@@ -125,7 +121,7 @@ describe('handleRoute — allowed GET request', () => {
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    const logPath = findLogPath(tmpRoot);
+    const logPath = getLogPath(store);
     assert.ok(logPath && existsSync(logPath), 'capture.jsonl must exist');
     const lines = readFileSync(logPath!, 'utf8').split('\n').filter(Boolean);
     assert.equal(lines.length, 1, 'exactly one record must be written (CAP-01)');
@@ -151,7 +147,7 @@ describe('handleRoute — allowed GET request', () => {
     await handleRoute(route as never, request as never, store);
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    const logPath = findLogPath(tmpRoot);
+    const logPath = getLogPath(store);
     const content = readFileSync(logPath!, 'utf8');
 
     // The real bearer token must not appear anywhere in the store
@@ -240,7 +236,7 @@ describe('handleRoute — held POST request', () => {
     await handleRoute(route as never, request as never, store);
     await new Promise(resolve => setTimeout(resolve, 50));
 
-    const logPath = findLogPath(tmpRoot);
+    const logPath = getLogPath(store);
     assert.ok(logPath && existsSync(logPath), 'capture.jsonl must exist');
     const lines = readFileSync(logPath!, 'utf8').split('\n').filter(Boolean);
     assert.equal(lines.length, 1, 'exactly one record must be written');

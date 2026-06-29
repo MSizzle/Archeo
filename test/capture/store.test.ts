@@ -13,7 +13,7 @@
  */
 import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
+import { mkdtempSync, rmSync, readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { CaptureStore } from '../../src/capture/store.ts';
@@ -61,8 +61,6 @@ describe('CaptureStore', () => {
 
   test('CaptureStore.create creates a session directory (CAP-01)', () => {
     const store = CaptureStore.create(tmpRoot, 'example.com');
-    // The session dir is under tmpRoot; check at least one subdirectory exists
-    const { readdirSync } = await import('node:fs');
     const entries = readdirSync(tmpRoot);
     assert.ok(entries.some(e => e.startsWith('session-')), 'session directory must be created');
     store.close();
@@ -70,11 +68,7 @@ describe('CaptureStore', () => {
 
   test('CaptureStore.create writes manifest.json (CAP-01)', () => {
     const store = CaptureStore.create(tmpRoot, 'example.com');
-    // Find the session dir
-    const { readdirSync } = await import('node:fs');
-    const entries = readdirSync(tmpRoot).filter(e => e.startsWith('session-'));
-    const latestSession = entries[entries.length - 1];
-    const manifestPath = join(tmpRoot, latestSession, 'manifest.json');
+    const manifestPath = join(store.dir, 'manifest.json');
     assert.ok(existsSync(manifestPath), 'manifest.json must exist after create');
     const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
     assert.equal(manifest.version, '1', 'manifest version must be "1"');
@@ -86,14 +80,9 @@ describe('CaptureStore', () => {
 
   test('append writes exactly one JSONL line with seq 1 (CAP-01)', async () => {
     const store = CaptureStore.create(tmpRoot, 'example.com');
-    const record = makeRecord();
-    store.append(record);
+    const logPath = join(store.dir, 'capture.jsonl');
 
-    // Find the session dir
-    const { readdirSync } = await import('node:fs');
-    const entries = readdirSync(tmpRoot).filter(e => e.startsWith('session-'));
-    const latestSession = entries[entries.length - 1];
-    const logPath = join(tmpRoot, latestSession, 'capture.jsonl');
+    store.append(makeRecord());
 
     // Give the stream a tick to flush
     await new Promise(resolve => setTimeout(resolve, 50));
@@ -109,13 +98,10 @@ describe('CaptureStore', () => {
 
   test('append increments seq for each record (CAP-01)', async () => {
     const store = CaptureStore.create(tmpRoot, 'example.com');
+    const logPath = join(store.dir, 'capture.jsonl');
+
     store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440001' }));
     store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440002' }));
-
-    const { readdirSync } = await import('node:fs');
-    const entries = readdirSync(tmpRoot).filter(e => e.startsWith('session-'));
-    const latestSession = entries[entries.length - 1];
-    const logPath = join(tmpRoot, latestSession, 'capture.jsonl');
 
     await new Promise(resolve => setTimeout(resolve, 50));
 
