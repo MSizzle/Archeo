@@ -33,7 +33,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. The `--i-have-authorization` flag satisfies the gate for scripted runs while still printing the attestation text
   3. The tool makes zero outbound calls to non-target URLs — no telemetry, no allowlist checks
   4. A real Chromium browser opens the target URL and the process exits cleanly
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+- [ ] 01-01-PLAN.md — Scaffold + Apache-2.0 license + test runner (OSS-04)
+- [ ] 01-02-PLAN.md — Authorization gate: attest-first, y/N, non-TTY error, no phone-home (GATE-01/02/03)
+- [ ] 01-03-PLAN.md — Headed Chromium lifecycle + cac CLI wiring; the skeleton walks (SC#4)
 
 ### Phase 2: Capture Layer & Safety Floor
 **Goal**: Browsing the target manually produces a clean, redacted on-disk capture store with no mutating requests ever reaching the server
