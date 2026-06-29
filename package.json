@@ -1,0 +1,28 @@
+{
+  "name": "archeo",
+  "version": "0.1.0",
+  "description": "Autonomously explores a running web application and produces a machine-readable JSON build spec — vendor escape, not competitor cloning.",
+  "type": "module",
+  "license": "Apache-2.0",
+  "bin": {
+    "archeo": "dist/index.js"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "dev": "node src/cli/index.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "node --test 'test/**/*.test.ts'",
+    "postinstall": "playwright install chromium"
+  },
+  "dependencies": {
+    "cac": "^7.0.0",
+    "playwright": "^1.61.1"
+  },
+  "devDependencies": {
+    "typescript": "^6.0.3",
+    "tsup": "^8.5.1"
+  }
+}
