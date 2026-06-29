@@ -182,6 +182,22 @@ describe('detectGraphQLOperation', () => {
     const body = '{"query":{"nested":"object"}}';
     assert.equal(detectGraphQLOperation(body), null);
   });
+
+  // IN-01: regression guard for CR-03 — mutation with leading # comment must not bypass floor
+  test('returns mutation for query with leading # comment before mutation keyword (IN-01 / FLOOR-03)', () => {
+    // GraphQL spec allows # comment lines anywhere in a document, including before the
+    // operation keyword. Without CR-03's stripGraphQLComments(), GRAPHQL_MUTATION_RE
+    // anchored to ^ would fail because # is not a whitespace character, misclassifying
+    // the mutation as a query and allowing it through the floor (FLOOR-01 violation).
+    const body = '{"query":"# create a user\\nmutation CreateUser { createUser { id } }"}';
+    assert.equal(detectGraphQLOperation(body), 'mutation');
+  });
+
+  test('returns mutation for query with multiple # comment lines before mutation (IN-01 variant)', () => {
+    // Multiple comment lines before the keyword — all must be stripped
+    const body = '{"query":"# This is a write operation\\n# it creates a new user\\nmutation CreateUser($name: String!) { createUser(name: $name) { id } }"}';
+    assert.equal(detectGraphQLOperation(body), 'mutation');
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -382,6 +398,21 @@ describe('classifyRequest — GraphQL and JSON-RPC dispatch (FLOOR-03)', () => {
     );
     assert.equal(result.held, true, 'PUT is always held as REST regardless of body (FLOOR-01/02)');
     assert.equal(result.protocol, 'REST');
+  });
+
+  // IN-01: classifyRequest regression guard — mutation with leading # comment must be held
+  test('GraphQL mutation with leading # comment: held:true, protocol GraphQL (IN-01 guard / CR-03)', () => {
+    // This is the classifyRequest-level regression guard for CR-03. A conformant GraphQL
+    // mutation whose query begins with a # comment must not be allowed through the floor.
+    const result = classifyRequest(
+      'POST',
+      'https://example.com/graphql',
+      { 'content-type': 'application/json' },
+      '{"query":"# creates a new user\\nmutation CreateUser($name: String!) { createUser(name: $name) { id } }"}',
+    );
+    assert.equal(result.held, true, 'GraphQL mutation with leading # comment must be held (FLOOR-01/03)');
+    assert.equal(result.protocol, 'GraphQL');
+    assert.equal(result.operationType, 'mutation');
   });
 });
 

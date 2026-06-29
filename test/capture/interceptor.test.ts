@@ -20,7 +20,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { handleRoute } from '../../src/capture/interceptor.ts';
+import { handleRoute, attachInterceptor } from '../../src/capture/interceptor.ts';
 import { CaptureStore } from '../../src/capture/store.ts';
 
 // ---------------------------------------------------------------------------
@@ -169,6 +169,48 @@ describe('handleRoute — allowed GET request', () => {
       record.requestHeaders['authorization'],
       '[REDACTED]',
       'authorization value must be [REDACTED]',
+    );
+
+    store.close();
+  });
+
+  // IN-02: regression guard for CR-02 — auth token in query string must not reach disk
+  test('GET with access_token in query string: token must not appear in JSONL store (IN-02 / CR-02 guard)', async () => {
+    // CR-02 guard: an auth token passed as a query parameter must be redacted before the
+    // URL is written to the capture JSONL. Without redactUrl() the raw query string
+    // containing ?access_token=super-secret-value would reach disk verbatim (CAP-05 violation).
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/items?access_token=super-secret-value&page=1',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+
+    // The raw auth token value must not appear anywhere in the store
+    assert.ok(
+      !content.includes('super-secret-value'),
+      'auth token in query string must not appear in JSONL capture store (CR-02 / CAP-05)',
+    );
+
+    // The param name and redacted placeholder must survive (URL structure preserved).
+    // Note: WHATWG URLSearchParams percent-encodes '[' and ']', so the placeholder
+    // appears as '%5BREDACTED%5D' in the serialised URL rather than '[REDACTED]'.
+    assert.ok(
+      content.includes('access_token'),
+      'query param name must survive redaction (URL structure preserved)',
+    );
+    assert.ok(
+      content.includes('REDACTED'),
+      'redacted placeholder must appear in place of the token value (may be percent-encoded)',
+    );
+    assert.ok(
+      content.includes('page=1'),
+      'non-sensitive query param value must survive redaction',
     );
 
     store.close();
@@ -610,6 +652,75 @@ describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
       record.relatedHeldWriteId,
       undefined,
       'no relatedHeldWriteId when no prior held write (D-05)',
+    );
+
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// attachInterceptor error fallback — CR-01 regression guard (IN-03)
+// Tests that handler errors call route.abort() (fail-closed), not route.continue().
+// ---------------------------------------------------------------------------
+describe('attachInterceptor — error fallback calls route.abort (IN-03 / CR-01 guard)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-abort-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('handler exception triggers route.abort (not route.continue or route.fetch) — IN-03', async () => {
+    // IN-03 / CR-01 regression guard: when handleRoute throws, attachInterceptor's catch
+    // block must call route.abort() so an unclassified (possibly mutating) request is
+    // blocked fail-closed rather than forwarded transparently to the server.
+    //
+    // Strategy: inject a request mock whose allHeaders() throws — this causes handleRoute
+    // to throw on its first await, exercising the catch branch in attachInterceptor.
+
+    const routeCalls: string[] = [];
+    const mockRoute = {
+      fetch:   async () => { routeCalls.push('fetch');    return {}; },
+      fulfill: async () => { routeCalls.push('fulfill');  },
+      abort:   async () => { routeCalls.push('abort');    },
+      continue:async () => { routeCalls.push('continue'); },
+    };
+
+    // Request whose allHeaders() throws — triggers the catch block in attachInterceptor
+    const throwingRequest = {
+      method:     () => 'POST',
+      url:        () => 'https://example.com/api/users',
+      allHeaders: async (): Promise<Record<string, string>> => { throw new Error('simulated allHeaders failure'); },
+      postData:   () => null,
+    };
+
+    // Build a minimal mock BrowserContext: route() immediately captures the handler
+    let capturedHandler!: (route: unknown, request: unknown) => Promise<void>;
+    const mockContext = {
+      route: async (_filter: unknown, handler: (r: unknown, req: unknown) => Promise<void>) => {
+        capturedHandler = handler;
+      },
+    };
+
+    const store = makeStore(tmpRoot);
+    await attachInterceptor(mockContext as never, 'example.com', store);
+
+    // Invoke the captured handler with our throwing request — simulates a live CDP callback
+    await capturedHandler(mockRoute, throwingRequest);
+
+    // CR-01: route.abort() must have been called (fail-closed)
+    assert.ok(
+      routeCalls.includes('abort'),
+      'route.abort must be called when handleRoute throws (CR-01 / FLOOR-01)',
+    );
+    // route.continue must NOT be called — that would forward the request (old buggy behaviour)
+    assert.ok(
+      !routeCalls.includes('continue'),
+      'route.continue must NOT be called on handler error (would forward request — CR-01)',
+    );
+    // route.fetch must NOT be called — server must not be contacted
+    assert.ok(
+      !routeCalls.includes('fetch'),
+      'route.fetch must NOT be called on handler error (server must not be contacted)',
     );
 
     store.close();
