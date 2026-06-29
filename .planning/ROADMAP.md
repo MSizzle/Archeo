@@ -66,7 +66,24 @@ Plans:
   4. A GET to a path containing a destructive token is held and requires explicit confirmation before firing
   5. The on-disk store contains held-mutation records with full headers and body shapes but no secret values — auth tokens, cookies, and bearer values are stripped; header names and structure survive
 
-**Plans**: TBD
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — End-to-end skeleton: allowed GET captured+redacted to JSONL store, REST writes held (FLOOR-01/02/05/06, CAP-01..05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — Protocol-aware classification (GraphQL/JSON-RPC) + shaped synthetic held responses (FLOOR-03/06)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-03-PLAN.md — Destructive-GET tripwire + dead-end signal (FLOOR-04/07)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 02-04-PLAN.md — Live floor verification against a real authenticated account (human-verify checkpoint)
 
 ### Phase 3: Spec Generator + Buildability Proof
 
@@ -166,7 +183,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
-| 2. Capture Layer & Safety Floor | 0/TBD | Not started | - |
+| 2. Capture Layer & Safety Floor | 0/4 | Planned | - |
 | 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
