@@ -79,7 +79,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-03-PLAN.md — Destructive-GET tripwire + dead-end signal (FLOOR-04/07)
+- [x] 02-03-PLAN.md — Destructive-GET tripwire + dead-end signal (FLOOR-04/07)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
@@ -183,7 +183,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
-| 2. Capture Layer & Safety Floor | 2/4 | In Progress|  |
+| 2. Capture Layer & Safety Floor | 3/4 | In Progress|  |
 | 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
