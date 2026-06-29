@@ -51,10 +51,15 @@ function stripCommentLines(source: string): string {
 
 /**
  * Tokens whose presence in non-comment source lines indicates an outbound network
- * import — forbidden in Phase 1 (GATE-03: no telemetry, no phone-home).
+ * import — forbidden (GATE-03: no telemetry, no phone-home).
+ *
+ * Note on 'fetch(': Playwright's route.fetch() and response.fetch() are internal
+ * Playwright APIs that use Chromium's network infrastructure — they are NOT outbound
+ * HTTP client calls and must not be flagged. The check uses a regex that requires
+ * 'fetch(' to NOT be preceded by '.' (property accessor), so route.fetch() is allowed
+ * while bare fetch(url) Web Fetch API calls are still detected and rejected.
  */
 const FORBIDDEN_TOKENS = [
-  'fetch(',
   'node:http',
   'node:https',
   "require('http",
@@ -66,6 +71,16 @@ const FORBIDDEN_TOKENS = [
   // but NOT Playwright's page.goto() method. The quoted form only matches package name strings.
   "'got'",
 ];
+
+/**
+ * Check a source file for bare fetch( calls (not preceded by '.', meaning not a
+ * method call like route.fetch() or response.fetch()). Uses a negative lookbehind
+ * so that Playwright's route.fetch() is allowed while global fetch() is rejected.
+ */
+function hasBareGlobalFetch(code: string): boolean {
+  // Negative lookbehind: fetch( not preceded by '.' (property accessor)
+  return /(?<!\.)fetch\(/.test(code);
+}
 
 describe('GATE-03: no outbound network surface in src/', () => {
   const tsFiles = collectTsFiles(srcDir);
@@ -79,6 +94,13 @@ describe('GATE-03: no outbound network surface in src/', () => {
 
     test(`${label} — no forbidden network tokens`, () => {
       const code = stripCommentLines(readFileSync(filePath, 'utf8'));
+
+      // Check for bare global fetch() calls (not Playwright method calls like route.fetch())
+      assert.ok(
+        !hasBareGlobalFetch(code),
+        `${label} must not contain bare global fetch() call (use route.fetch() for Playwright interceptors)`,
+      );
+
       for (const token of FORBIDDEN_TOKENS) {
         assert.ok(
           !code.includes(token),

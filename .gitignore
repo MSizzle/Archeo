@@ -3,3 +3,7 @@ dist/
 *.log
 .DS_Store
 .archeo/
+# Redacted capture store — must never be committed (T-02-05).
+# Session dirs contain live account traffic even after redaction.
+# .archeo/ already covers this; archeo-captures/ is an alias guard.
+archeo-captures/

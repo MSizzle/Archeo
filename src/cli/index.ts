@@ -1,20 +1,27 @@
 /**
  * src/cli/index.ts
  *
- * CLI entry point for archeo. Wires the cac parser to the gate and browser.
+ * CLI entry point for archeo. Wires the cac parser to the gate, browser, and capture store.
  *
  * D-08: positional `archeo <url>` command shape.
  * D-09: cac for argument parsing (zero deps, camelCases flag names).
  * GATE-01: runAuthorizationGate is awaited BEFORE any isValidUrl/openAndWait call.
  * T-01-07: isValidUrl rejects malformed URLs with exit 1 before Playwright is touched.
  * T-01-09: gate ordering is verifiable by source inspection (await gate is first statement).
+ * CAP-01:  CaptureStore is created after URL validation and passed to openAndWait so
+ *          every browsing session has a scoped JSONL capture store.
  *
  * Import extensions use .ts (required by Node 26 native TS stripping, Pitfall 6).
  * No TypeScript enums anywhere in this file (native stripping limitation).
  */
+
+// No TypeScript enums anywhere in this file (native stripping limitation).
+// Use: export const FOO = { A: 'a', B: 'b' } as const; export type Foo = typeof FOO[keyof typeof FOO];
+
 import cac from 'cac';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
+import { CaptureStore } from '../capture/store.ts';
 
 const cli = cac('archeo');
 
@@ -36,7 +43,12 @@ cli
       process.exit(1);
     }
 
-    await openAndWait(url);
+    // CAP-01: Create a session-scoped capture store before opening the browser.
+    // The store is passed to openAndWait so the interceptor can append records.
+    // Store lives under .archeo/captures/ (gitignored — T-02-05).
+    const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
+
+    await openAndWait(url, store);
   });
 
 cli.help();
