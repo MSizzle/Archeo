@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [ ] **CAP-03**: For any field not on a small structural allowlist (ids, enums, status flags, types, timestamps), the value is discarded and only the inferred type is kept
 - [ ] **CAP-04**: Header names and structure survive redaction even after secret values are stripped (the auth/versioning shape is preserved)
 - [ ] **CAP-05**: Redaction fails closed — it never persists values it cannot classify as structurally safe
-- [ ] **CAP-06**: (Phase 5, opt-in) An optional local-model pass catches residual values in fields that must keep their values — an enhancement on top of the already-safe floor, never a replacement for it
+- [ ] **CAP-06**: (Phase 6, opt-in) An optional local-model pass catches residual values in fields that must keep their values — an enhancement on top of the already-safe floor, never a replacement for it
 
 ### Spec Generator
 
@@ -77,7 +77,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [ ] **AGENT-05**: The agent stops on any of: step budget reached, coverage plateau, or empty frontier
 - [ ] **AGENT-06**: Every model-proposed action is validated against the live DOM before executing; hallucinated targets are rejected and the agent is re-prompted with feedback
 - [ ] **AGENT-07**: Trap avoidance — loop detection for oscillating states, backtrack-to-frontier when stuck, and a hard never-click blocklist for logout and account-switch controls
-- [ ] **AGENT-08**: The spec produced by an autonomous run matches or beats the human-driven Phase 2 spec
+- [ ] **AGENT-08**: The spec produced by an autonomous run matches or beats the human-driven Phase 3 spec
 
 ### Cost, Rate & Error Hardening
 
@@ -109,7 +109,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 Deferred beyond v1. Tracked but not in the current roadmap.
 
-(None — v1 spans Phases 0–7 of the build plan, including differential validation.)
+(None — v1 spans Phases 1–8 of the roadmap, including differential validation.)
 
 ## Out of Scope
 
@@ -127,17 +127,85 @@ Explicitly excluded. Documented to prevent scope creep. Do not architect in a wa
 
 ## Traceability
 
-Populated during roadmap creation. Each requirement maps to exactly one phase.
+Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| _(to be filled by roadmapper)_ | — | Pending |
+| GATE-01 | Phase 1 | Pending |
+| GATE-02 | Phase 1 | Pending |
+| GATE-03 | Phase 1 | Pending |
+| OSS-04 | Phase 1 | Pending |
+| FLOOR-01 | Phase 2 | Pending |
+| FLOOR-02 | Phase 2 | Pending |
+| FLOOR-03 | Phase 2 | Pending |
+| FLOOR-04 | Phase 2 | Pending |
+| FLOOR-05 | Phase 2 | Pending |
+| FLOOR-06 | Phase 2 | Pending |
+| FLOOR-07 | Phase 2 | Pending |
+| CAP-01 | Phase 2 | Pending |
+| CAP-02 | Phase 2 | Pending |
+| CAP-03 | Phase 2 | Pending |
+| CAP-04 | Phase 2 | Pending |
+| CAP-05 | Phase 2 | Pending |
+| SPEC-01 | Phase 3 | Pending |
+| SPEC-02 | Phase 3 | Pending |
+| SPEC-03 | Phase 3 | Pending |
+| SPEC-04 | Phase 3 | Pending |
+| SPEC-05 | Phase 3 | Pending |
+| SPEC-06 | Phase 3 | Pending |
+| SPEC-07 | Phase 3 | Pending |
+| BUILD-01 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Pending |
+| DASH-02 | Phase 3 | Pending |
+| DASH-03 | Phase 3 | Pending |
+| AUTH-01 | Phase 4 | Pending |
+| AUTH-02 | Phase 4 | Pending |
+| AUTH-03 | Phase 4 | Pending |
+| MODEL-01 | Phase 5 | Pending |
+| AGENT-01 | Phase 5 | Pending |
+| AGENT-02 | Phase 5 | Pending |
+| AGENT-03 | Phase 5 | Pending |
+| AGENT-04 | Phase 5 | Pending |
+| AGENT-05 | Phase 5 | Pending |
+| AGENT-06 | Phase 5 | Pending |
+| AGENT-07 | Phase 5 | Pending |
+| AGENT-08 | Phase 5 | Pending |
+| DASH-04 | Phase 5 | Pending |
+| DASH-05 | Phase 5 | Pending |
+| DASH-06 | Phase 5 | Pending |
+| DASH-07 | Phase 5 | Pending |
+| COST-01 | Phase 6 | Pending |
+| COST-02 | Phase 6 | Pending |
+| COST-03 | Phase 6 | Pending |
+| COST-04 | Phase 6 | Pending |
+| COST-05 | Phase 6 | Pending |
+| COST-06 | Phase 6 | Pending |
+| FLOOR-08 | Phase 6 | Pending |
+| CAP-06 | Phase 6 | Pending |
+| DASH-08 | Phase 6 | Pending |
+| DRIFT-01 | Phase 6 | Pending |
+| DRIFT-02 | Phase 6 | Pending |
+| OSS-01 | Phase 7 | Pending |
+| OSS-02 | Phase 7 | Pending |
+| OSS-03 | Phase 7 | Pending |
+| VALID-01 | Phase 8 | Pending |
+| VALID-02 | Phase 8 | Pending |
 
 **Coverage:**
-- v1 requirements: 49 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 49 ⚠️
+- v1 requirements: 59 total (header previously stated 49; actual count is 59)
+- Mapped to phases: 59 ✓
+- Unmapped: 0 ✓
+
+**Per-phase requirement counts:**
+- Phase 1 (Foundation): 4
+- Phase 2 (Capture Layer & Safety Floor): 12
+- Phase 3 (Spec Generator + Buildability Proof): 11
+- Phase 4 (Authentication Handoff): 3
+- Phase 5 (Autonomous Agent Loop + Full Dashboard): 13
+- Phase 6 (Hardening): 11
+- Phase 7 (Open Source Readiness): 3
+- Phase 8 (Differential Validation): 2
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-06-29 after initial definition*
+*Last updated: 2026-06-29 after roadmap creation — traceability table populated, coverage corrected to 59*
