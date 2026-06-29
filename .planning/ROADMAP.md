@@ -13,7 +13,7 @@ Archeo is built in eight phases that de-risk the value question before investing
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Scaffold, authorization gate, CLI opens target URL and exits cleanly
+- [x] **Phase 1: Foundation** - Scaffold, authorization gate, CLI opens target URL and exits cleanly (completed 2026-06-29)
 - [ ] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server
 - [ ] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing
 - [ ] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials
@@ -50,7 +50,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 01-03-PLAN.md — Headed Chromium lifecycle + cac CLI wiring; the skeleton walks (SC#4)
+- [x] 01-03-PLAN.md — Headed Chromium lifecycle + cac CLI wiring; the skeleton walks (SC#4)
 
 ### Phase 2: Capture Layer & Safety Floor
 
@@ -165,7 +165,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 0/TBD | Not started | - |
 | 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |

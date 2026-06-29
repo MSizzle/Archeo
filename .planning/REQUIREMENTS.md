@@ -133,7 +133,7 @@ Each requirement maps to exactly one phase.
 |-------------|-------|--------|
 | GATE-01 | Phase 1 | Complete (01-02) |
 | GATE-02 | Phase 1 | Complete (01-02) |
-| GATE-03 | Phase 1 | Complete (01-02) |
+| GATE-03 | Phase 1 | Complete (01-02 gate side, 01-03 browser side) |
 | OSS-04 | Phase 1 | Complete |
 | FLOOR-01 | Phase 2 | Pending |
 | FLOOR-02 | Phase 2 | Pending |
