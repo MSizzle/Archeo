@@ -1,8 +1,8 @@
 ---
 phase: 1
 slug: foundation
-status: draft
-nyquist_compliant: false
+status: approved
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-06-29
 ---
@@ -40,7 +40,13 @@ created: 2026-06-29
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 1-01-01 | 01 | 1 | OSS-04 | — | scaffold builds + lints clean | unit | `npm run build` | ❌ W0 | ⬜ pending |
+| 1-01-01 | 01-01 | 1 | OSS-04 | — | scaffold typechecks clean | unit | `npm install && npm run typecheck` | ❌ W0 | ⬜ pending |
+| 1-01-02 | 01-01 | 1 | OSS-04 | — | Apache-2.0 LICENSE + NOTICE present | unit | `node --test 'test/oss/license.test.ts'` | ❌ W0 | ⬜ pending |
+| 1-02-01 | 01-02 | 2 | GATE-01, GATE-02 | — | gate test fails RED before impl | unit | `node --test 'test/cli/gate.test.ts'` (expect RED) | ❌ W0 | ⬜ pending |
+| 1-02-02 | 01-02 | 2 | GATE-01, GATE-02, GATE-03 | T-01-03 (gate bypass), no-network | attest-first; flag still prints; non-TTY exit 1; no outbound calls | unit | `node --test 'test/**/*.test.ts' && npm run typecheck` | ❌ W0 | ⬜ pending |
+| 1-03-01 | 01-03 | 3 | GATE-03 | T-01-08 (phone-home) | browser.ts imports only playwright + node: | unit | `npm run typecheck && node --test 'test/security/no-network.test.ts'` | ❌ W0 | ⬜ pending |
+| 1-03-02 | 01-03 | 3 | GATE-03 | — | runnable `archeo <url>`; full suite green; build emits dist | unit | `npm run build && node --test 'test/**/*.test.ts'` | ❌ W0 | ⬜ pending |
+| 1-03-03 | 01-03 | 3 | SC#4 | T-01-06 (raw-mode TTY) | headed Chromium opens URL, stays alive until close/Ctrl+C, exits 0 | manual | human smoke (see Manual-Only Verifications) | N/A | ⬜ pending |
 
 *Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky*
 

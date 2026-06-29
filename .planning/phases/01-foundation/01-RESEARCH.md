@@ -710,27 +710,31 @@ This product includes software developed by the Archeo Contributors.
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Linter choice**
    - What we know: Claude's discretion; no linter yet
    - What's unclear: Whether to use `eslint` (heavier, more config) or `biome` (single binary, faster, growing adoption) or no linter at all in Phase 1
    - Recommendation: `biome` for Phase 1 — zero config, single devDep, formats and lints; defer detailed rule tuning to Phase 7 (OSS Readiness). Or skip linting entirely in Phase 1 and add it in Phase 7.
+   - **RESOLVED: Skip linting in Phase 1 — no linter devDep is added by the plans; biome/eslint deferred to Phase 7 (OSS Readiness). Keeps the Phase 1 dependency surface minimal per the lean-deps constraint.**
 
 2. **Package manager choice**
    - What we know: Claude's discretion
    - What's unclear: npm vs pnpm
    - Recommendation: `npm` — universal baseline for contributors; pnpm is faster but adds workspace complexity with no benefit for a single-package repo
+   - **RESOLVED: npm — universal contributor baseline; the plans use npm scripts and `package-lock.json`.**
 
 3. **Node minimum engine version for package.json**
    - What we know: User is on Node 26; native TS stripping stable on Node 24
    - What's unclear: Whether to require Node 22 (needs `--experimental-strip-types` flag for testing) or Node 24 (native, stable) or Node 26 (current)
    - Recommendation: `"engines": { "node": ">=22.0.0" }` with a note that dev scripts use native TS stripping available on Node 24+; on Node 22 contributors can use `NODE_OPTIONS=--experimental-strip-types`
+   - **RESOLVED: `"engines": { "node": ">=22.0.0" }` per Plan 01-01 Task 1, documenting the `--experimental-strip-types` fallback for Node 22 contributors.**
 
 4. **Attestation text exact wording**
    - What we know: D-04 shape is locked (vendor-escape line + risk line + y/N). Exact wording is Claude's discretion.
    - What's unclear: Specific phrasing that hits both "not hostile" and "creates a disclosure record"
    - Recommendation: Include in plan as a task for the implementer with D-04 as the spec
+   - **RESOLVED: Exact wording delegated to the implementer within the locked D-04 shape (one vendor-escape line + one plain-risk line + `[y/N]`); Plan 01-02 carries D-04 as the spec.**
 
 ---
 
