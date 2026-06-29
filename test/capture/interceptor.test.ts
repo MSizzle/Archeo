@@ -5,11 +5,15 @@
  * Uses mock Playwright Route + Request objects and a real temp-dir-backed CaptureStore.
  *
  * FLOOR-01: Held writes never call route.fetch — server is not contacted.
+ * FLOOR-04: Destructive-GET tripwire — denied aborts (no fetch), confirmed fetches + captures.
  * FLOOR-05: Held record captured with full method/URL/headers/body, held:true.
  * FLOOR-06: Synthetic 2xx returned for held writes (route.fulfill called with status 200).
  * FLOOR-06 / D-03: Held-write synthetic body shaped from redacted corpus when available.
+ * FLOOR-07: Dead-end signal recorded when 4xx/5xx read follows a held write (D-05).
  * CAP-05:   No auth header value appears in the JSONL store.
  * D-03 no-echo: Synthetic body is never byte-equal to the held request's postData.
+ * T-02-09:  Deny path asserts route.abort called, route.fetch NOT called.
+ * T-02-10:  Dead-end records carry no body values (requestBody=null, responseBody=null).
  */
 import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -384,6 +388,229 @@ describe('handleRoute — corpus-based synthetic response (FLOOR-06 / D-03)', ()
     // The corpus must have been populated for the captured path
     const corpus = store.findSimilarResponse('/api/shape-test');
     assert.ok(corpus !== undefined, 'corpus must be populated after a GET is captured');
+
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleRoute — destructive GET (FLOOR-04 / T-02-09)
+// These tests inject a mock confirmFn to avoid waiting for real stdin.
+// ---------------------------------------------------------------------------
+describe('handleRoute — destructive GET denied (FLOOR-04 / T-02-09)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-destr-deny-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('destructive GET with deny: route.abort called, route.fetch NOT called (FLOOR-04 / T-02-09)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/users/123/delete',
+    });
+
+    // Mock confirmFn that always denies
+    const mockDeny = async (_url: string) => false;
+
+    await handleRoute(route as never, request as never, store, mockDeny);
+
+    // route.abort must be called (deny path — server never contacted)
+    assert.ok(
+      route._calls.some(c => c.method === 'abort'),
+      'route.abort must be called when destructive GET is denied (FLOOR-04 / T-02-09)',
+    );
+    // route.fetch must NOT be called (server is never contacted on deny)
+    assert.ok(
+      !route._calls.some(c => c.method === 'fetch'),
+      'route.fetch must NOT be called when destructive GET is denied (T-02-09)',
+    );
+
+    // DESTRUCTIVE_GET_HELD record must be appended before the prompt
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const logPath = getLogPath(store);
+    assert.ok(existsSync(logPath), 'capture.jsonl must exist');
+    const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    assert.equal(lines.length, 1, 'exactly one record (DESTRUCTIVE_GET_HELD) must be appended on deny');
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.type, 'destructive-get-held', 'record type must be destructive-get-held');
+    assert.equal(record.held, true, 'record must be held:true');
+    assert.equal(record.requestBody, null, 'GET has no body — requestBody must be null');
+
+    store.close();
+  });
+});
+
+describe('handleRoute — destructive GET confirmed (FLOOR-04)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-destr-confirm-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('destructive GET with confirm: route.fetch called, response captured (FLOOR-04)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/settings/revoke',
+    });
+
+    // Mock confirmFn that always confirms
+    const mockConfirm = async (_url: string) => true;
+
+    await handleRoute(route as never, request as never, store, mockConfirm);
+
+    // route.fetch must be called (confirmed — server contacted)
+    assert.ok(
+      route._calls.some(c => c.method === 'fetch'),
+      'route.fetch must be called when destructive GET is confirmed (FLOOR-04)',
+    );
+    // route.fulfill must be called (response forwarded to browser)
+    assert.ok(
+      route._calls.some(c => c.method === 'fulfill'),
+      'route.fulfill must be called after confirmed destructive GET',
+    );
+
+    // A DESTRUCTIVE_GET_CONFIRMED record must be appended
+    await new Promise(resolve => setTimeout(resolve, 50));
+    const logPath = getLogPath(store);
+    const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    const confirmedRecord = lines.map((l: string) => JSON.parse(l)).find(
+      (r: { type: string }) => r.type === 'destructive-get-confirmed',
+    );
+    assert.ok(confirmedRecord, 'DESTRUCTIVE_GET_CONFIRMED record must be appended (FLOOR-04)');
+
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleRoute — dead-end detection (FLOOR-07 / D-05)
+// D-05: detect + record only. No backtracking logic.
+// ---------------------------------------------------------------------------
+describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-deadend-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('4xx after held write: creates dead-end record with relatedHeldWriteId (FLOOR-07)', async () => {
+    const store = makeStore(tmpRoot);
+
+    // Step 1: held POST sets store.lastHeldWriteId
+    const postRoute = makeMockRoute();
+    const postRequest = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/data',
+      headers: { 'content-type': 'application/json' },
+      body: '{"action":"create"}',
+    });
+    await handleRoute(postRoute as never, postRequest as never, store);
+
+    assert.ok(store.lastHeldWriteId !== null, 'lastHeldWriteId must be set after held write');
+    const heldId = store.lastHeldWriteId;
+
+    // Step 2: GET that returns 4xx triggers dead-end detection
+    const getRoute = makeMockRoute(makeMockResponse({ status: 404 }));
+    const getRequest = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/data/missing',
+    });
+    await handleRoute(getRoute as never, getRequest as never, store);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const logPath = getLogPath(store);
+    const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    assert.equal(lines.length, 2, 'two records: held-write + dead-end');
+
+    const deadEnd = JSON.parse(lines[1]);
+    assert.equal(deadEnd.type, 'dead-end', 'record type must be dead-end (FLOOR-07)');
+    assert.equal(
+      deadEnd.relatedHeldWriteId,
+      heldId,
+      'relatedHeldWriteId must link back to the held write (FLOOR-07)',
+    );
+
+    store.close();
+  });
+
+  test('dead-end record has no body values — requestBody null, responseBody null (T-02-10)', async () => {
+    const store = makeStore(tmpRoot);
+
+    // Held POST with a body
+    const postRoute = makeMockRoute();
+    const postRequest = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/things',
+      headers: { 'content-type': 'application/json' },
+      body: '{"secret":"value","userId":"string"}',
+    });
+    await handleRoute(postRoute as never, postRequest as never, store);
+
+    // GET returning 5xx with a response body
+    const errResponse = makeMockResponse({
+      status: 500,
+      bodyJson: { error: 'server error', token: 'secret-value' },
+    });
+    const getRoute = makeMockRoute(errResponse);
+    const getRequest = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/things/result',
+    });
+    await handleRoute(getRoute as never, getRequest as never, store);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const logPath = getLogPath(store);
+    const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    const deadEnd = JSON.parse(lines[lines.length - 1]);
+
+    assert.equal(deadEnd.type, 'dead-end', 'last record must be dead-end');
+    assert.equal(
+      deadEnd.requestBody,
+      null,
+      'dead-end record must not carry request body values (T-02-10)',
+    );
+    assert.ok(
+      deadEnd.responseBody === null || deadEnd.responseBody === undefined,
+      'dead-end record must not carry response body values (T-02-10)',
+    );
+
+    store.close();
+  });
+
+  test('4xx with no prior held write does NOT create a dead-end record (D-05)', async () => {
+    const store = makeStore(tmpRoot);
+
+    // Verify no prior held write
+    assert.equal(store.lastHeldWriteId, null, 'lastHeldWriteId must be null at session start');
+
+    // GET returning 4xx with no prior held write in this session
+    const getRoute = makeMockRoute(makeMockResponse({ status: 404 }));
+    const getRequest = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/nonexistent',
+    });
+    await handleRoute(getRoute as never, getRequest as never, store);
+
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const logPath = getLogPath(store);
+    const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
+    assert.equal(lines.length, 1, 'exactly one record — no dead-end when no prior held write');
+
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.type, 'request-response', 'record type must be request-response (not dead-end)');
+    assert.equal(
+      record.relatedHeldWriteId,
+      undefined,
+      'no relatedHeldWriteId when no prior held write (D-05)',
+    );
 
     store.close();
   });
