@@ -40,7 +40,7 @@ The project scaffold runs, and `archeo <url>` shows the authorization gate, then
 - **D-11:** Module system is **ESM** — the modern default for new TS/Node projects; Playwright and the ecosystem are ESM-first.
 
 ### Entry-Model Direction (affects Phase 3, recorded now so it is not lost)
-- **D-12:** The **intended primary UX is "page-first"**: the user pastes the target URL into a local web page, and the authorization gate lives in that page. Phase 1 ships the **CLI-first** foundation (`archeo <url>` + terminal gate) per the roadmap, but Phase 3's dashboard MUST be designed as the **front door** (URL entry + in-page gate), not merely a passive monitor. This is a locked design direction for Phase 3, not a Phase 1 deliverable.
+- **D-12 [informational]:** (Locked design direction for **Phase 3**, not a Phase 1 deliverable — intentionally not tracked by any Phase 1 plan.) The **intended primary UX is "page-first"**: the user pastes the target URL into a local web page, and the authorization gate lives in that page. Phase 1 ships the **CLI-first** foundation (`archeo <url>` + terminal gate) per the roadmap, but Phase 3's dashboard MUST be designed as the **front door** (URL entry + in-page gate), not merely a passive monitor. This is a locked design direction for Phase 3, not a Phase 1 deliverable.
 
 ### Claude's Discretion
 - Package manager, exact build/output tooling (e.g. tsx/tsup/esbuild), linter choice and config, `tsconfig` settings, repo file layout beyond the build spec's suggested structure, and the precise wording of the attestation copy (within D-04's shape) are left to research/planning.
