@@ -9,9 +9,9 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Authorization & Legal Posture
 
-- [ ] **GATE-01**: On startup, before any browser launches, the user must affirmatively attest they own the target or have permission to analyze it
-- [ ] **GATE-02**: A `--i-have-authorization` flag satisfies the gate for scripted runs, but the attestation text still prints
-- [ ] **GATE-03**: The tool never phones home and never logs targets to any remote service (no telemetry, no allowlist)
+- [x] **GATE-01**: On startup, before any browser launches, the user must affirmatively attest they own the target or have permission to analyze it
+- [x] **GATE-02**: A `--i-have-authorization` flag satisfies the gate for scripted runs, but the attestation text still prints
+- [x] **GATE-03**: The tool never phones home and never logs targets to any remote service (no telemetry, no allowlist)
 
 ### Safety Floor
 
@@ -131,9 +131,9 @@ Each requirement maps to exactly one phase.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| GATE-01 | Phase 1 | Pending |
-| GATE-02 | Phase 1 | Pending |
-| GATE-03 | Phase 1 | Pending |
+| GATE-01 | Phase 1 | Complete (01-02) |
+| GATE-02 | Phase 1 | Complete (01-02) |
+| GATE-03 | Phase 1 | Complete (01-02) |
 | OSS-04 | Phase 1 | Complete |
 | FLOOR-01 | Phase 2 | Pending |
 | FLOOR-02 | Phase 2 | Pending |

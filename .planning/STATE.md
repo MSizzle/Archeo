@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Plan 01-01 complete — ready for Plan 01-02
-last_updated: "2026-06-29T03:00:11.602Z"
+stopped_at: Plan 01-02 complete — ready for Plan 01-03
+last_updated: "2026-06-29T03:09:11Z"
 last_activity: 2026-06-29
 progress:
   total_phases: 8
   completed_phases: 0
   total_plans: 3
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -26,11 +26,11 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 01 (foundation) — EXECUTING
-Plan: 2 of 3
+Plan: 3 of 3
 Status: Ready to execute
 Last activity: 2026-06-29
 
-Progress: [███░░░░░░░] 33%
+Progress: [██████░░░░] 67%
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [███░░░░░░░] 33%
 
 *Updated after each plan completion*
 | Phase 01-foundation P01 | 5min | 2 tasks | 10 files |
+| Phase 01-foundation P02 | 3min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,13 @@ Phase 01-01 execution decisions:
 - No TypeScript enums in src/ — use as const objects and string union types (native TS stripping limitation)
 - OSS-04 satisfied: Apache-2.0 LICENSE + NOTICE + automated test (3/3 green)
 
+Phase 01-02 execution decisions:
+- Pure helpers (interpretKeypress, decideGateMode) extracted for automated unit testing without TTY
+- ATTESTATION_TEXT write is the first statement of runAuthorizationGate — before every branch (GATE-01/02)
+- allowImportingTsExtensions:true added to tsconfig.json — required for .ts import extensions with moduleResolution:Bundler
+- SIGINT restore registered before setRawMode(true) to prevent broken TTY on Ctrl+C (Pitfall 3)
+- GATE-01/02/03 and D-05 satisfied: 17/17 tests green; no-network guard confirms zero phone-home surface
+
 ### Pending Todos
 
 None yet.
@@ -90,6 +98,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-29T03:00:11.594Z
-Stopped at: Phase 1 context gathered
+Last session: 2026-06-29T03:09:11Z
+Stopped at: Plan 01-02 complete — authorization gate implemented and green (17/17 tests)
 Resume file: None
