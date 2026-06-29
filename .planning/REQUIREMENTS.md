@@ -17,7 +17,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 - [x] **FLOOR-01**: Read-only network interception is on by default — reads pass, writes are held before reaching the server
 - [x] **FLOOR-02**: The floor classifies REST writes by HTTP method
-- [ ] **FLOOR-03**: The floor classifies GraphQL/JSON-RPC by parsed operation — allow `query`/introspection, hold `mutation`
+- [x] **FLOOR-03**: The floor classifies GraphQL/JSON-RPC by parsed operation — allow `query`/introspection, hold `mutation`
 - [ ] **FLOOR-04**: A destructive-GET tripwire holds and confirms GET paths containing destructive tokens (delete, remove, cancel, deactivate, revoke, etc.) rather than auto-firing
 - [x] **FLOOR-05**: Each held mutating request is captured with full method, URL, headers, and body, flagged as a contract-bearing held mutation
 - [x] **FLOOR-06**: The held request is dropped before reaching the server, and a synthetic response shaped from similar observed responses is returned to the browser
@@ -137,7 +137,7 @@ Each requirement maps to exactly one phase.
 | OSS-04 | Phase 1 | Complete |
 | FLOOR-01 | Phase 2 | Complete |
 | FLOOR-02 | Phase 2 | Complete |
-| FLOOR-03 | Phase 2 | Pending |
+| FLOOR-03 | Phase 2 | Complete |
 | FLOOR-04 | Phase 2 | Pending |
 | FLOOR-05 | Phase 2 | Complete |
 | FLOOR-06 | Phase 2 | Complete |
