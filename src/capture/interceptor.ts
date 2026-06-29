@@ -149,7 +149,14 @@ export async function handleRoute(
     store.append(heldRecord);                   // only ever receives redacted record
     store.lastHeldWriteId = id;
 
-    // FLOOR-06: synthetic 2xx response — shaped from prior observed response or minimal fallback
+    // FLOOR-06 / D-03: synthetic 2xx response shaped from the redacted response corpus.
+    // Invariant: syntheticBody is sourced ONLY from store.findSimilarResponse() (which
+    // returns a previously captured, already-redacted response body for the same path)
+    // OR the generic fallback {"status":"ok"}. It is NEVER derived from request.postData()
+    // or any other part of the held request — echoing the request payload back into the
+    // page is explicitly prohibited by D-03. The corpus is populated as a side-effect of
+    // capturing reads (request-response records), so any shape it yields is already
+    // redacted before it can be reused here (CAP-05 invariant preserved end-to-end).
     const syntheticBody = store.findSimilarResponse(path) ?? JSON.stringify({ status: 'ok' });
 
     // FLOOR-01: route.fulfill (not route.fetch) — server is never contacted

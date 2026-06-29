@@ -5,7 +5,11 @@
  *
  * CAP-01: All target traffic written to structured on-disk store.
  * D-01:   JSONL append log + manifest/index. Zero new runtime deps.
- * D-03:   findSimilarResponse() stub — fills in plan 02-02 with actual response corpus.
+ * FLOOR-06 / D-03: responseCorpus Map<string,string> holds the redacted response body
+ *   (JSON.stringify of record.responseBody) for each captured pathname. Populated only
+ *   from request-response records whose responseBody is already redacted (CAP-05 invariant).
+ *   findSimilarResponse(pathname) returns the corpus shape for shaping held-write synthetic
+ *   responses. Never stores raw request payloads — the corpus is read-only from held writes.
  *
  * Store layout (per session):
  *   .archeo/captures/
@@ -30,7 +34,7 @@ import { randomUUID } from 'node:crypto';
 import type { CaptureRecord, CaptureManifest } from '../types/index.ts';
 
 // ---------------------------------------------------------------------------
-// CaptureStore — JSONL append log + session manifest
+// CaptureStore — JSONL append log + session manifest + response corpus
 // ---------------------------------------------------------------------------
 
 /**
@@ -48,6 +52,15 @@ export class CaptureStore {
   private readonly startedAt: string;
   private seq = 0;
   private heldWriteCount = 0;
+
+  /**
+   * In-memory response corpus: pathname → JSON.stringify(record.responseBody).
+   * Populated only from request-response records (reads), never from held-write records.
+   * The corpus stores the REDACTED shape — record.responseBody is already redacted at
+   * call time (CAP-05 invariant enforced at store.append() call sites in interceptor.ts).
+   * FLOOR-06 / D-03: used by findSimilarResponse() to shape synthetic held-write responses.
+   */
+  private readonly responseCorpus: Map<string, string> = new Map();
 
   /** The id of the most recent held-write record. Used by FLOOR-07 dead-end detection. */
   public lastHeldWriteId: string | null = null;
@@ -108,9 +121,15 @@ export class CaptureStore {
 
   /**
    * Append one redacted record to the JSONL log.
-   * Increments the session-scoped seq counter and updates the manifest.
+   * Increments the session-scoped seq counter, updates the manifest, and
+   * — for request-response records with a responseBody — populates the response corpus.
+   *
    * CAP-01: called for every intercepted target-scoped request.
    * CAP-05: callers must redact in-memory BEFORE calling append — never pass raw records.
+   * FLOOR-06 / D-03: corpus is populated here only from request-response records whose
+   *   responseBody is already redacted. Held-write records are excluded (they carry no
+   *   responseBody) — preventing any path by which request payload data could flow into
+   *   the corpus and be echoed back as a synthetic response (D-03 no-echo invariant).
    *
    * @param record  A fully-redacted CaptureRecord (seq field is overwritten by this method)
    */
@@ -121,6 +140,19 @@ export class CaptureStore {
 
     if (record.held) {
       this.heldWriteCount++;
+    }
+
+    // FLOOR-06 / D-03: populate the response corpus from request-response records only.
+    // record.responseBody is already redacted at this point (CAP-05 invariant enforced
+    // by the interceptor before calling store.append). Storing JSON.stringify here
+    // preserves the structural shape for synthetic response shaping without re-exposing
+    // raw values. Held-write records never have a responseBody, so they are excluded.
+    if (
+      record.type === 'request-response' &&
+      record.responseBody !== undefined &&
+      record.responseBody !== null
+    ) {
+      this.responseCorpus.set(record.path, JSON.stringify(record.responseBody));
     }
 
     // Pitfall 6: writeFileSync is synchronous — atomic from the event-loop perspective.
@@ -136,15 +168,20 @@ export class CaptureStore {
   }
 
   /**
-   * Look up a prior observed response body for the given pathname.
-   * Stub in plan 02-01 — the response corpus is populated in plan 02-02.
-   * Used by the interceptor to shape synthetic responses for held writes (D-03).
+   * Look up a prior observed redacted response body for the given pathname.
+   * FLOOR-06 / D-03: returns the corpus shape (already-redacted JSON string) to be used
+   * as the synthetic body for held writes on the same path. Returns undefined when no
+   * prior response has been captured for the path; the interceptor falls back to the
+   * minimal generic success: JSON.stringify({ status: 'ok' }).
    *
-   * @returns Shaped response body string, or undefined if no prior response is known
+   * Exact-path match (Phase 2). Dedup-aware / fuzzy matching is deferred to Phase 3
+   * per CONTEXT.md D-03.
+   *
+   * @param pathname  URL pathname (e.g. '/api/users/1')
+   * @returns Redacted JSON string from corpus, or undefined if not yet captured
    */
-  findSimilarResponse(_pathname: string): string | undefined {
-    // Plan 02-01 stub: no corpus yet. Returns undefined → minimal fallback in interceptor.
-    return undefined;
+  findSimilarResponse(pathname: string): string | undefined {
+    return this.responseCorpus.get(pathname);
   }
 
   // ---------------------------------------------------------------------------
