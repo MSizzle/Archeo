@@ -32,14 +32,18 @@ import { attachInterceptor } from '../capture/interceptor.ts';
 // ---------------------------------------------------------------------------
 
 /**
- * Returns true iff `url` is parseable by the WHATWG URL API (new URL(url)).
+ * Returns true iff `url` is a valid absolute HTTP or HTTPS URL.
  * Called in the CLI action handler before openAndWait so that a malformed URL
  * exits 1 with a clear error message rather than producing a Playwright stack trace.
+ *
+ * WR-03: Restricts to http:/https: only. new URL() also accepts javascript: and
+ * data: URIs which WHATWG considers syntactically valid but which would execute
+ * arbitrary JS in the browser context or navigate away from the intended target.
  */
 export function isValidUrl(url: string): boolean {
   try {
-    new URL(url);
-    return true;
+    const parsed = new URL(url);
+    return parsed.protocol === 'http:' || parsed.protocol === 'https:';
   } catch {
     return false;
   }
