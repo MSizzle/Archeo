@@ -2,9 +2,9 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
-stopped_at: Plan 01-02 complete — authorization gate implemented and green (17/17 tests)
-last_updated: "2026-06-29T04:40:46.968Z"
+status: ready_to_plan
+stopped_at: Phase 01 complete (3/3) — ready to discuss Phase 2
+last_updated: 2026-06-29T04:41:46.463Z
 last_activity: 2026-06-29 -- Phase 01 marked complete
 progress:
   total_phases: 8
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 01 — foundation
+**Current focus:** Phase 2 — capture layer & safety floor
 
 ## Current Position
 
-Phase: 01 — COMPLETE
-Plan: 3 of 3
-Status: Phase 01 complete
-Last activity: 2026-06-29 -- Phase 01 marked complete
+Phase: 2
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-06-29
 
 Progress: [██████████] 100%
 
@@ -36,7 +36,7 @@ Progress: [██████████] 100%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 3
 - Average duration: —
 - Total execution time: 0 hours
 
@@ -44,7 +44,7 @@ Progress: [██████████] 100%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 01 | 3 | - | - |
 
 **Recent Trend:**
 

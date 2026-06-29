@@ -16,15 +16,15 @@ Archeo is an open-source TypeScript tool that autonomously explores a *running* 
 
 <!-- Shipped and confirmed valuable. -->
 
-(None yet — ship to validate)
+- ✓ Authorization gate at startup (attestation before any browser launch; `--i-have-authorization` satisfies it for scripted runs but the attestation still prints; no phone-home) — Phase 1 (GATE-01/02/03)
+- ✓ CLI that opens a target URL in a real Chromium browser and exits cleanly (headed walking skeleton; exits 0 on window-close and Ctrl+C, including mid-load close) — Phase 1 (SC#4)
+- ✓ OSI-approved license shipped (Apache-2.0 + NOTICE, license test) — Phase 1 (OSS-04)
 
 ### Active
 
 <!-- Current scope. Building toward these. All hypotheses until shipped. -->
 
 **Foundation & safety**
-- [ ] Authorization gate at startup (attestation, on by default) before any browser launches; `--i-have-authorization` flag satisfies it for scripted runs but the attestation text still prints
-- [ ] CLI that opens a target URL in a real Chromium browser and exits cleanly
 - [ ] Protocol-aware read-only network floor, on by default: REST classified by method, GraphQL/JSON-RPC by parsed operation, plus a destructive-GET tripwire (hold + confirm)
 - [ ] Held mutating requests captured as first-class artifacts (method, URL, full headers, body), flagged contract-bearing, then dropped with a shaped synthetic response derived from similar observed responses
 - [ ] `--allow-writes` opt-in escape hatch (off by default, loud startup warning) for throwaway sandboxes
@@ -131,4 +131,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 after initialization*
+*Last updated: 2026-06-29 after Phase 1 (Foundation)*
