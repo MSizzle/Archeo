@@ -56,19 +56,45 @@ export function isValidUrl(url: string): boolean {
  */
 export async function openAndWait(url: string): Promise<void> {
   const browser = await chromium.launch({ headless: false });
-  const page = await browser.newPage();
-  await page.goto(url, { waitUntil: 'domcontentloaded' });
+
+  // D-06 / SC#4: Register the disconnected → exit 0 handler BEFORE newPage()/goto().
+  // If the user closes the window (or Ctrl+C kills Chromium) DURING startup — before
+  // navigation settles — this handler fires and exits 0 cleanly. Without it, the
+  // in-flight newPage()/goto() rejects with "Target page, context or browser has been
+  // closed" and Node prints an unhandled-rejection stack trace, exiting 1 instead of 0.
+  browser.on('disconnected', () => process.exit(0));
 
   // D-06 / T-01-10: Handle Ctrl+C by closing the browser cleanly before exit 0.
-  // The handler is an async function because browser.close() is async.
+  // browser.close() is wrapped in try/catch so a Ctrl+C during startup (browser may
+  // already be closing/closed) still exits 0 rather than throwing.
   const sigintHandler = async () => {
-    await browser.close();
+    try {
+      await browser.close();
+    } catch {
+      // Browser already closed/closing — disconnected handler will have run; exit anyway.
+    }
     process.exit(0);
   };
   process.on('SIGINT', sigintHandler);
 
+  // Startup: newPage()/goto() can reject if the browser is closed mid-flight. If the
+  // browser is no longer connected, swallow the rejection — the disconnected handler
+  // above performs the clean exit(0). Only rethrow for genuine errors while still connected.
+  let page;
+  try {
+    page = await browser.newPage();
+    await page.goto(url, { waitUntil: 'domcontentloaded' });
+  } catch (err) {
+    if (!browser.isConnected()) {
+      // Window closed during startup — wait for the disconnected handler to exit 0.
+      await new Promise<void>(() => { /* never resolves; exit happens in handler */ });
+      return;
+    }
+    throw err;
+  }
+
   // Wait until the browser is gone. Primary trigger: browser 'disconnected' event
-  // (reliable in Playwright 1.61.x). Secondary trigger: page 'close' event as a
+  // (already wired above to exit 0). Secondary trigger: page 'close' event as a
   // belt-and-suspenders fallback for platforms where 'disconnected' fires late
   // (Pitfall 5, research A1).
   await new Promise<void>((resolve) => {
