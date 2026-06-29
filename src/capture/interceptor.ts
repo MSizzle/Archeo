@@ -5,10 +5,16 @@
  *
  * FLOOR-01: All target-scoped requests intercepted via context.route(); writes held —
  *           server never contacted for held writes (route.fetch never called).
+ * FLOOR-04: Destructive-GET tripwire — GET paths containing a destructive token are
+ *           held and require an async stdin y/N prompt before firing (plan 02-03).
+ *           Deny → route.abort (server never contacted); confirm → fetch + capture.
  * FLOOR-05: Held writes captured with full method/URL/headers/body, held:true.
  * FLOOR-06: Synthetic 2xx returned for held writes (D-03 best-effort shape).
  * FLOOR-07: Dead-end signal recorded when a 4xx/5xx read follows a held write (D-05).
  * CAP-05:   redact*() called in-memory BEFORE every store.append() call — fail-closed.
+ * T-02-09:  Deny path: route.abort called, route.fetch NOT called.
+ * T-02-10:  Dead-end records: requestBody=null, responseBody=null (no body values).
+ * T-02-11:  Async createInterface.question (no synchronous stdin read — Pitfall 7).
  *
  * No TypeScript enums anywhere in this file (native stripping limitation).
  * Imports only playwright types and node: built-ins — no HTTP client (GATE-03).
@@ -19,10 +25,57 @@
 
 import type { BrowserContext, Route, Request } from 'playwright';
 import { randomUUID } from 'node:crypto';
+import { createInterface } from 'node:readline';
 import { isTargetScope, classifyRequest } from './classifier.ts';
 import { redactHeaders, redactBody } from './redactor.ts';
 import type { CaptureStore } from './store.ts';
 import type { CaptureRecord } from '../types/index.ts';
+
+// ---------------------------------------------------------------------------
+// Destructive-GET confirmation prompt (FLOOR-04, D-04)
+// Uses node:readline — same module as src/cli/gate.ts — to avoid new imports.
+// T-02-11 / Pitfall 7: async createInterface.question holds the route handler
+//   while awaiting stdin; the event loop is NOT blocked between keypresses.
+//   No synchronous stdin read (readSync / readFileSync(0)) is used here.
+// ---------------------------------------------------------------------------
+
+/**
+ * Async stdin prompt asking the user to allow or deny a destructive GET request.
+ * Resolves true only if the user types 'y' (case-insensitive, exact, trimmed).
+ * Any other input — including empty string, Enter, or Ctrl+C (exit) — is treated as No.
+ *
+ * FLOOR-04 / D-04: the CDP route handler awaits this function, keeping the request
+ * pending at the browser level until the user answers. The event loop continues
+ * processing other events while readline waits for stdin (Pitfall 7 safe).
+ *
+ * SIGINT convention from gate.ts (shared pattern 4 from PATTERNS.md):
+ * Register the SIGINT restore handler BEFORE question(), remove it after resolving.
+ *
+ * @param url  The full URL of the destructive GET being held
+ */
+async function confirmDestructiveGet(url: string): Promise<boolean> {
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+
+  // Register SIGINT handler before prompting — gate.ts convention (PATTERNS.md shared pattern 4).
+  // If the user presses Ctrl+C during the prompt, close readline and exit cleanly.
+  const restore = () => {
+    rl.close();
+    process.stdout.write('\n');
+    process.exit(0);
+  };
+  process.once('SIGINT', restore);
+
+  return new Promise<boolean>((resolve) => {
+    rl.question(
+      `\n[archeo] Destructive GET detected: ${url}\nAllow this request? [y/N] `,
+      (answer) => {
+        rl.close();
+        process.off('SIGINT', restore);
+        resolve(answer.trim().toLowerCase() === 'y');
+      },
+    );
+  });
+}
 
 // ---------------------------------------------------------------------------
 // Binary / oversized response guard (Pitfall 5 from RESEARCH.md)
@@ -102,16 +155,19 @@ export async function attachInterceptor(
  *
  * ALWAYS calls one of route.fulfill / route.abort / route.continue (Pitfall 2).
  * ALWAYS calls redact*() before store.append() (CAP-05 fail-closed invariant).
- * NEVER calls route.fetch() on the held path (FLOOR-01).
+ * NEVER calls route.fetch() on the regular held path (FLOOR-01).
  *
- * @param route    Playwright Route object (holds the request at CDP level)
- * @param request  Playwright Request object
- * @param store    CaptureStore — receives one redacted record per call
+ * @param route      Playwright Route object (holds the request at CDP level)
+ * @param request    Playwright Request object
+ * @param store      CaptureStore — receives one redacted record per call
+ * @param confirmFn  Async y/N prompt for destructive GETs — injectable for testing.
+ *                   Defaults to the real terminal prompt (confirmDestructiveGet).
  */
 export async function handleRoute(
   route: Route,
   request: Request,
   store: CaptureStore,
+  confirmFn: (url: string) => Promise<boolean> = confirmDestructiveGet,
 ): Promise<void> {
   // Pitfall 3: use allHeaders() (async) not headers() (sync, excludes cookies).
   const headers = await request.allHeaders();
@@ -123,6 +179,88 @@ export async function handleRoute(
   );
 
   if (cls.held) {
+    // -----------------------------------------------------------------------
+    // FLOOR-04: Destructive-GET tripwire — handle BEFORE regular held-write
+    // -----------------------------------------------------------------------
+    if (cls.destructiveGet) {
+      const dgId = randomUUID();
+      const dgPath = new URL(request.url()).pathname;
+
+      // (1) Append DESTRUCTIVE_GET_HELD record before prompting (audit trail).
+      //     No body — GET requests have no body; redacted headers only.
+      //     T-02-10: CAP-05 invariant preserved — only redacted fields stored.
+      const dgHeldRecord: CaptureRecord = {
+        id: dgId,
+        seq: 0,
+        timestamp: new Date().toISOString(),
+        type: 'destructive-get-held',
+        protocol: cls.protocol,
+        operationType: cls.operationType,
+        method: request.method().toUpperCase(),
+        url: request.url(),
+        path: dgPath,
+        held: true,
+        requestHeaders: redactHeaders(headers),  // CAP-05: redact before append
+        requestBody: null,                        // GET has no body
+      };
+      store.append(dgHeldRecord);
+
+      // (2) Prompt user via async stdin — route held at CDP level during await.
+      //     Pitfall 7: confirmFn uses createInterface.question (async, not blocking).
+      const confirmed = await confirmFn(request.url());
+
+      if (!confirmed) {
+        // Denied: server is never contacted (FLOOR-04 / T-02-09).
+        await route.abort();
+        return;
+      }
+
+      // (3) Confirmed: fetch the real response and capture it.
+      //     Append DESTRUCTIVE_GET_CONFIRMED record (redacted response included).
+      const dgResponse = await route.fetch();
+      const dgRespHeaders = dgResponse.headers();
+      const dgContentType = dgRespHeaders['content-type'] ?? '';
+      const dgContentLength = dgRespHeaders['content-length'];
+
+      // Guard binary/oversized responses (Pitfall 5) — skip body for those
+      let dgResponseBody: unknown | null = null;
+      let dgBodyBuffer: Buffer | undefined;
+      if (!isBinaryResponse(dgContentType, dgContentLength)) {
+        dgBodyBuffer = await dgResponse.body();
+        const dgBodyParsed = tryParseJson(
+          dgContentType.includes('application/json') ? dgBodyBuffer.toString('utf8') : null,
+        );
+        dgResponseBody = redactBody(dgBodyParsed);  // CAP-05: redact before append
+      }
+
+      const dgConfirmedRecord: CaptureRecord = {
+        id: randomUUID(),
+        seq: 0,
+        timestamp: new Date().toISOString(),
+        type: 'destructive-get-confirmed',
+        protocol: cls.protocol,
+        operationType: cls.operationType,
+        method: request.method().toUpperCase(),
+        url: request.url(),
+        path: dgPath,
+        held: false,                                  // confirmed — letting through
+        requestHeaders: redactHeaders(headers),        // CAP-05
+        requestBody: null,                             // GET has no request body
+        responseStatus: dgResponse.status(),
+        responseHeaders: redactHeaders(dgRespHeaders), // CAP-05
+        responseBody: dgResponseBody,                  // redacted (CAP-05)
+      };
+      store.append(dgConfirmedRecord);
+
+      // Forward the real response to the browser
+      if (dgBodyBuffer !== undefined) {
+        await route.fulfill({ response: dgResponse, body: dgBodyBuffer });
+      } else {
+        await route.fulfill({ response: dgResponse });
+      }
+      return;
+    }
+
     // -----------------------------------------------------------------------
     // HELD path: write is blocked — server never contacted (FLOOR-01)
     // -----------------------------------------------------------------------
@@ -204,6 +342,10 @@ export async function handleRoute(
     if (response.status() >= 400 && store.lastHeldWriteId !== null) {
       binaryRecord.relatedHeldWriteId = store.lastHeldWriteId;
       binaryRecord.type = 'dead-end';
+      // T-02-10: dead-end records carry no body values — only safe metadata fields.
+      // The binary responseBody ({_type:'binary',...}) is structural metadata, not
+      // secret data, but we null it for consistency with the dead-end contract.
+      binaryRecord.responseBody = null;
     }
 
     store.append(binaryRecord);
@@ -240,6 +382,11 @@ export async function handleRoute(
   if (response.status() >= 400 && store.lastHeldWriteId !== null) {
     record.relatedHeldWriteId = store.lastHeldWriteId;
     record.type = 'dead-end';
+    // T-02-10: dead-end records carry no body values — threat model requires that
+    // error responses after a held write are recorded as signals only, never as
+    // data sources (CAP-05 invariant; the response could echo mutated state).
+    record.requestBody = null;
+    record.responseBody = null;
   }
 
   store.append(record);  // always receives a fully-redacted record (CAP-05 invariant)
