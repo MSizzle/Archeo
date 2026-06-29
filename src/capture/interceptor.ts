@@ -121,7 +121,9 @@ function tryParseJson(raw: string | null): unknown {
  * FLOOR-01: Every matching request is held at the CDP level until handleRoute resolves.
  * Pitfall 1: context.route (not page.route) intercepts all pages + popups in the context.
  * Pitfall 2: the entire handler is wrapped in try/catch — a throwing handler calls
- *            route.continue() rather than leaving the request pending forever.
+ *            route.abort() rather than leaving the request pending forever. abort() is
+ *            chosen over continue() so an unclassified (possibly mutating) request is
+ *            never forwarded to the server on error (FLOOR-01 / CR-01 fix).
  *
  * @param context         The Playwright browser context to attach the handler to
  * @param targetHostname  Hostname extracted from the target URL (D-02 scope boundary)
@@ -138,8 +140,11 @@ export async function attachInterceptor(
       try {
         await handleRoute(route, request, store);
       } catch {
-        // Pitfall 2: fail-safe wrapper — handler error must not leave request pending
-        await route.continue();
+        // Pitfall 2: fail-safe wrapper — handler error must not leave request pending AND
+        // must not allow an unclassified (possibly mutating) request through to the server.
+        // CR-01: route.abort blocks the request fail-closed; the browser receives a network
+        // error rather than a transparent pass-through of the request (FLOOR-01 invariant).
+        await route.abort();
       }
     },
   );
