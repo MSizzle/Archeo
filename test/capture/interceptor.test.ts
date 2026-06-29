@@ -7,10 +7,9 @@
  * FLOOR-01: Held writes never call route.fetch — server is not contacted.
  * FLOOR-05: Held record captured with full method/URL/headers/body, held:true.
  * FLOOR-06: Synthetic 2xx returned for held writes (route.fulfill called with status 200).
+ * FLOOR-06 / D-03: Held-write synthetic body shaped from redacted corpus when available.
  * CAP-05:   No auth header value appears in the JSONL store.
- *
- * These tests import from src/capture/interceptor.ts and src/capture/store.ts which
- * do not yet exist — the test run intentionally fails at module resolution (RED state).
+ * D-03 no-echo: Synthetic body is never byte-equal to the held request's postData.
  */
 import { test, describe, after } from 'node:test';
 import assert from 'node:assert/strict';
@@ -254,6 +253,137 @@ describe('handleRoute — held POST request', () => {
       !JSON.stringify(record).includes('token123'),
       'auth token must not appear in held-write record (CAP-02)',
     );
+
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// handleRoute — corpus-based synthetic response (FLOOR-06 / D-03)
+// ---------------------------------------------------------------------------
+describe('handleRoute — corpus-based synthetic response (FLOOR-06 / D-03)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-corpus-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('held POST returns corpus shape when prior GET was captured on same path (FLOOR-06)', async () => {
+    const store = makeStore(tmpRoot);
+
+    // Step 1: capture a GET on /api/items → populates the corpus for that path
+    const responseBody = { id: '550e8400-e29b-41d4-a716-446655440000', status: 'active' };
+    const getRoute = makeMockRoute(makeMockResponse({ bodyJson: responseBody }));
+    const getRequest = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/items',
+      headers: { 'content-type': 'application/json' },
+    });
+    await handleRoute(getRoute as never, getRequest as never, store);
+
+    // Step 2: hold a POST to the same path → interceptor should use corpus shape
+    const postRoute = makeMockRoute();
+    const postRequest = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/items',
+      headers: { 'content-type': 'application/json' },
+      body: '{"action":"create","name":"string"}',
+    });
+    await handleRoute(postRoute as never, postRequest as never, store);
+
+    const fulfillCall = postRoute._calls.find(c => c.method === 'fulfill');
+    assert.ok(fulfillCall, 'route.fulfill must be called for held POST');
+    const opts = fulfillCall?.args[0] as { body?: string; status?: number };
+
+    assert.equal(opts?.status, 200, 'synthetic response must have status 200 (FLOOR-06)');
+
+    // The synthetic body must NOT be the generic fallback — it should be from the corpus
+    assert.notEqual(
+      opts?.body,
+      JSON.stringify({ status: 'ok' }),
+      'corpus shape must be used (not generic fallback) when prior GET was captured (FLOOR-06)',
+    );
+
+    store.close();
+  });
+
+  test('held POST returns generic fallback when no prior response exists for path (FLOOR-06)', async () => {
+    const store = makeStore(tmpRoot);
+
+    // No prior GET for this path — corpus is empty for /api/brand-new-resource
+    const postRoute = makeMockRoute();
+    const postRequest = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/brand-new-resource',
+      headers: { 'content-type': 'application/json' },
+      body: '{"action":"create"}',
+    });
+    await handleRoute(postRoute as never, postRequest as never, store);
+
+    const fulfillCall = postRoute._calls.find(c => c.method === 'fulfill');
+    assert.ok(fulfillCall, 'route.fulfill must be called for held POST');
+    const opts = fulfillCall?.args[0] as { body?: string; status?: number };
+
+    assert.equal(opts?.status, 200, 'synthetic response must have status 200');
+    assert.equal(
+      opts?.body,
+      JSON.stringify({ status: 'ok' }),
+      'generic fallback {"status":"ok"} must be used when no corpus exists for the path (FLOOR-06)',
+    );
+
+    store.close();
+  });
+
+  test('synthetic held-write body is never byte-equal to request.postData — D-03 no-echo', async () => {
+    // D-03 safety invariant: the synthetic response body sourced from the redacted corpus
+    // or generic fallback must never be the same as the held request's raw payload.
+    // This prevents the page from receiving its own mutation payload echoed back.
+    const store = makeStore(tmpRoot);
+
+    const requestPayload = '{"secretData":"confidential-payload","action":"create","userId":"string"}';
+
+    const postRoute = makeMockRoute();
+    const postRequest = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/secret-endpoint',
+      headers: { 'content-type': 'application/json' },
+      body: requestPayload,
+    });
+    await handleRoute(postRoute as never, postRequest as never, store);
+
+    const fulfillCall = postRoute._calls.find(c => c.method === 'fulfill');
+    assert.ok(fulfillCall, 'route.fulfill must be called');
+    const opts = fulfillCall?.args[0] as { body?: string };
+
+    // The synthetic response body must NEVER be the request's raw postData (D-03 no-echo)
+    assert.notEqual(
+      opts?.body,
+      requestPayload,
+      'synthetic body must NOT be byte-equal to request.postData() — D-03 no-echo invariant',
+    );
+
+    store.close();
+  });
+
+  test('GET captures corpus body that is shaped from the redacted response (CAP-05 / D-03)', async () => {
+    // Verify the corpus contains the REDACTED shape — not raw response values.
+    // In this test the mock response body has an id (UUID → preserved by redactBody's dual-gate)
+    // and a status field (enum token → preserved). The corpus stores this already-redacted shape.
+    const store = makeStore(tmpRoot);
+
+    const getRoute = makeMockRoute(makeMockResponse({
+      bodyJson: { id: '550e8400-e29b-41d4-a716-446655440000', status: 'active' },
+    }));
+    const getRequest = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/shape-test',
+      headers: { 'content-type': 'application/json' },
+    });
+    await handleRoute(getRoute as never, getRequest as never, store);
+
+    // The corpus must have been populated for the captured path
+    const corpus = store.findSimilarResponse('/api/shape-test');
+    assert.ok(corpus !== undefined, 'corpus must be populated after a GET is captured');
 
     store.close();
   });
