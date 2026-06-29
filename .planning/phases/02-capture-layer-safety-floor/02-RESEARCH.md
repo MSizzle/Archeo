@@ -904,22 +904,25 @@ const mockRoute = (overrides = {}) => {
 
 ---
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Response body size threshold for binary content**
    - What we know: Large binary responses (images, video) would exhaust heap if buffered via `response.body()`.
    - What's unclear: The right threshold (1 MB? 5 MB?) and whether to skip body or truncate.
    - Recommendation: Default to skipping body capture for `content-type` not matching `text/*`, `application/json`, `application/xml`. Add a size check on `content-length` header (if present) as secondary guard. Document as a known gap.
+   - **RESOLVED (plan 02-01 T3):** Skip body capture for non-text content-types; secondary `content-length` guard at ~2MB. Recorded as a known gap.
 
 2. **Dead-end signal reset condition**
    - What we know: D-05 says detect + record. Phase 5 consumes the signal.
    - What's unclear: When to reset `lastHeldWriteId` within a session. Never resetting means any 4xx in the session after the first held write creates dead-end records — potentially noisy.
    - Recommendation: Keep `lastHeldWriteId` set until end of session. Record every 4xx/5xx that follows. Use a `relatedHeldWriteId` field so Phase 5 can group and filter intelligently.
+   - **RESOLVED (plan 02-03 T2):** Keep `lastHeldWriteId` set for the full session (no reset); record every following 4xx/5xx with a `relatedHeldWriteId` field for Phase 5 to filter.
 
 3. **Capture directory location**
    - What we know: D-01 says on-disk, streamable. No path was specified.
    - What's unclear: Where to create `archeo-captures/` — current working directory or XDG data dir?
    - Recommendation: Default to `./archeo-captures/` (cwd relative, visible, easy to find). Phase 6 hardening can add a `--output-dir` flag.
+   - **RESOLVED (plan 02-01 T3):** Default to `.archeo/captures` (cwd relative, gitignored). A `--output-dir` flag is deferred to Phase 6 hardening.
 
 ---
 
