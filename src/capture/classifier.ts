@@ -98,6 +98,7 @@ export function hasDestructiveToken(pathname: string): boolean {
 /**
  * Regex that matches a GraphQL mutation operation keyword at the start of the query string.
  * Leading whitespace is allowed — formatted GraphQL often indents the keyword.
+ * Applied AFTER stripGraphQLComments() so leading `# comment` lines do not block the match.
  */
 const GRAPHQL_MUTATION_RE = /^\s*mutation\b/i;
 
@@ -108,10 +109,28 @@ const GRAPHQL_MUTATION_RE = /^\s*mutation\b/i;
 const GRAPHQL_INTROSPECTION_RE = /__schema\b|__type\b/;
 
 /**
+ * Strip GraphQL line comments (`# ...`) from a query string before operation-type detection.
+ * The GraphQL spec allows `#` comment lines anywhere in a document, including before the
+ * operation keyword. Without stripping them, GRAPHQL_MUTATION_RE anchored to `^` would fail
+ * to match a mutation whose body starts with a `#` comment line (CR-03).
+ *
+ * Uses the `m` flag so `^` and `$` match per-line; `\s*` eats leading whitespace per line.
+ *
+ * @param query  Raw GraphQL query string extracted from the parsed request body
+ */
+function stripGraphQLComments(query: string): string {
+  // Remove lines that are entirely a `# comment` (with optional leading whitespace).
+  // `gm` — global + multiline so `^` matches at the start of each line.
+  return query.replace(/^\s*#[^\n]*/gm, '');
+}
+
+/**
  * Detect the GraphQL operation type from a POST request body.
  * Returns null if the body is not a valid GraphQL request (falls through to JSON-RPC / REST).
  *
  * FLOOR-03: GraphQL queries and introspections pass (held:false); mutations held (held:true).
+ * CR-03:    The query string is stripped of `#` comment lines before regex matching so a
+ *           mutation with a leading comment is correctly classified as held.
  * Pitfall 4: GraphQL-over-GET always has method=GET — the POST guard in classifyRequest
  *            means this function is never called for GET requests. Treating GET GraphQL
  *            as a REST read is safe (GraphQL spec prohibits mutations over GET).
@@ -126,8 +145,11 @@ export function detectGraphQLOperation(body: string | null): 'query' | 'mutation
   if (typeof parsed !== 'object' || parsed === null) return null;
   const { query } = parsed as Record<string, unknown>;
   if (typeof query !== 'string') return null;
-  if (GRAPHQL_INTROSPECTION_RE.test(query)) return 'introspection';
-  if (GRAPHQL_MUTATION_RE.test(query)) return 'mutation';
+  // CR-03: strip `# comment` lines before matching so a mutation with a leading comment
+  // is not misclassified as a query (which would allow it through the floor).
+  const stripped = stripGraphQLComments(query);
+  if (GRAPHQL_INTROSPECTION_RE.test(stripped)) return 'introspection';
+  if (GRAPHQL_MUTATION_RE.test(stripped)) return 'mutation';
   // Shorthand notation (no keyword) and `query { ... }` are always queries (read)
   return 'query';
 }
