@@ -71,7 +71,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — End-to-end skeleton: allowed GET captured+redacted to JSONL store, REST writes held (FLOOR-01/02/05/06, CAP-01..05)
+- [x] 02-01-PLAN.md — End-to-end skeleton: allowed GET captured+redacted to JSONL store, REST writes held (FLOOR-01/02/05/06, CAP-01..05)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -183,7 +183,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
-| 2. Capture Layer & Safety Floor | 0/4 | Planned | - |
+| 2. Capture Layer & Safety Floor | 1/4 | In Progress|  |
 | 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |

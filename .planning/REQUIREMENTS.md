@@ -15,22 +15,22 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Safety Floor
 
-- [ ] **FLOOR-01**: Read-only network interception is on by default — reads pass, writes are held before reaching the server
-- [ ] **FLOOR-02**: The floor classifies REST writes by HTTP method
+- [x] **FLOOR-01**: Read-only network interception is on by default — reads pass, writes are held before reaching the server
+- [x] **FLOOR-02**: The floor classifies REST writes by HTTP method
 - [ ] **FLOOR-03**: The floor classifies GraphQL/JSON-RPC by parsed operation — allow `query`/introspection, hold `mutation`
 - [ ] **FLOOR-04**: A destructive-GET tripwire holds and confirms GET paths containing destructive tokens (delete, remove, cancel, deactivate, revoke, etc.) rather than auto-firing
-- [ ] **FLOOR-05**: Each held mutating request is captured with full method, URL, headers, and body, flagged as a contract-bearing held mutation
-- [ ] **FLOOR-06**: The held request is dropped before reaching the server, and a synthetic response shaped from similar observed responses is returned to the browser
+- [x] **FLOOR-05**: Each held mutating request is captured with full method, URL, headers, and body, flagged as a contract-bearing held mutation
+- [x] **FLOOR-06**: The held request is dropped before reaching the server, and a synthetic response shaped from similar observed responses is returned to the browser
 - [ ] **FLOOR-07**: When the app errors past a held write, that state is treated as a dead end and the agent backtracks to the last good state
 - [ ] **FLOOR-08**: A single `--allow-writes` flag disables interception (off by default, loud unmissable startup warning when on)
 
 ### Capture Store & Redaction
 
-- [ ] **CAP-01**: All network traffic is intercepted and written to a structured on-disk capture store (method, URL, request headers/body, response status/headers/body)
-- [ ] **CAP-02**: Structural stripping removes auth headers, cookies, and bearer tokens by field — no pattern matching required
-- [ ] **CAP-03**: For any field not on a small structural allowlist (ids, enums, status flags, types, timestamps), the value is discarded and only the inferred type is kept
-- [ ] **CAP-04**: Header names and structure survive redaction even after secret values are stripped (the auth/versioning shape is preserved)
-- [ ] **CAP-05**: Redaction fails closed — it never persists values it cannot classify as structurally safe
+- [x] **CAP-01**: All network traffic is intercepted and written to a structured on-disk capture store (method, URL, request headers/body, response status/headers/body)
+- [x] **CAP-02**: Structural stripping removes auth headers, cookies, and bearer tokens by field — no pattern matching required
+- [x] **CAP-03**: For any field not on a small structural allowlist (ids, enums, status flags, types, timestamps), the value is discarded and only the inferred type is kept
+- [x] **CAP-04**: Header names and structure survive redaction even after secret values are stripped (the auth/versioning shape is preserved)
+- [x] **CAP-05**: Redaction fails closed — it never persists values it cannot classify as structurally safe
 - [ ] **CAP-06**: (Phase 6, opt-in) An optional local-model pass catches residual values in fields that must keep their values — an enhancement on top of the already-safe floor, never a replacement for it
 
 ### Spec Generator
@@ -135,18 +135,18 @@ Each requirement maps to exactly one phase.
 | GATE-02 | Phase 1 | Complete (01-02) |
 | GATE-03 | Phase 1 | Complete (01-02 gate side, 01-03 browser side) |
 | OSS-04 | Phase 1 | Complete |
-| FLOOR-01 | Phase 2 | Pending |
-| FLOOR-02 | Phase 2 | Pending |
+| FLOOR-01 | Phase 2 | Complete |
+| FLOOR-02 | Phase 2 | Complete |
 | FLOOR-03 | Phase 2 | Pending |
 | FLOOR-04 | Phase 2 | Pending |
-| FLOOR-05 | Phase 2 | Pending |
-| FLOOR-06 | Phase 2 | Pending |
+| FLOOR-05 | Phase 2 | Complete |
+| FLOOR-06 | Phase 2 | Complete |
 | FLOOR-07 | Phase 2 | Pending |
-| CAP-01 | Phase 2 | Pending |
-| CAP-02 | Phase 2 | Pending |
-| CAP-03 | Phase 2 | Pending |
-| CAP-04 | Phase 2 | Pending |
-| CAP-05 | Phase 2 | Pending |
+| CAP-01 | Phase 2 | Complete |
+| CAP-02 | Phase 2 | Complete |
+| CAP-03 | Phase 2 | Complete |
+| CAP-04 | Phase 2 | Complete |
+| CAP-05 | Phase 2 | Complete |
 | SPEC-01 | Phase 3 | Pending |
 | SPEC-02 | Phase 3 | Pending |
 | SPEC-03 | Phase 3 | Pending |
