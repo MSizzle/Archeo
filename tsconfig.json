@@ -6,6 +6,7 @@
     "strict": true,
     "noEmit": true,
     "lib": ["ES2022"],
+    "types": ["node"],
     "skipLibCheck": true
   },
   "include": ["src/**/*", "test/**/*"]
