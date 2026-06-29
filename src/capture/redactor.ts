@@ -7,6 +7,8 @@
  * CAP-03: Non-allowlisted field values replaced with inferred type name.
  * CAP-04: Header names and structure always survive redaction.
  * CAP-05: Fail closed — unclassifiable values are NEVER persisted as originals.
+ * CR-02:  redactUrl() masks sensitive query-string parameter values so no raw
+ *         secret reaches the JSONL capture store (called at all record sites).
  *
  * Dual-gate rule (D-06): a field value is kept only when BOTH the key matches a
  * safe category AND the value matches an expected structural shape. One gate failing
@@ -18,6 +20,39 @@
 
 // No TypeScript enums anywhere in this file (native stripping limitation).
 // Use: export const FOO = { A: 'a', B: 'b' } as const; export type Foo = typeof FOO[keyof typeof FOO];
+
+// ---------------------------------------------------------------------------
+// redactUrl — CR-02: mask sensitive query-string parameter values before storing
+// ---------------------------------------------------------------------------
+
+/**
+ * Regex matching query-parameter names that commonly carry auth secrets.
+ * Case-insensitive; uses a single pattern with alternation.
+ * CR-02 / CAP-05: fail-closed — any param name matching this pattern has its value
+ * replaced with '[REDACTED]' before the URL is written to the JSONL capture store.
+ */
+const SENSITIVE_QUERY_PARAMS_RE =
+  /^(access.?token|api.?key|token|auth|secret|session|credential|password|key|sig|signature|bearer)$/i;
+
+/**
+ * Pure: replace the values of sensitive query-string parameters with '[REDACTED]'.
+ * Returns the sanitised URL string. If the input is not a valid URL, returns it unchanged
+ * (fail-open for URL structure, fail-closed for any recognisable auth param).
+ *
+ * CR-02 / CAP-05: must be called on every URL before it is written to a CaptureRecord.
+ *
+ * @param rawUrl  Full URL string (e.g. 'https://api.example.com/items?access_token=abc')
+ */
+export function redactUrl(rawUrl: string): string {
+  let u: URL;
+  try { u = new URL(rawUrl); } catch { return rawUrl; }
+  for (const name of Array.from(u.searchParams.keys())) {
+    if (SENSITIVE_QUERY_PARAMS_RE.test(name)) {
+      u.searchParams.set(name, '[REDACTED]');
+    }
+  }
+  return u.toString();
+}
 
 // ---------------------------------------------------------------------------
 // AUTH_HEADER_BLOCKLIST — CAP-02: auth header names to strip (lowercase, exact match)

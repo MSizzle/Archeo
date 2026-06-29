@@ -27,7 +27,7 @@ import type { BrowserContext, Route, Request } from 'playwright';
 import { randomUUID } from 'node:crypto';
 import { createInterface } from 'node:readline';
 import { isTargetScope, classifyRequest } from './classifier.ts';
-import { redactHeaders, redactBody } from './redactor.ts';
+import { redactHeaders, redactBody, redactUrl } from './redactor.ts';
 import type { CaptureStore } from './store.ts';
 import type { CaptureRecord } from '../types/index.ts';
 
@@ -202,7 +202,7 @@ export async function handleRoute(
         protocol: cls.protocol,
         operationType: cls.operationType,
         method: request.method().toUpperCase(),
-        url: request.url(),
+        url: redactUrl(request.url()),            // CR-02: mask auth query params
         path: dgPath,
         held: true,
         requestHeaders: redactHeaders(headers),  // CAP-05: redact before append
@@ -246,7 +246,7 @@ export async function handleRoute(
         protocol: cls.protocol,
         operationType: cls.operationType,
         method: request.method().toUpperCase(),
-        url: request.url(),
+        url: redactUrl(request.url()),                // CR-02: mask auth query params
         path: dgPath,
         held: false,                                  // confirmed — letting through
         requestHeaders: redactHeaders(headers),        // CAP-05
@@ -282,7 +282,7 @@ export async function handleRoute(
       protocol: cls.protocol,
       operationType: cls.operationType,
       method: request.method().toUpperCase(),
-      url: request.url(),
+      url: redactUrl(request.url()),            // CR-02: mask auth query params
       path,
       held: true,
       requestHeaders: redactHeaders(headers),   // CAP-05: redact before append
@@ -333,7 +333,7 @@ export async function handleRoute(
       protocol: cls.protocol,
       operationType: cls.operationType,
       method: request.method().toUpperCase(),
-      url: request.url(),
+      url: redactUrl(request.url()),            // CR-02: mask auth query params
       path: new URL(request.url()).pathname,
       held: false,
       requestHeaders: redactHeaders(headers),
@@ -373,7 +373,7 @@ export async function handleRoute(
     protocol: cls.protocol,
     operationType: cls.operationType,
     method: request.method().toUpperCase(),
-    url: request.url(),
+    url: redactUrl(request.url()),                       // CR-02: mask auth query params
     path: new URL(request.url()).pathname,
     held: false,
     requestHeaders: redactHeaders(headers),              // CAP-05
