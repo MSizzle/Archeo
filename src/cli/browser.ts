@@ -74,13 +74,25 @@ export function isValidUrl(url: string): boolean {
 export async function openAndWait(url: string, store?: CaptureStore): Promise<void> {
   const browser = await chromium.launch({ headless: false });
 
+  // WR-04: Guard all store.close() calls with a single idempotent wrapper.
+  // On SIGINT the sequence is: sigintHandler→store.close()→browser.close()→disconnected→
+  // store.close(). Without the guard, the second close() calls WriteStream.end() on an
+  // already-ended stream, which may emit 'write after end'. The flag makes every path safe.
+  let storeClosed = false;
+  const closeStore = (): void => {
+    if (!storeClosed) {
+      storeClosed = true;
+      store?.close();
+    }
+  };
+
   // D-06 / SC#4: Register the disconnected → exit 0 handler BEFORE newContext()/newPage().
   // If the user closes the window (or Ctrl+C kills Chromium) DURING startup — before
   // navigation settles — this handler fires and exits 0 cleanly. Without it, the
   // in-flight newPage()/goto() rejects with "Target page, context or browser has been
   // closed" and Node prints an unhandled-rejection stack trace, exiting 1 instead of 0.
   browser.on('disconnected', () => {
-    store?.close(); // flush JSONL stream on browser disconnect
+    closeStore(); // WR-04: idempotent — safe to call even if sigintHandler already closed
     process.exit(0);
   });
 
@@ -88,7 +100,7 @@ export async function openAndWait(url: string, store?: CaptureStore): Promise<vo
   // browser.close() is wrapped in try/catch so a Ctrl+C during startup (browser may
   // already be closing/closed) still exits 0 rather than throwing.
   const sigintHandler = async () => {
-    store?.close(); // flush JSONL stream on SIGINT
+    closeStore(); // WR-04: idempotent close — disconnected handler will also call closeStore
     try {
       await browser.close();
     } catch {
@@ -116,7 +128,7 @@ export async function openAndWait(url: string, store?: CaptureStore): Promise<vo
   } catch (err) {
     if (!browser.isConnected()) {
       // Window closed during startup — wait for the disconnected handler to exit 0.
-      store?.close();
+      closeStore(); // WR-04: idempotent
       await new Promise<void>(() => { /* never resolves; exit happens in handler */ });
       return;
     }
@@ -134,7 +146,7 @@ export async function openAndWait(url: string, store?: CaptureStore): Promise<vo
 
   // Browser closed by the user — flush the capture store, remove SIGINT handler
   // to prevent process hang (T-01-10), then exit cleanly with code 0 (D-06).
-  store?.close();
+  closeStore(); // WR-04: idempotent
   process.off('SIGINT', sigintHandler);
   process.exit(0);
 }
