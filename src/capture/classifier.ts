@@ -10,6 +10,11 @@
  *           GraphQL mutation → held:true.
  *           JSON-RPC read prefix → pass (held:false).
  *           JSON-RPC write/ambiguous → held:true (fail-closed).
+ * FLOOR-04: Destructive-GET token detection (plan 02-03).
+ *           GET whose path contains a destructive token → held:true, destructiveGet:true.
+ *           Token set (D-04): delete, remove, cancel, deactivate, revoke, purge, reset.
+ *           Word-boundary match (\b) — partial matches (e.g. 'deleteaccount') do not trip.
+ *           RESEARCH Assumption A1: token list not exhaustive; user-editable config deferred.
  * D-02:     isTargetScope filters to target origin + subdomains only; third-party
  *           traffic is never intercepted and never written to the store.
  *
@@ -50,6 +55,38 @@ const REST_READS = new Set(['GET', 'HEAD', 'OPTIONS', 'CONNECT', 'TRACE']);
 export function isTargetScope(url: URL, targetHostname: string): boolean {
   const h = url.hostname;
   return h === targetHostname || h.endsWith('.' + targetHostname);
+}
+
+// ---------------------------------------------------------------------------
+// Destructive-GET token detection (FLOOR-04)
+// Source: D-04 decision in 02-CONTEXT.md; token set defined as a code constant.
+// RESEARCH Assumption A1: the list covers common destructive verbs; user-editable
+//   config is explicitly deferred per CONTEXT.md §Deferred.
+// ---------------------------------------------------------------------------
+
+/**
+ * Regex that matches destructive-action tokens in a URL pathname.
+ * \b word-boundary anchors prevent partial matches (e.g. 'deleteaccount' does not match).
+ * D-04 token set: delete, remove, cancel, deactivate, revoke, purge, reset.
+ * Case-insensitive — matches DELETE, Delete, delete, etc.
+ */
+const DESTRUCTIVE_TOKENS_RE = /\b(delete|remove|cancel|deactivate|revoke|purge|reset)\b/i;
+
+/**
+ * Pure: returns true iff the URL pathname contains a destructive-action token
+ * surrounded by word boundaries (FLOOR-04, D-04).
+ *
+ * Only the pathname is checked — tokens in the hostname, query string, or
+ * fragment do not trigger this guard (path-only check, deliberate by design).
+ *
+ * RESEARCH Assumption A1: the D-04 token set covers common destructive verbs but
+ * is not exhaustive (e.g. /archive, /suspend do not match). This is a documented
+ * Phase 2 scope limitation; user-editable config is deferred to a later phase.
+ *
+ * @param pathname  URL pathname string (e.g. '/api/users/123/delete')
+ */
+export function hasDestructiveToken(pathname: string): boolean {
+  return DESTRUCTIVE_TOKENS_RE.test(pathname);
 }
 
 // ---------------------------------------------------------------------------
@@ -161,7 +198,7 @@ export function detectJsonRpcType(body: string | null): 'read' | 'write' | null 
  */
 export function classifyRequest(
   method: string,
-  _url: string,
+  url: string,
   headers: Record<string, string>,
   body: string | null,
 ): RequestClassification {
@@ -199,13 +236,18 @@ export function classifyRequest(
   // -------------------------------------------------------------------------
   // FLOOR-01/02: REST classification by HTTP method (fail-closed for all
   // non-read methods including POST that didn't match GraphQL/JSON-RPC above).
+  // FLOOR-04: Destructive-GET detection — a GET whose pathname contains a
+  //   destructive token is also held (and flagged destructiveGet:true) even
+  //   though GET is normally a read. The interceptor uses this flag to prompt
+  //   the user before allowing the request to fire.
   // -------------------------------------------------------------------------
-  const held = !REST_READS.has(upperMethod);
+  const isRead = REST_READS.has(upperMethod);
+  const destructiveGet = isRead && upperMethod === 'GET' && hasDestructiveToken(new URL(url).pathname);
 
   return {
     protocol: 'REST',
-    operationType: held ? 'mutation' : 'read',
-    held,
-    destructiveGet: false,
+    operationType: isRead ? 'read' : 'mutation',
+    held: !isRead || destructiveGet,  // held for writes OR for destructive GETs
+    destructiveGet,
   };
 }
