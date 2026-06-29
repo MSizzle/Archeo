@@ -62,7 +62,9 @@ const FORBIDDEN_TOKENS = [
   "from 'https'",
   'axios',
   'undici',
-  'got',
+  // Match the `got` npm package in import contexts (e.g. from 'got', require('got'), import('got'))
+  // but NOT Playwright's page.goto() method. The quoted form only matches package name strings.
+  "'got'",
 ];
 
 describe('GATE-03: no outbound network surface in src/', () => {
