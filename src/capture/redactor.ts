@@ -146,15 +146,21 @@ export function inferType(value: unknown): string {
  *   1. The key matches a safe category (id, type, status, *_at, count/page/limit/offset)
  *   2. The value matches the expected structural shape for that category
  *
+ * Special cases:
+ *   - null  → null (WR-05: null carries no secret and preserves nullable field shape)
+ *   - array → inferType(value) ('array') — arrays are handled recursively by redactBody
+ *
  * In all other cases, returns inferType(value) — fail-closed (CAP-05).
  *
  * @param key   Field name (used for key-category matching)
  * @param value Field value (checked against the category's shape detector)
  */
 export function redactValue(key: string, value: unknown): unknown {
-  // Null and array short-circuit — no safe category allows these at the top level
-  // (arrays are handled recursively by redactBody; null is returned as-is for nullable ids)
-  if (value === null) return 'null';
+  // WR-05: null is safe (carries no secret) and preserves the nullable-id field shape.
+  // Previously returned the string 'null', which caused downstream schema reconstruction
+  // to see 'string' instead of null for nullable fields — distorting the inferred API model.
+  // Arrays are handled recursively by redactBody (no key context at item level).
+  if (value === null) return null;
   if (Array.isArray(value)) return inferType(value);
 
   for (const category of SAFE_CATEGORIES) {
@@ -189,7 +195,8 @@ export function redactHeaders(headers: Record<string, string>): Record<string, s
  * Pure: recursively redact an arbitrary request or response body.
  *
  * Rules:
- *   - null → 'null' (redacted placeholder, not null)
+ *   - null (top-level) → null (safe; preserves nullable body shape — early return)
+ *   - null (field value inside an object) → redactValue(key, null) → null (WR-05)
  *   - Array → each element is recursively redacted (index has no key context)
  *   - Object → each key-value pair is redacted via redactValue
  *   - Primitive (string, number, boolean at top level) → inferType(value)
