@@ -298,7 +298,7 @@ export async function handleRoute(
     };
 
     store.append(heldRecord);                   // only ever receives redacted record
-    store.lastHeldWriteId = id;
+    store.recordHeldWrite(id);                  // WR-06: encapsulated mutator
 
     // FLOOR-06 / D-03: synthetic 2xx response shaped from the redacted response corpus.
     // Invariant: syntheticBody is sourced ONLY from store.findSimilarResponse() (which
@@ -359,6 +359,7 @@ export async function handleRoute(
       // The binary responseBody ({_type:'binary',...}) is structural metadata, not
       // secret data, but we null it for consistency with the dead-end contract.
       binaryRecord.responseBody = null;
+      store.clearLastHeldWriteId(); // WR-02: reset so subsequent unrelated errors are not mislinked
     }
 
     store.append(binaryRecord);
@@ -400,6 +401,7 @@ export async function handleRoute(
     // data sources (CAP-05 invariant; the response could echo mutated state).
     record.requestBody = null;
     record.responseBody = null;
+    store.clearLastHeldWriteId(); // WR-02: reset so subsequent unrelated errors are not mislinked
   }
 
   store.append(record);  // always receives a fully-redacted record (CAP-05 invariant)

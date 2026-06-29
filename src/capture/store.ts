@@ -62,8 +62,33 @@ export class CaptureStore {
    */
   private readonly responseCorpus: Map<string, string> = new Map();
 
-  /** The id of the most recent held-write record. Used by FLOOR-07 dead-end detection. */
-  public lastHeldWriteId: string | null = null;
+  /**
+   * The id of the most recent held-write record. Used by FLOOR-07 dead-end detection.
+   * WR-06: backing field is private; exposed via read-only getter + dedicated mutators
+   * to prevent accidental corruption from outside this class.
+   */
+  private _lastHeldWriteId: string | null = null;
+
+  /** Read-only accessor for FLOOR-07 dead-end detection in interceptor.ts. */
+  public get lastHeldWriteId(): string | null { return this._lastHeldWriteId; }
+
+  /**
+   * Record the id of the most recently appended held-write record.
+   * Called by the interceptor immediately after store.append(heldRecord).
+   * WR-06: replaces direct public field mutation.
+   */
+  public recordHeldWrite(id: string): void {
+    this._lastHeldWriteId = id;
+  }
+
+  /**
+   * Clear the last-held-write linkage after a dead-end record has been appended.
+   * WR-02: ensures only the immediately following 4xx/5xx after a held write is
+   * tagged as a dead-end; subsequent unrelated error responses are not mislinked.
+   */
+  public clearLastHeldWriteId(): void {
+    this._lastHeldWriteId = null;
+  }
 
   /** Read-only path to the session directory (for tests and diagnostics). */
   public get dir(): string { return this.sessionDir; }
