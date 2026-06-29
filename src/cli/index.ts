@@ -29,26 +29,40 @@ cli
   .command('<url>', 'Analyze a running web application')
   .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
   .action(async (url: string, opts: { iHaveAuthorization?: boolean }) => {
-    // GATE-01 ordering: gate runs before any browser code (T-01-09).
-    // This is the first statement in the action handler — verifiable by source inspection.
-    await runAuthorizationGate(opts.iHaveAuthorization ?? false);
+    // WR-07: cac.parse() does not await the action's returned Promise. Wrap the entire
+    // async body in try/catch so any rejection that surfaces AFTER an await (e.g.
+    // runAuthorizationGate or openAndWait throwing) produces a clean user-facing error
+    // message rather than an unhandled promise rejection and a raw stack trace.
+    try {
+      // GATE-01 ordering: gate runs before any browser code (T-01-09).
+      // This is the first statement in the action handler — verifiable by source inspection.
+      await runAuthorizationGate(opts.iHaveAuthorization ?? false);
 
-    // V5 / T-01-07: validate URL before handing to Playwright so a malformed input
-    // exits 1 with a clear message rather than a Playwright stack trace.
-    if (!isValidUrl(url)) {
-      process.stderr.write(
-        `archeo: invalid URL — ${url}\n` +
-        `  URLs must be absolute (e.g. https://example.com).\n`
-      );
+      // V5 / T-01-07: validate URL before handing to Playwright so a malformed input
+      // exits 1 with a clear message rather than a Playwright stack trace.
+      if (!isValidUrl(url)) {
+        process.stderr.write(
+          `archeo: invalid URL — ${url}\n` +
+          `  URLs must be absolute (e.g. https://example.com).\n`
+        );
+        process.exit(1);
+      }
+
+      // CAP-01: Create a session-scoped capture store before opening the browser.
+      // The store is passed to openAndWait so the interceptor can append records.
+      // Store lives under .archeo/captures/ (gitignored — T-02-05).
+      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
+
+      await openAndWait(url, store);
+    } catch (err) {
+      // Surface async action rejections as user-friendly error messages (WR-07).
+      // Without this, Node.js emits an unhandledRejection warning and — in newer
+      // versions — exits with code 1 and a raw stack trace instead of this message.
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`);
+      }
       process.exit(1);
     }
-
-    // CAP-01: Create a session-scoped capture store before opening the browser.
-    // The store is passed to openAndWait so the interceptor can append records.
-    // Store lives under .archeo/captures/ (gitignored — T-02-05).
-    const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
-
-    await openAndWait(url, store);
   });
 
 cli.help();
