@@ -66,6 +66,14 @@ async function confirmDestructiveGet(url: string): Promise<boolean> {
   process.once('SIGINT', restore);
 
   return new Promise<boolean>((resolve) => {
+    // WR-01: If stdin is closed or non-interactive before question() can invoke its
+    // callback, the interface emits 'close' without calling the callback. Guard with
+    // a 'close' listener that resolves false (deny — fail-closed) so the route is
+    // never left pending forever on a non-TTY or redirected stdin.
+    rl.once('close', () => {
+      process.off('SIGINT', restore);
+      resolve(false); // interface closed without answer → deny (fail-closed)
+    });
     rl.question(
       `\n[archeo] Destructive GET detected: ${url}\nAllow this request? [y/N] `,
       (answer) => {
