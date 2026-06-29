@@ -103,7 +103,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [ ] **OSS-01**: README with setup, BYO-key instructions, and the safety model explained plainly
 - [ ] **OSS-02**: Example specs generated against demo apps in `examples/`
 - [ ] **OSS-03**: Contributor docs and a clear statement of what is in and out of scope
-- [ ] **OSS-04**: OSI-approved license
+- [x] **OSS-04**: OSI-approved license
 
 ## v2 Requirements
 
@@ -134,7 +134,7 @@ Each requirement maps to exactly one phase.
 | GATE-01 | Phase 1 | Pending |
 | GATE-02 | Phase 1 | Pending |
 | GATE-03 | Phase 1 | Pending |
-| OSS-04 | Phase 1 | Pending |
+| OSS-04 | Phase 1 | Complete |
 | FLOOR-01 | Phase 2 | Pending |
 | FLOOR-02 | Phase 2 | Pending |
 | FLOOR-03 | Phase 2 | Pending |
