@@ -7,12 +7,14 @@
  * FLOOR-02: REST classified by HTTP method — all non-read methods held fail-closed.
  * FLOOR-03: GraphQL queries/introspections pass; mutations held fail-closed.
  *           JSON-RPC reads pass; writes and ambiguous methods held fail-closed.
+ * FLOOR-04: Destructive-GET token detection — held:true, destructiveGet:true.
  * D-02:     isTargetScope filters to target origin + subdomains only.
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import {
   classifyRequest,
+  hasDestructiveToken,
   isTargetScope,
   detectGraphQLOperation,
   detectJsonRpcType,
@@ -380,5 +382,113 @@ describe('classifyRequest — GraphQL and JSON-RPC dispatch (FLOOR-03)', () => {
     );
     assert.equal(result.held, true, 'PUT is always held as REST regardless of body (FLOOR-01/02)');
     assert.equal(result.protocol, 'REST');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// hasDestructiveToken — FLOOR-04: destructive-GET token detection
+// ---------------------------------------------------------------------------
+describe('hasDestructiveToken', () => {
+  test('returns true for path containing /delete (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/users/123/delete'), true);
+  });
+
+  test('returns true for path containing /remove (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/items/remove'), true);
+  });
+
+  test('returns true for path containing /cancel (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/orders/456/cancel'), true);
+  });
+
+  test('returns true for path containing /deactivate (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/account/deactivate'), true);
+  });
+
+  test('returns true for path containing /revoke (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/settings/revoke'), true);
+  });
+
+  test('returns true for path containing /purge (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/cache/purge'), true);
+  });
+
+  test('returns true for path containing /reset (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/password/reset'), true);
+  });
+
+  test('returns false for ordinary path without destructive token (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/users/123'), false);
+  });
+
+  test('returns false for path with word that merely contains a token as substring — word-boundary guard (FLOOR-04)', () => {
+    // 'deleteaccount' contains 'delete' but the \b boundary prevents a match
+    // because 'a' follows 'delete' (a word char, so no boundary).
+    assert.equal(hasDestructiveToken('/api/deleteaccount'), false);
+  });
+
+  test('token match is case-insensitive (FLOOR-04)', () => {
+    assert.equal(hasDestructiveToken('/api/users/123/DELETE'), true);
+    assert.equal(hasDestructiveToken('/settings/Revoke'), true);
+    assert.equal(hasDestructiveToken('/api/account/DEACTIVATE'), true);
+  });
+
+  test('does not match unlisted tokens — A1: token list is not exhaustive for edge cases', () => {
+    // RESEARCH Assumption A1: the D-04 token set covers common destructive verbs.
+    // Unlisted tokens (e.g. archive, suspend, trash) do not trip the wire.
+    // This is a documented scope limitation, not a bug — user-editable config is deferred.
+    assert.equal(hasDestructiveToken('/api/documents/archive'), false);
+    assert.equal(hasDestructiveToken('/api/users/123/suspend'), false);
+    assert.equal(hasDestructiveToken('/api/items/trash'), false);
+  });
+
+  test('matches token preceded by hyphen (non-word boundary variant) (FLOOR-04)', () => {
+    // '/api/delete-all' — '-' is a non-word char, so \b matches before and after 'delete'
+    assert.equal(hasDestructiveToken('/api/delete-all'), true);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// classifyRequest — FLOOR-04: destructive-GET classification
+// ---------------------------------------------------------------------------
+describe('classifyRequest — destructive GET detection (FLOOR-04)', () => {
+  test('GET with /delete in path: held:true and destructiveGet:true (FLOOR-04)', () => {
+    const result = classifyRequest('GET', 'https://example.com/api/users/123/delete', {}, null);
+    assert.equal(result.held, true, 'destructive GET must be held (FLOOR-04)');
+    assert.equal(result.destructiveGet, true, 'destructiveGet must be true');
+    assert.equal(result.protocol, 'REST');
+  });
+
+  test('GET with /revoke in path: held:true and destructiveGet:true (FLOOR-04)', () => {
+    const result = classifyRequest('GET', 'https://example.com/settings/revoke', {}, null);
+    assert.equal(result.held, true, 'destructive GET must be held');
+    assert.equal(result.destructiveGet, true);
+  });
+
+  test('GET with /cancel in path: held:true and destructiveGet:true (FLOOR-04)', () => {
+    const result = classifyRequest('GET', 'https://example.com/api/orders/99/cancel', {}, null);
+    assert.equal(result.held, true);
+    assert.equal(result.destructiveGet, true);
+  });
+
+  test('ordinary GET without destructive token: held:false and destructiveGet:false (FLOOR-01)', () => {
+    const result = classifyRequest('GET', 'https://example.com/api/users/123', {}, null);
+    assert.equal(result.held, false, 'ordinary GET must pass (FLOOR-01)');
+    assert.equal(result.destructiveGet, false);
+  });
+
+  test('destructive token in hostname does NOT trigger — path-only detection (FLOOR-04)', () => {
+    // hasDestructiveToken checks only the pathname; hostname token must not trip the wire
+    const result = classifyRequest('GET', 'https://delete.example.com/api/users', {}, null);
+    assert.equal(result.held, false, 'token in hostname must not trigger (path-only check)');
+    assert.equal(result.destructiveGet, false);
+  });
+
+  test('POST to destructive-looking path is still held as REST mutation (FLOOR-01/02)', () => {
+    // POST is held by the REST method check regardless of the destructive-GET flag
+    const result = classifyRequest('POST', 'https://example.com/api/delete', {}, null);
+    assert.equal(result.held, true, 'POST is always held');
+    // destructiveGet is GET-only by definition
+    assert.equal(result.destructiveGet, false, 'destructiveGet is GET-only (FLOOR-04)');
   });
 });
