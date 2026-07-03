@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Scaffold, authorization gate, CLI opens target URL and exits cleanly (completed 2026-06-29)
 - [x] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server (completed 2026-07-03)
-- [ ] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing
+- [x] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing (completed 2026-07-03)
 - [ ] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials
 - [ ] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard
 - [ ] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run
@@ -120,7 +120,7 @@ Plans:
 
 **Wave 5** *(gap closure from buildability findings)*
 
-- [ ] 03-05-PLAN.md — Spec-quality gap closure: grouping split, type normalization, envelope unwrap, granular coverage (SPEC-01/03/04/07)
+- [x] 03-05-PLAN.md — Spec-quality gap closure: grouping split, type normalization, envelope unwrap, granular coverage (SPEC-01/03/04/07)
 
 ### Phase 4: Authentication Handoff
 
@@ -205,7 +205,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
-| 3. Spec Generator + Buildability Proof | 4/4 (+03-05 gap closure pending) | In progress | - |
+| 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 plan 03-04 complete (BUILD-01 PASS) — 03-05 gap closure pending before phase close
-last_updated: "2026-07-03T13:30:00.000Z"
+stopped_at: Phase 3 complete (03-05 gap closure landed) — ready for Phase 4 Authentication Handoff
+last_updated: "2026-07-03T14:30:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
-  completed_phases: 2
-  total_plans: 7
-  completed_plans: 11
-  percent: 32
+  completed_phases: 3
+  total_plans: 8
+  completed_plans: 12
+  percent: 38
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 02 complete — ready for Phase 3 planning (spec-generator + buildability proof)
+**Current focus:** Phase 03 complete — ready for Phase 4 (Authentication Handoff)
 
 ## Current Position
 
-Phase: 03 (spec-generator-buildability) — IN PROGRESS
-Plan: 4 of 4 — done (03-04 buildability proof, BUILD-01 PASS, verified autonomously)
-Next: 03-05 — gap closure (generator defects surfaced by the buildability proof); phase NOT closed until 03-05 lands
-Status: 03-04 complete (2026-07-03); 03-05 gap-closure plan pending
+Phase: 03 (spec-generator-buildability) — COMPLETE
+Plan: 5 of 5 — all done (03-05 gap closure complete 2026-07-03)
+Next: Phase 4 — Authentication Handoff
+Status: Phase 3 complete (2026-07-03)
 Last activity: 2026-07-03
 
-Progress: [████████░░] 4/4 planned plans done; 03-05 gap closure pending
+Progress: [██████████] 5/5 plans done; Phase 3 complete
 
 ## Performance Metrics
 
@@ -63,6 +63,7 @@ Progress: [████████░░] 4/4 planned plans done; 03-05 gap clo
 | Phase 03-spec-generator-buildability P02 | 45min | 4 tasks | 10 files |
 | Phase 03-spec-generator-buildability P03 | 45min | 4 tasks | 8 files |
 | Phase 03-spec-generator-buildability P04 | ~3h (3 stages) | 3 tasks | 11 files |
+| Phase 03-spec-generator-buildability P05 | ~25min | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,18 @@ Phase 03-04 execution decisions:
   before the crash (SSE counts climbed 0→19 endpoints over 27 record events); raw SSE transcript was
   lost — the driver's printed checks are the surviving evidence and the run is reproducible.
 
+Phase 03-05 execution decisions:
+
+- Grouping key changed to ${protocol}:${method}:${groupId}:${operationType}:${held} — operationType and held are now part of the key so reads and mutations on the same path are never merged
+- JSON-RPC grouped by rpcMethod (groupId = rpcMethod ?? tpath), paralleling GraphQL's graphqlOperationName pattern
+- extractGraphQLIdentifier: named op → name; anonymous → first selection field after opening brace
+- extractRpcMethod: reads jsonrpc=2.0 + method string from raw postData (pre-redaction); CAP-05 ordering unchanged
+- normalizeFieldType classifies UUID/datetime/email/url patterns into semantic type keywords; carries value as field.example
+- normalizeShapeLeaves applied to all responseBodyShape/requestBodyShape in generateSpec before inferDataModels
+- isJsonRpcEnvelope detects {jsonrpc,...} or {result,id,...} shapes and skips them in inferDataModels (no noise models)
+- detectListEnvelope detects {items|data|results:[...]} and models the first element, not the envelope
+- buildCoverage now emits one knownGaps entry per held template (per-endpoint precision); recordBreakdown added to Coverage
+
 Phase 02-04 execution decisions:
 
 - 02-04 (live floor verification) was verified AUTONOMOUSLY per explicit user directive, replacing the
@@ -171,13 +184,7 @@ Phase 02-04 execution decisions:
 
 ### Pending Todos
 
-03-05 gap closure (generator fixes from the buildability proof's spec-quality findings):
-
-- Templater grouping key must include operationType + held (stop merging reads with held writes on shared paths)
-- Anonymous-GraphQL operationName fallback (extract from query text when the operationName field is absent)
-- Type normalization in the generator (emit type names — uuid/datetime/number — never observed values; stop mixing literals and type keywords in responseBodyShape)
-- Per-endpoint knownGaps (list the specific held endpoints affected instead of one coarse bucket)
-- List-envelope unwrap heuristic (Item model captured {total, items} envelope instead of the element shape)
+None. Phase 3 complete. Ready for Phase 4 planning (Authentication Handoff).
 
 ### Blockers/Concerns
 
