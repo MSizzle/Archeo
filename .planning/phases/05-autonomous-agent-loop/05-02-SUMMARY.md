@@ -88,3 +88,5 @@ This proves: hallucinated ref → rejected by vocabulary guard → re-prompted o
 ## Deviations
 
 None — plan executed exactly as written. All source files follow the CLAUDE.md TypeScript conventions (no enums, as const, .ts import extensions throughout). GATE-03 no-network test passes (src/agent/ files contain no outbound network surface; `import type { Page } from 'playwright'` is a type-only import and 'playwright' is not in FORBIDDEN_TOKENS).
+
+One post-execution docs correction (commit `0dcae1b`): the STATE.md "Current focus" line still read "next 05-02" after the docs commit; corrected to "05-02 complete; next 05-03". No code or plan-scope change.
