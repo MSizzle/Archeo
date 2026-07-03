@@ -86,6 +86,57 @@ async function confirmDestructiveGet(url: string): Promise<boolean> {
 }
 
 // ---------------------------------------------------------------------------
+// Schema-level identifier extraction (03-05: CAP-05 safe — reads schema keys only)
+// ---------------------------------------------------------------------------
+
+/**
+ * Extract the GraphQL operation name or first selection field from a raw query string.
+ * Pre-redaction: only the schema-level identifier is read — never a field value.
+ * CAP-05: the body is still fully redacted before store.append().
+ *
+ * 1. Named op:    `query GetProfile { ... }` → 'GetProfile'
+ * 2. Anonymous:   `query { me { ... } }`    → 'me'  (first top-level selection field)
+ * 3. Mutation:    `mutation { updateProfile(...) }` → 'updateProfile'
+ */
+function extractGraphQLIdentifier(body: string | null): string | undefined {
+  if (!body) return undefined;
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { return undefined; }
+  if (typeof parsed !== 'object' || parsed === null) return undefined;
+  const query = (parsed as Record<string, unknown>)['query'];
+  if (typeof query !== 'string') return undefined;
+
+  // Strip # comments (reuse CR-03 pattern from classifier.ts)
+  const stripped = query.replace(/^\s*#[^\n]*/gm, '');
+
+  // 1. Named operation: query/mutation/subscription followed by an identifier
+  const namedMatch = /^\s*(?:query|mutation|subscription)\s+(\w+)/i.exec(stripped);
+  if (namedMatch) return namedMatch[1];
+
+  // 2. Anonymous operation: find first top-level selection field name
+  // Find the opening brace (after optional query/mutation keyword), then first identifier
+  const bodyMatch = /\{[\s,]*(\w+)/.exec(stripped);
+  if (bodyMatch) return bodyMatch[1];
+
+  return undefined;
+}
+
+/**
+ * Extract the JSON-RPC method name from a raw request body.
+ * Pre-redaction: only the method string (a schema-level identifier) is read.
+ * CAP-05: the body is still fully redacted before store.append().
+ */
+function extractRpcMethod(body: string | null): string | undefined {
+  if (!body) return undefined;
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { return undefined; }
+  if (typeof parsed !== 'object' || parsed === null) return undefined;
+  const rec = parsed as Record<string, unknown>;
+  if (rec['jsonrpc'] !== '2.0' || typeof rec['method'] !== 'string') return undefined;
+  return rec['method'] as string;
+}
+
+// ---------------------------------------------------------------------------
 // Binary / oversized response guard (Pitfall 5 from RESEARCH.md)
 // ---------------------------------------------------------------------------
 
@@ -281,6 +332,11 @@ export async function handleRoute(
     const path = new URL(request.url()).pathname;
     const rawBody = tryParseJson(request.postData());
 
+    // Extract schema-level identifiers PRE-redaction (CAP-05: only schema keys, never values)
+    const rawPostData = request.postData();
+    const gqlIdentifierHeld = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(rawPostData) : undefined;
+    const rpcMethodHeld = cls.protocol === 'JSON-RPC' ? extractRpcMethod(rawPostData) : undefined;
+
     // CAP-05: redact in-memory BEFORE store.append — never persist raw values
     const heldRecord: CaptureRecord = {
       id,
@@ -295,6 +351,8 @@ export async function handleRoute(
       held: true,
       requestHeaders: redactHeaders(headers),   // CAP-05: redact before append
       requestBody: redactBody(rawBody),          // CAP-05: redact before append
+      ...(gqlIdentifierHeld !== undefined ? { graphqlOperationName: gqlIdentifierHeld } : {}),
+      ...(rpcMethodHeld !== undefined ? { rpcMethod: rpcMethodHeld } : {}),
     };
 
     store.append(heldRecord);                   // only ever receives redacted record
@@ -374,6 +432,11 @@ export async function handleRoute(
   );
   const rawRequestBody = tryParseJson(request.postData());
 
+  // Extract schema-level identifiers PRE-redaction (CAP-05: only schema keys, never values)
+  const rawPostDataAllowed = request.postData();
+  const gqlIdentifierAllowed = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(rawPostDataAllowed) : undefined;
+  const rpcMethodAllowed = cls.protocol === 'JSON-RPC' ? extractRpcMethod(rawPostDataAllowed) : undefined;
+
   const record: CaptureRecord = {
     id: randomUUID(),
     seq: 0,
@@ -390,6 +453,8 @@ export async function handleRoute(
     responseStatus: response.status(),
     responseHeaders: redactHeaders(responseHeaders),     // CAP-05
     responseBody: redactBody(responseBodyParsed),        // CAP-05
+    ...(gqlIdentifierAllowed !== undefined ? { graphqlOperationName: gqlIdentifierAllowed } : {}),
+    ...(rpcMethodAllowed !== undefined ? { rpcMethod: rpcMethodAllowed } : {}),
   };
 
   // FLOOR-07: dead-end detection — 4xx/5xx read after a held write (D-05)
