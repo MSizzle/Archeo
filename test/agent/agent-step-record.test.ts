@@ -222,3 +222,96 @@ describe('spec generator ignores agent-step records (no double-counting)', () =>
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// source field on appendAgentStep (06-02 Task 2)
+// D6-02: skipped steps carry source:'policy'; model steps carry source:'model' or nothing.
+// ---------------------------------------------------------------------------
+describe('store.appendAgentStep — source field (06-02)', () => {
+  test('source:"policy" is written as agentSource:"policy" in the JSONL record', async () => {
+    const root = tmpDir()
+    try {
+      const store = CaptureStore.create(root, 'app.example.com')
+      store.appendAgentStep({
+        action: 'navigate',
+        reasoning: 'policy: no meaningful change since last model call — exercising ref 1',
+        stateSignature: 'sig-abc',
+        stepIndex: 2,
+        source: 'policy',
+      })
+      await store.close()
+      const records = readJsonl(store.dir)
+      assert.equal(records.length, 1)
+      const r = records[0]
+      assert.equal(r.type, RECORD_TYPES.AGENT_STEP)
+      assert.equal((r as Record<string, unknown>).agentSource, 'policy', 'agentSource must be "policy" when source is provided')
+      assert.equal(r.held, false, 'held must remain false')
+      assert.equal(r.requestBody, null, 'no requestBody for agent-step')
+      assert.equal(r.responseBody, undefined, 'no responseBody for agent-step')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test('source:"model" is written as agentSource:"model"', async () => {
+    const root = tmpDir()
+    try {
+      const store = CaptureStore.create(root, 'app.example.com')
+      store.appendAgentStep({
+        action: 'click',
+        reasoning: 'clicked the submit button',
+        stateSignature: 'sig-xyz',
+        stepIndex: 0,
+        source: 'model',
+      })
+      await store.close()
+      const records = readJsonl(store.dir)
+      const r = records[0]
+      assert.equal((r as Record<string, unknown>).agentSource, 'model', 'agentSource must be "model"')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test('source omitted → agentSource absent from the record (backwards compat)', async () => {
+    const root = tmpDir()
+    try {
+      const store = CaptureStore.create(root, 'app.example.com')
+      store.appendAgentStep({
+        action: 'click',
+        reasoning: 'legacy call without source',
+        stateSignature: 'sig-legacy',
+        stepIndex: 0,
+        // no source field
+      })
+      await store.close()
+      const records = readJsonl(store.dir)
+      const r = records[0]
+      // agentSource should be absent (undefined) — not 'undefined' string, not null
+      assert.ok(!('agentSource' in r) || (r as Record<string, unknown>).agentSource === undefined,
+        'agentSource must be absent when source is not provided')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+
+  test('source:"policy" does not populate the response corpus or increment heldWriteCount', async () => {
+    const root = tmpDir()
+    try {
+      const store = CaptureStore.create(root, 'app.example.com')
+      store.appendAgentStep({
+        action: 'navigate',
+        reasoning: 'policy step',
+        stateSignature: 'sig',
+        stepIndex: 0,
+        source: 'policy',
+      })
+      // corpus stays empty — agent-step carries no responseBody (CAP-05 invariant)
+      assert.equal(store.findSimilarResponse(''), undefined, 'corpus must be untouched by a policy step')
+      const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'))
+      assert.equal(manifest.heldWriteCount, 0, 'heldWriteCount must not change for a policy step')
+    } finally {
+      rmSync(root, { recursive: true, force: true })
+    }
+  })
+})

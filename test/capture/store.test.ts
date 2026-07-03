@@ -368,3 +368,37 @@ describe('CaptureStore — close() Promise semantics (03-02, D3-04)', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// CaptureStore.recordModelCallsSkipped (06-02 Task 2)
+// ---------------------------------------------------------------------------
+describe('CaptureStore — recordModelCallsSkipped (06-02)', () => {
+  const tmpRoot2 = mkdtempSync(join(tmpdir(), 'archeo-store-skipcnt-test-'));
+
+  after(() => {
+    rmSync(tmpRoot2, { recursive: true, force: true });
+  });
+
+  test('recordModelCallsSkipped writes modelCallsSkipped into manifest.json', () => {
+    const store = CaptureStore.create(tmpRoot2, 'example.com');
+    store.recordModelCallsSkipped(7);
+    const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.modelCallsSkipped, 7, 'manifest must contain modelCallsSkipped after call');
+    store.close();
+  });
+
+  test('recordModelCallsSkipped with 0 writes 0 (not absent)', () => {
+    const store = CaptureStore.create(tmpRoot2, 'example.com');
+    store.recordModelCallsSkipped(0);
+    const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.modelCallsSkipped, 0, 'zero skips must still be written');
+    store.close();
+  });
+
+  test('manifest without recordModelCallsSkipped has no modelCallsSkipped field', () => {
+    const store = CaptureStore.create(tmpRoot2, 'example.com');
+    const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'));
+    assert.ok(!('modelCallsSkipped' in manifest), 'manifest must not have modelCallsSkipped before the call');
+    store.close();
+  });
+});
