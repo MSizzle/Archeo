@@ -1,0 +1,245 @@
+/**
+ * src/dashboard/server.ts
+ *
+ * Localhost SSE dashboard server (D3-05, D13, DASH-01/02/03).
+ *
+ * Security: node:http ONLY for serving — no outbound client calls.
+ *   - Binds 127.0.0.1 explicitly (loopback only, T-03-09).
+ *   - Never uses http.request or http.get (GATE-03 dashboard-scoped guard).
+ *   - SSE events carry only already-redacted aggregates/shapes (T-03-10).
+ *   - Observer + per-record SSE push wrapped in try/catch (T-03-12).
+ *
+ * GATE-03: node:http is the ONLY inbound-server import allowed under src/dashboard/.
+ * All outbound surfaces (http.request, http.get, node:https, axios, undici, got,
+ * bare fetch) remain forbidden here and everywhere in src/.
+ *
+ * No TypeScript enums anywhere in this file (native stripping limitation).
+ */
+
+// No TypeScript enums anywhere in this file (native stripping limitation).
+// Use: export const FOO = { A: 'a', B: 'b' } as const; ...
+
+import http from 'node:http';
+import type { IncomingMessage, ServerResponse } from 'node:http';
+import { templatePath } from '../spec/templater.ts';
+import { renderPage } from './page.ts';
+import type { CaptureStore } from '../capture/store.ts';
+import type { CaptureRecord } from '../types/index.ts';
+
+// ---------------------------------------------------------------------------
+// DashboardSnapshot — aggregate shape pushed to SSE clients
+// ---------------------------------------------------------------------------
+
+/** Aggregate snapshot broadcast on SSE connect and after every record append. */
+interface DashboardSnapshot {
+  records: number;
+  endpoints: number;
+  dataModels: number;
+  states: number;
+  heldWrites: number;
+  /** Last MAX_RECENT_ENDPOINTS endpoints, most-recent last. */
+  recentEndpoints: Array<{ method: string; pathTemplate: string; held: boolean }>;
+}
+
+const MAX_RECENT_ENDPOINTS = 10;
+
+// ---------------------------------------------------------------------------
+// startDashboard — start the loopback HTTP server (DASH-01)
+// ---------------------------------------------------------------------------
+
+/**
+ * Start the localhost-only dashboard server and subscribe to the capture store.
+ *
+ * - Binds `127.0.0.1` explicitly (loopback only, T-03-09 / GATE-03).
+ * - GET / serves the inline HTML/JS page (renderPage()).
+ * - GET /events serves SSE: full snapshot on connect + one event per appended record.
+ * - store.onRecord drives incremental aggregates and per-record SSE push (DASH-02/03).
+ *
+ * INBOUND ONLY: this server never makes outbound calls. It does not import
+ * http.request, http.get, node:https, axios, undici, got, or bare fetch.
+ *
+ * @param store  Running CaptureStore; its onRecord hook drives the aggregates.
+ * @param opts   Optional { port } — default is 0 (OS-assigned free port).
+ * @returns      Resolved with { port, close() } once the server is listening.
+ */
+export function startDashboard(
+  store: CaptureStore,
+  opts?: { port?: number },
+): Promise<{ port: number; close(): Promise<void> }> {
+  // ---------------------------------------------------------------------------
+  // In-memory aggregates (DASH-02: counts climb as discovery progresses)
+  // ---------------------------------------------------------------------------
+
+  let records = 0;
+  let heldWrites = 0;
+
+  // Endpoint dedup key: `${method} ${templatePath(path)} ${protocol}`
+  const endpointKeys = new Set<string>();
+
+  // Distinct resource names inferred from non-placeholder path segments → dataModels count.
+  // This is an incremental, cheap heuristic — the full inference lives in the spec generator.
+  const dataModelNames = new Set<string>();
+
+  // UI state names from navigation records (templatePath of the nav path).
+  const stateNames = new Set<string>();
+
+  // Recent endpoints: sliding window of MAX_RECENT_ENDPOINTS items, most-recent last.
+  const recentEndpoints: Array<{ method: string; pathTemplate: string; held: boolean }> = [];
+
+  // ---------------------------------------------------------------------------
+  // SSE client management
+  // ---------------------------------------------------------------------------
+
+  /** All currently connected SSE response objects. */
+  const clients = new Set<ServerResponse>();
+
+  function buildSnapshot(): DashboardSnapshot {
+    return {
+      records,
+      endpoints: endpointKeys.size,
+      dataModels: dataModelNames.size,
+      states: stateNames.size,
+      heldWrites,
+      recentEndpoints: recentEndpoints.slice(-MAX_RECENT_ENDPOINTS),
+    };
+  }
+
+  /** Write one SSE event to a single client response. Ignores write errors (client closed). */
+  function writeEvent(res: ServerResponse, eventName: string, payload: unknown): void {
+    try {
+      res.write(`event: ${eventName}\ndata: ${JSON.stringify(payload)}\n\n`);
+    } catch {
+      // Client socket closed — the 'close' event on the request will remove it
+    }
+  }
+
+  /** Broadcast the current snapshot as a 'record' event to all connected clients. */
+  function broadcastRecord(): void {
+    const snap = buildSnapshot();
+    for (const client of clients) {
+      writeEvent(client, 'record', snap);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // onRecord subscription — one SSE event per record, no batching (DASH-03)
+  // ---------------------------------------------------------------------------
+
+  store.onRecord((record: CaptureRecord) => {
+    // Belt-and-suspenders: wrap in try/catch in addition to Task 1's per-observer guard.
+    // A dashboard aggregate failure must never propagate to the capture session (T-03-12).
+    try {
+      records++;
+
+      if (record.held) heldWrites++;
+
+      const recType = (record.type as string);
+
+      if (recType === 'navigation') {
+        // Navigation record → UI state (feeds SPEC-05 / DASH-02 states count)
+        const tpath = templatePath(record.path);
+        stateNames.add(tpath);
+      } else {
+        // request-response or held-write → endpoint aggregate
+        const tpath = templatePath(record.path);
+        const epKey = `${record.method} ${tpath} ${record.protocol}`;
+        const isNew = !endpointKeys.has(epKey);
+        endpointKeys.add(epKey);
+
+        if (isNew) {
+          // Infer data model name: last non-placeholder path segment, lowercased.
+          // e.g. /api/users/{id} → 'users'; /api/posts → 'posts'
+          const segments = tpath.split('/').filter((s) => s && !s.startsWith('{'));
+          const lastSeg = segments[segments.length - 1];
+          if (lastSeg) dataModelNames.add(lastSeg.toLowerCase());
+
+          // Update recent endpoints sliding window
+          recentEndpoints.push({ method: record.method, pathTemplate: tpath, held: record.held });
+          if (recentEndpoints.length > MAX_RECENT_ENDPOINTS) {
+            recentEndpoints.shift();
+          }
+        }
+      }
+
+      // One SSE event per record — no batching (DASH-03: time-to-first-magic)
+      broadcastRecord();
+    } catch (e) {
+      process.stderr.write(
+        `[archeo] dashboard aggregate error: ${e instanceof Error ? e.message : String(e)}\n`,
+      );
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // HTTP server — inbound only, loopback bind
+  // ---------------------------------------------------------------------------
+
+  const server = http.createServer((req: IncomingMessage, res: ServerResponse) => {
+    if (req.method === 'GET' && req.url === '/') {
+      // Serve the inline dashboard page (no static files, no bundler, D13)
+      const html = renderPage();
+      const len = Buffer.byteLength(html, 'utf8');
+      res.writeHead(200, {
+        'Content-Type': 'text/html; charset=utf-8',
+        'Content-Length': len,
+      });
+      res.end(html);
+      return;
+    }
+
+    if (req.method === 'GET' && req.url === '/events') {
+      // SSE endpoint (DASH-01, DASH-03)
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        'Connection': 'keep-alive',
+      });
+
+      // Push the current snapshot immediately on connect (DASH-03: no batching)
+      writeEvent(res, 'snapshot', buildSnapshot());
+
+      // Register client; remove on disconnect
+      clients.add(res);
+      req.on('close', () => {
+        clients.delete(res);
+      });
+      return;
+    }
+
+    res.writeHead(404);
+    res.end('Not Found');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Listen on 127.0.0.1 (loopback only, T-03-09 / GATE-03 structural assertion)
+  // ---------------------------------------------------------------------------
+
+  return new Promise((resolve) => {
+    server.listen(opts?.port ?? 0, '127.0.0.1', () => {
+      const addr = server.address() as { port: number };
+      const port = addr.port;
+
+      resolve({
+        port,
+
+        /**
+         * Gracefully close the dashboard server.
+         * Ends all open SSE client responses, then closes the server.
+         * Wrapped so a close failure cannot block the capture session exit (T-03-12).
+         */
+        close(): Promise<void> {
+          return new Promise((res, rej) => {
+            // End all connected SSE clients before closing the server
+            for (const client of clients) {
+              try { client.end(); } catch { /* ignore socket errors */ }
+            }
+            clients.clear();
+            server.close((err) => {
+              if (err) rej(err); else res();
+            });
+          });
+        },
+      });
+    });
+  });
+}
