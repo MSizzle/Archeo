@@ -29,6 +29,7 @@
 // Use: export const FOO = { A: 'a', B: 'b' } as const; export type Foo = typeof FOO[keyof typeof FOO];
 
 import { createWriteStream, writeFileSync, mkdirSync } from 'node:fs';
+import type { WriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { CaptureRecord, CaptureManifest } from '../types/index.ts';
@@ -43,7 +44,7 @@ import type { CaptureRecord, CaptureManifest } from '../types/index.ts';
  * CAP-01: every intercepted target-scoped request produces one JSONL line.
  */
 export class CaptureStore {
-  private readonly stream: ReturnType<typeof createWriteStream>;
+  private readonly stream: WriteStream;
   private readonly sessionDir: string;
   private readonly logPath: string;
   private readonly manifestPath: string;
@@ -52,6 +53,14 @@ export class CaptureStore {
   private readonly startedAt: string;
   private seq = 0;
   private heldWriteCount = 0;
+
+  /**
+   * WR-04 / D3-04: idempotent-close guard.
+   * Set to true by close() on first call. A second close() resolves immediately
+   * without calling stream.end() again (which would throw 'write after end').
+   * The Promise<void> is stored so all callers await the same flush.
+   */
+  private closePromise: Promise<void> | null = null;
 
   /**
    * In-memory response corpus: pathname → JSON.stringify(record.responseBody).
@@ -186,10 +195,28 @@ export class CaptureStore {
   }
 
   /**
-   * Close the JSONL write stream. Call this when the browser session ends so buffers flush.
+   * Close the JSONL write stream and return a Promise that resolves when the stream
+   * has fully flushed ('finish' event). Idempotent: a second call resolves immediately
+   * without throwing 'write after end' (WR-04 guard).
+   *
+   * D3-04: the returned Promise is awaited in browser.ts gracefulShutdown() so that
+   * spec auto-generation runs AFTER the store has fully flushed.
+   * The Promise also resolves on 'error' so a stream failure cannot hang shutdown.
+   *
+   * @returns Promise<void> that resolves on stream 'finish' (or 'error' on failure)
    */
-  close(): void {
-    this.stream.end();
+  close(): Promise<void> {
+    // WR-04: idempotent — if already closing/closed, return the same promise
+    if (this.closePromise !== null) return this.closePromise;
+
+    this.closePromise = new Promise<void>((resolve) => {
+      // Resolve on 'finish' (normal flush) OR 'error' (failure — so shutdown can't hang)
+      this.stream.once('finish', () => resolve());
+      this.stream.once('error', () => resolve()); // T-03-06: error must not block exit
+      this.stream.end();
+    });
+
+    return this.closePromise;
   }
 
   /**
