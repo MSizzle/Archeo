@@ -237,3 +237,45 @@ describe('CaptureStore — response corpus (FLOOR-06 / D-03)', () => {
     store.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// CaptureStore.close() → Promise<void> (Task 4, plan 03-02)
+// WR-04: idempotent — a second close() must not throw 'write after end'.
+// ---------------------------------------------------------------------------
+describe('CaptureStore — close() Promise semantics (03-02, D3-04)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-store-close-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('store.close() returns a thenable (Promise<void>) that resolves (D3-04)', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    store.append(makeRecord());
+
+    // close() must return a Promise (thenable)
+    const result = store.close();
+    assert.ok(result !== null && typeof result === 'object' && typeof (result as Promise<void>).then === 'function',
+      'store.close() must return a Promise (thenable)');
+
+    // Awaiting it must resolve without throwing
+    await assert.doesNotReject(
+      async () => { await result; },
+      'store.close() Promise must resolve without throwing',
+    );
+  });
+
+  test('second store.close() resolves immediately without "write after end" error (WR-04 idempotent)', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440010' }));
+
+    // First close
+    await store.close();
+
+    // Second close must also resolve without throwing (idempotent)
+    await assert.doesNotReject(
+      async () => { await store.close(); },
+      'second store.close() must not throw (idempotent — WR-04)',
+    );
+  });
+});
