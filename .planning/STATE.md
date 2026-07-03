@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 — 04-01 complete (persistent profile + login handoff); ready for 04-02 (clear-session + AUTH-03 hygiene)
-last_updated: "2026-07-03T16:00:00.000Z"
+stopped_at: Phase 4 — 04-02 complete (clear-session + AUTH-03 hygiene suite); ready for 04-03 (autonomous live verification + phase close)
+last_updated: "2026-07-03T18:30:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 8
-  completed_plans: 13
-  percent: 40
+  completed_plans: 14
+  percent: 42
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 04 (authentication-handoff) — IN PROGRESS
-Plan: 1 of 3 — 04-01 complete (2026-07-03); 04-02 next
-Next: 04-02 — `archeo clear-session` + AUTH-03 hygiene suite
-Status: 04-01 complete (persistent profile + login handoff landed)
+Plan: 2 of 3 — 04-02 complete (2026-07-03); 04-03 next
+Next: 04-03 — autonomous live verification (login-walled target, four-stage proof) + phase close
+Status: 04-02 complete (`archeo clear-session` + AUTH-03 hygiene suite landed; full suite 398/398)
 Last activity: 2026-07-03
 
-Progress: [████░░░░░░] 1/3 plans done; Phase 4 in progress
+Progress: [███████░░░] 2/3 plans done; Phase 4 in progress
 
 ## Performance Metrics
 
@@ -64,6 +64,7 @@ Progress: [████░░░░░░] 1/3 plans done; Phase 4 in progress
 | Phase 03-spec-generator-buildability P03 | 45min | 4 tasks | 8 files |
 | Phase 03-spec-generator-buildability P04 | ~3h (3 stages) | 3 tasks | 11 files |
 | Phase 03-spec-generator-buildability P05 | ~25min | 4 tasks | 8 files |
+| Phase 04-authentication-handoff P02 | ~35min (incl. crash/resume) | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -192,9 +193,19 @@ Phase 04-01 execution decisions:
 - `void profileDir;` in login.ts acknowledges the required import from ./profile.ts without an unused-variable warning while keeping the module capture-free.
 - login command registered BEFORE '<url>' in index.ts so cac parses it as a named subcommand (same pattern as 'spec')
 
+Phase 04-02 execution decisions:
+
+- resolveProfilePath has TWO containment guards: a PRE-sanitization check on the raw hostname (required so '../../etc' THROWS per the acceptance criterion — sanitizeHostname alone would neutralize it into a safe segment and the post-sanitization check could never fire) plus the plan's post-sanitization check as belt-and-suspenders. Both throw BEFORE any rmSync.
+- clearOneSession/clearAllSessions use rmSync({recursive:true, force:true}); existsSync recorded BEFORE deletion drives the { deleted: [path] | [] } return so the CLI prints exactly what was removed; absent targets are silent no-ops (idempotent, exit 0).
+- clear-session registered BEFORE '<url>' (named-subcommand pattern shared with 'spec'/'login'); action is synchronous, gate-free, browser-free (D4-05) — pinned by source-inspection test slicing the action block for runAuthorizationGate/openAndWait/openForLogin.
+- clear-session CLI spawn tests run with a TEMP cwd so relative PROFILES_ROOT ('.archeo/profiles') resolves under tmpdir — a test run can never delete the repo's real profiles.
+- AUTH-03 hygiene suite pins: '.archeo/' line in .gitignore (tripwire; no .gitignore edit made); no '.archeo/profiles'/'PROFILES_ROOT' token in src/capture/ or src/spec/; browser.ts passes profileDirPath only to launchPersistentContext and never calls CaptureStore.create; writeSpec over a synthetic fixture emits no profiles-path substring; sanitizeHostname property battery (16 hostile inputs) never yields a traversal segment.
+- Task 3 delivered as a single test(04-02) commit (pure standing-assertion suite — no feature code exists for a GREEN commit).
+- Flake fix (out-of-plan, documented): interceptor.test.ts's 15 fixed 50ms flush sleeps replaced with `await store.close()` (deterministic 'finish'-event flush, WR-04 idempotent) after the plan's added test files raised parallel load and exposed the race (~1 in 4 full-suite runs). Suite verified stable across 4 consecutive 398/398 runs.
+
 ### Pending Todos
 
-None for 04-01. Next: 04-02 (`archeo clear-session` + AUTH-03 hygiene suite).
+None for 04-02. Next: 04-03 (autonomous live verification + phase close).
 
 ### Blockers/Concerns
 

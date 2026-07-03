@@ -143,7 +143,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-02-PLAN.md — `archeo clear-session <url|--all>` (idempotent, path-escape refusal) + AUTH-03 hygiene suite (AUTH-03)
+- [x] 04-02-PLAN.md — `archeo clear-session <url|--all>` (idempotent, path-escape refusal) + AUTH-03 hygiene suite (AUTH-03) (completed 2026-07-03)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
-| 4. Authentication Handoff | 1/3 | In progress | - |
+| 4. Authentication Handoff | 2/3 | In progress | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
