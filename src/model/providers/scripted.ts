@@ -14,7 +14,7 @@
  * NEVER imports from the capture or spec layers.
  * No outbound network surface of any kind, no key — safe for offline CI.
  */
-import type { ChatMessage, ChatContentPart, Provider } from '../types.ts'
+import type { ChatMessage, ChatContentPart, Provider, ChatResult } from '../types.ts'
 
 /**
  * Decide the next action from a machine-readable observation envelope.
@@ -138,27 +138,34 @@ function contentToText(content: string | ChatContentPart[]): string {
 export function createScriptedProvider(_opts?: { seed?: number }): Provider {
   return {
     id: 'scripted',
-    async chat(messages: ChatMessage[]): Promise<string> {
+    async chat(messages: ChatMessage[]): Promise<ChatResult> {
+      const zeroUsage = { inputTokens: 0, outputTokens: 0 }
       // Find the last user message
       const lastUser = [...messages].reverse().find((m) => m.role === 'user')
       if (!lastUser) {
-        return JSON.stringify({
-          action: 'done',
-          reasoning: 'scripted: no user message found',
-        })
+        return {
+          text: JSON.stringify({
+            action: 'done',
+            reasoning: 'scripted: no user message found',
+          }),
+          usage: zeroUsage,
+        }
       }
 
       const text = contentToText(lastUser.content)
       const envelope = extractLastJsonObject(text)
 
       if (envelope === null) {
-        return JSON.stringify({
-          action: 'done',
-          reasoning: 'scripted: no observation envelope found in user message',
-        })
+        return {
+          text: JSON.stringify({
+            action: 'done',
+            reasoning: 'scripted: no observation envelope found in user message',
+          }),
+          usage: zeroUsage,
+        }
       }
 
-      return JSON.stringify(decideScriptedAction(envelope))
+      return { text: JSON.stringify(decideScriptedAction(envelope)), usage: zeroUsage }
     },
   }
 }

@@ -24,13 +24,25 @@ export interface ChatMessage {
   content: string | ChatContentPart[]
 }
 
+/** Token usage returned by a single provider.chat() call. */
+export interface TokenUsage {
+  inputTokens: number
+  outputTokens: number
+}
+
+/** Result of a single provider.chat() call — text reply plus token usage. */
+export interface ChatResult {
+  text: string
+  usage: TokenUsage
+}
+
 /**
  * Provider transport contract. Implemented by anthropic (raw fetch) and scripted (CI, no network).
- * MODEL-01: the transport layer — .chat() sends messages and returns the model's text reply.
+ * MODEL-01: the transport layer — .chat() sends messages and returns the model's text reply + usage.
  */
 export interface Provider {
   id: string
-  chat(messages: ChatMessage[]): Promise<string>
+  chat(messages: ChatMessage[]): Promise<ChatResult>
 }
 
 /** Parsed form of a `provider:model` spec string (e.g. 'anthropic:claude-haiku-4-5'). */

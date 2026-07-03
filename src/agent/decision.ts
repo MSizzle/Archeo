@@ -166,7 +166,7 @@ export async function decideWithRetry(
   const prompt = buildObservationPrompt(obs, frontier)
 
   // First attempt
-  const raw = await provider.chat(prompt)
+  const { text: raw } = await provider.chat(prompt)
   const result = parseDecision(raw, obs.inventory)
   if (result.ok) {
     return { action: result.action, source: 'model' }
@@ -183,7 +183,7 @@ export async function decideWithRetry(
     feedbackMsg,
   ]
 
-  const raw2 = await provider.chat(conversation)
+  const { text: raw2 } = await provider.chat(conversation)
   const result2 = parseDecision(raw2, obs.inventory)
   if (result2.ok) {
     return { action: result2.action, source: 'model' }

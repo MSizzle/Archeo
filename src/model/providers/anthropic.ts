@@ -17,7 +17,7 @@
  * IMPORT BOUNDARY (D5-01): imports ONLY from ../types.ts (model layer) and node: built-ins.
  * NEVER imports from the capture or spec layers.
  */
-import type { ChatMessage, ChatContentPart, Provider } from '../types.ts'
+import type { ChatMessage, ChatContentPart, Provider, ChatResult, TokenUsage } from '../types.ts'
 
 /** Pinned Anthropic Messages API endpoint. GATE-03 v3: the ONLY outbound host literal. */
 export const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
@@ -96,8 +96,9 @@ export function buildAnthropicRequest(
 /**
  * Parse an Anthropic Messages API response JSON.
  * PURE — throws on error shapes; concatenates text blocks on success.
+ * Returns ChatResult with text and token usage (zeros when usage is absent/malformed).
  */
-export function parseAnthropicResponse(json: unknown): string {
+export function parseAnthropicResponse(json: unknown): ChatResult {
   if (json !== null && typeof json === 'object') {
     const obj = json as Record<string, unknown>
     if (obj.type === 'error') {
@@ -113,7 +114,7 @@ export function parseAnthropicResponse(json: unknown): string {
       throw new Error('Unexpected Anthropic response shape: missing content array')
     }
 
-    return (obj.content as unknown[])
+    const text = (obj.content as unknown[])
       .filter(
         (block): block is { type: string; text: string } =>
           block !== null &&
@@ -122,6 +123,18 @@ export function parseAnthropicResponse(json: unknown): string {
       )
       .map((block) => String(block.text))
       .join('')
+
+    // Extract usage — missing or malformed usage → zeros (never throws on usage alone)
+    const rawUsage =
+      obj.usage !== null && typeof obj.usage === 'object'
+        ? (obj.usage as Record<string, unknown>)
+        : {}
+    const usage: TokenUsage = {
+      inputTokens: Number(rawUsage.input_tokens ?? 0),
+      outputTokens: Number(rawUsage.output_tokens ?? 0),
+    }
+
+    return { text, usage }
   }
 
   throw new Error(`Unexpected Anthropic response shape: ${JSON.stringify(json)}`)
@@ -145,7 +158,7 @@ export function createAnthropicProvider(opts: {
 }): Provider {
   return {
     id: 'anthropic',
-    async chat(messages: ChatMessage[]): Promise<string> {
+    async chat(messages: ChatMessage[]): Promise<ChatResult> {
       const { url, headers, body } = buildAnthropicRequest(messages, opts.model, opts.baseUrl)
       // Stamp the injected key — never mutate the pure-builder's returned object
       const requestHeaders = { ...headers, 'x-api-key': opts.apiKey }
