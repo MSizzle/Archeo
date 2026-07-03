@@ -122,7 +122,10 @@ describe('handleRoute — allowed GET request', () => {
       'route.fulfill must be called to forward response to browser',
     );
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     assert.ok(logPath && existsSync(logPath), 'capture.jsonl must exist');
@@ -148,7 +151,10 @@ describe('handleRoute — allowed GET request', () => {
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     const content = readFileSync(logPath!, 'utf8');
@@ -187,7 +193,10 @@ describe('handleRoute — allowed GET request', () => {
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const content = readFileSync(getLogPath(store), 'utf8');
 
@@ -279,7 +288,10 @@ describe('handleRoute — held POST request', () => {
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     assert.ok(logPath && existsSync(logPath), 'capture.jsonl must exist');
@@ -471,7 +483,10 @@ describe('handleRoute — destructive GET denied (FLOOR-04 / T-02-09)', () => {
     );
 
     // DESTRUCTIVE_GET_HELD record must be appended before the prompt
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
     const logPath = getLogPath(store);
     assert.ok(existsSync(logPath), 'capture.jsonl must exist');
     const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
@@ -517,7 +532,10 @@ describe('handleRoute — destructive GET confirmed (FLOOR-04)', () => {
     );
 
     // A DESTRUCTIVE_GET_CONFIRMED record must be appended
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
     const logPath = getLogPath(store);
     const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
     const confirmedRecord = lines.map((l: string) => JSON.parse(l)).find(
@@ -564,7 +582,10 @@ describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
     });
     await handleRoute(getRoute as never, getRequest as never, store);
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
@@ -606,7 +627,10 @@ describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
     });
     await handleRoute(getRoute as never, getRequest as never, store);
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
@@ -640,7 +664,10 @@ describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
     });
     await handleRoute(getRoute as never, getRequest as never, store);
 
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const logPath = getLogPath(store);
     const lines = readFileSync(logPath, 'utf8').split('\n').filter(Boolean);
@@ -677,7 +704,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
@@ -697,7 +727,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
@@ -717,7 +750,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
@@ -738,7 +774,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
@@ -758,7 +797,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
@@ -779,7 +821,10 @@ describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-
     });
 
     await handleRoute(route as never, request as never, store);
-    await new Promise(resolve => setTimeout(resolve, 50));
+    // Deterministic flush: store.close() resolves on the stream 'finish' event
+    // (WR-04 idempotent — the trailing store.close() at test end is a no-op).
+    // Replaces a fixed 50ms sleep that flaked under parallel test load (04-02).
+    await store.close();
 
     const content = readFileSync(getLogPath(store), 'utf8');
     assert.ok(!content.includes('secret-gql-token'),
