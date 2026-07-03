@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 plan 05-01 complete — model adapter layer (MODEL-01) + GATE-03 v3; 442/442 green; ready for 05-02 (observation extractor + state signature + decision validation)
-last_updated: "2026-07-03T23:30:00.000Z"
+stopped_at: Phase 5 plan 05-02 complete — observation extractor + SPA signature + blocklist + decision layer (AGENT-01/03/06/07a); 518/519 green (1 skip); ready for 05-03 (frontier + main loop)
+last_updated: "2026-07-03T00:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 8
-  completed_plans: 16
+  completed_plans: 17
   percent: 50
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 05 (autonomous-agent-loop) — IN PROGRESS (started 2026-07-03)
-Plan: 1 of 5 — 05-01 complete; 05-02 next
-Next: 05-02 — Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist (AGENT-01/03/06, AGENT-07a)
-Status: 05-01 complete. MODEL-01 delivered: types, adapter, anthropic (raw fetch), scripted (CI BFS), GATE-03 v3. Full suite 442/442.
+Plan: 2 of 5 — 05-02 complete; 05-03 next
+Next: 05-03 — Frontier tracker + main agent loop (AGENT-02/04/05)
+Status: 05-02 complete. AGENT-01/03/06/07a delivered: blocklist, observation normalization, SPA-aware signature, strict-JSON decision validation + retry/fallback. Full suite 518/519 (1 intentional skip).
 Last activity: 2026-07-03
 
-Progress: [██░░░░░░░░] 1/5 plans done in Phase 5
+Progress: [████░░░░░░] 2/5 plans done in Phase 5
 
 ## Performance Metrics
 
@@ -212,6 +212,17 @@ Phase 04-03 execution decisions (PHASE 4 CLOSE):
 - Login-completion is gated on the target server's own ledger (`authAppLoads >= 1`) before the harness answers the Enter ready-prompt on stdin — observed server state, not an inferred delay. Capture stages run `--no-dashboard` for deterministic SIGINT exit (floor/interceptor/store/redaction all still active). Target-app credentials assembled from fragments at runtime + auth pages `no-store` so no secret literal reaches the profile disk cache (a fixture-fidelity fix surfaced during bring-up — Archeo captured nothing during login regardless).
 - Bookkeeping: ROADMAP Phase 4 → 3/3 Complete; REQUIREMENTS AUTH-01/02/03 → Complete (list + traceability). Noted out-of-scope: REQUIREMENTS Phase-3 rows (SPEC/BUILD/DASH) are stale `[ ]`/Pending despite Phase 3 Complete — left untouched (this plan's scope is AUTH only).
 
+Phase 05-02 execution decisions:
+
+- annotateBlocklist uses a generic type parameter <T extends BlocklistCheckable> to avoid circular dependency with observation.ts — InventoryElement satisfies the constraint because all BlocklistCheckable fields are optional except `blocked`
+- INVENTORY_BROWSER_FN is a string constant (not a function) — it contains the function body as a string for page.evaluate(); this sidesteps the need to serialize a real function and keeps the module purely testable without a browser
+- normalizeInventory applies annotateBlocklist as the last step after ref assignment so blocked=true is always based on final element data (not a pre-filtered intermediate)
+- signature.ts uses `import { templatePath } from '../spec/templater.ts'` — src/agent/ may import src/spec/ per plan constraint (only src/model/ is forbidden from importing spec/)
+- buildObservationPrompt places the fenced ```json block as the LAST thing in the user text content so extractLastJsonObject in scripted.ts finds it (tries fenced block first)
+- decideWithRetry re-prompts with full conversation: [...prompt, {role:'assistant', content:raw}, feedbackMsg] — this is standard multi-turn correction pattern and the feedback message references the failure reason
+- parseDecision ref-range check: `targetRef >= inventory.length` handles both out-of-range-high and negative (already caught by `< 0`) cases; integer check ensures no float refs
+- No TypeScript enums used (ACTIONS as const, Action union type) per CLAUDE.md conventions
+
 Phase 05-01 execution decisions:
 
 - buildAnthropicRequest is PURE (no side effects); x-api-key header set to '' placeholder and overwritten by createAnthropicProvider at call time — key never passes through the pure builder
@@ -226,7 +237,7 @@ Phase 05-01 execution decisions:
 
 ### Pending Todos
 
-None for Phase 5 plan 05-01. Next: Phase 5 plan 05-02 (Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist).
+None for Phase 5 plan 05-02. Next: Phase 5 plan 05-03 (Frontier tracker + main agent loop).
 Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass.
 
 ### Blockers/Concerns

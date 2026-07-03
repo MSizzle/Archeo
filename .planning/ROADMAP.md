@@ -172,7 +172,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-02-PLAN.md — Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist (AGENT-01/03/06, AGENT-07a)
+- [x] 05-02-PLAN.md — Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist (AGENT-01/03/06, AGENT-07a)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
