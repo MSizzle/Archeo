@@ -239,6 +239,69 @@ describe('CaptureStore — response corpus (FLOOR-06 / D-03)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// CaptureStore.onRecord — fail-safe observer hook (Task 1, plan 03-03)
+// D3-05: invoked in append() AFTER write + corpus update; throwing callbacks
+//        must never crash the capture session.
+// ---------------------------------------------------------------------------
+describe('CaptureStore — onRecord observer hook (03-03, D3-05)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-store-observer-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('onRecord callback fires once per append with the seq-stamped record (D3-05)', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const received: CaptureRecord[] = [];
+
+    store.onRecord((rec) => received.push(rec));
+    store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440020' }));
+
+    // Give the stream a tick to flush
+    await new Promise(r => setTimeout(r, 50));
+
+    assert.equal(received.length, 1, 'observer must be called exactly once per append');
+    assert.equal(received[0].seq, 1, 'observer receives the seq-stamped record (seq=1)');
+    assert.equal(received[0].id, '550e8400-e29b-41d4-a716-446655440020', 'observer receives the correct record');
+    await store.close();
+  });
+
+  test('multiple onRecord callbacks all fire in registration order (D3-05)', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const callOrder: number[] = [];
+
+    store.onRecord(() => callOrder.push(1));
+    store.onRecord(() => callOrder.push(2));
+    store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440021' }));
+
+    await new Promise(r => setTimeout(r, 50));
+
+    assert.deepEqual(callOrder, [1, 2], 'both callbacks must fire in registration order');
+    await store.close();
+  });
+
+  test('throwing onRecord callback does not prevent append from completing (D3-05 fail-safe)', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const received: CaptureRecord[] = [];
+
+    store.onRecord(() => { throw new Error('observer explosion'); });
+    store.onRecord((rec) => received.push(rec)); // second observer must still fire
+
+    store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440022' }));
+    await new Promise(r => setTimeout(r, 50));
+
+    // Second observer must fire despite first throwing
+    assert.equal(received.length, 1, 'second observer must fire even if first throws');
+
+    // Subsequent appends must also succeed
+    store.append(makeRecord({ id: '550e8400-e29b-41d4-a716-446655440023' }));
+    await new Promise(r => setTimeout(r, 50));
+    assert.equal(received.length, 2, 'subsequent appends must succeed after a throwing observer');
+    await store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CaptureStore.close() → Promise<void> (Task 4, plan 03-02)
 // WR-04: idempotent — a second close() must not throw 'write after end'.
 // ---------------------------------------------------------------------------
