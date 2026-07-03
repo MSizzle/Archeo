@@ -134,7 +134,20 @@ Plans:
   2. The authenticated browser context persists so subsequent runs explore from the logged-in state without re-login
   3. The persisted session lives in one gitignored local location and is absent from the capture store and spec; it can be cleared on request
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 04-01-PLAN.md — launchPersistentContext refactor (both modes) + per-hostname profile resolution + `archeo login` handoff; login mode has NO interceptor/capture store (AUTH-01, AUTH-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 04-02-PLAN.md — `archeo clear-session <url|--all>` (idempotent, path-escape refusal) + AUTH-03 hygiene suite (AUTH-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 04-03-PLAN.md — autonomous live verification: login-walled target, four-stage proof (login captures nothing → authenticated persistence → floor holds → clear-session restores the 401 wall) + phase close (AUTH-01, AUTH-02, AUTH-03)
 
 ### Phase 5: Autonomous Agent Loop + Full Dashboard
 
@@ -206,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
-| 4. Authentication Handoff | 0/TBD | Not started | - |
+| 4. Authentication Handoff | 0/3 | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
