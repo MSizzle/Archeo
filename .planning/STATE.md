@@ -219,6 +219,8 @@ Phase 05-01 execution decisions:
 - extractLastJsonObject uses balanced-brace scanning (not regex) to extract the last valid top-level JSON object; fenced ```json block is tried first; returns null (never throws) on failure
 - contentToText joins only 'text' parts from ChatContentPart[]; image parts are ignored (envelope is always text)
 - GATE-03 v3 negative proof: `const _evil = 'https://evil.example/v1'` temporarily added to anthropic.ts; endpoint-pinning test failed with "non-anthropic URL literal: evil.example" — confirmed guard fires on real violations before revert
+- GATE-03 v3 second negative proof (post-commit verification): `import '../capture/store.ts'` temporarily appended to adapter.ts; import-boundary describe block FAILED as required, then reverted (working tree verified clean, guard back to 31/31)
+- Post-execution fix commit b04e1ef: model-layer header comments rephrased (comments only, no code change) because the plan's acceptance-criteria greps run on RAW source — same precedent as 03-01/03-02 comment rephrases
 - No TypeScript enums anywhere in src/model/ — string union types and as const used throughout (native TS stripping convention)
 - All import paths in src/model/ use .ts extensions (moduleResolution:Bundler)
 
