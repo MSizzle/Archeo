@@ -23,6 +23,7 @@ import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
+import { profileDir } from './profile.ts';
 import { CaptureStore } from '../capture/store.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
@@ -131,7 +132,11 @@ cli
         process.stdout.write(`[archeo] dashboard: http://127.0.0.1:${dashboardHandle.port}\n`);
       }
 
-      await openAndWait(url, store, dashboardHandle);
+      // AUTH-02/D4-02: resolve the per-hostname persistent profile directory and pass
+      // it to openAndWait so Playwright launches from (and persists to) the same dir
+      // as `archeo login <url>` did. The profile dir is a pure string — no mkdir here.
+      const profileDirPath = profileDir(new URL(url).hostname);
+      await openAndWait(url, profileDirPath, store, dashboardHandle);
     } catch (err) {
       // Surface async action rejections as user-friendly error messages (WR-07).
       // Without this, Node.js emits an unhandledRejection warning and — in newer
