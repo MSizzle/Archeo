@@ -154,14 +154,25 @@ export function groupRecords(records: CaptureRecord[]): EndpointTemplate[] {
     const tpath = templatePath(record.path);
 
     // Compute the group key.
+    // Key: `${protocol}:${method}:${groupId}:${operationType}:${held}`
+    // groupId:
+    //   GraphQL  → graphqlOperationName ?? tpath
+    //   JSON-RPC → rpcMethod ?? tpath
+    //   REST/others → tpath
     let key: string;
     let operationName: string | undefined;
+    let groupId: string;
     if (record.protocol === 'GraphQL') {
+      groupId = record.graphqlOperationName ?? tpath;
       operationName = record.graphqlOperationName;
-      key = 'GraphQL:' + (operationName ?? tpath);
+    } else if (record.protocol === 'JSON-RPC') {
+      groupId = record.rpcMethod ?? tpath;
+      operationName = record.rpcMethod;
     } else {
-      key = record.method + ' ' + tpath + ' ' + record.protocol;
+      groupId = tpath;
+      operationName = undefined;
     }
+    key = `${record.protocol}:${record.method}:${groupId}:${record.operationType}:${record.held}`;
 
     if (!groups.has(key)) {
       // First record for this group — initialise.
