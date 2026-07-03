@@ -33,6 +33,7 @@ import type { WriteStream } from 'node:fs';
 import { join } from 'node:path';
 import { randomUUID } from 'node:crypto';
 import type { CaptureRecord, CaptureManifest } from '../types/index.ts';
+import { RECORD_TYPES, PROTOCOLS, OPERATION_TYPES } from '../types/index.ts';
 
 // ---------------------------------------------------------------------------
 // CaptureStore — JSONL append log + session manifest + response corpus
@@ -255,6 +256,51 @@ export class CaptureStore {
     });
 
     return this.closePromise;
+  }
+
+  /**
+   * Append one agent-step record from the explorer loop (D5-03 / AGENT-05).
+   *
+   * Builds a RECORD_TYPES.AGENT_STEP CaptureRecord and routes it through the SAME
+   * append() path as every other record, so it is seq-stamped, reflected in the manifest,
+   * and delivered to onRecord observers — a single source of truth the dashboard and the
+   * spec's flows both read.
+   *
+   * Redaction-safe by construction (T-05-13): held:false, empty method/url/path, no
+   * request/response bodies. The only free text is the model's OWN verbatim reasoning
+   * (DASH-06) and a short (<=80-char) target summary — never target request/response data.
+   * Because the record type is not 'request-response', append()'s corpus guard excludes it,
+   * so no agent-step text can ever flow into the response corpus (CAP-05 pipeline untouched).
+   */
+  appendAgentStep(step: {
+    action: string;
+    targetRef?: number;
+    targetSummary?: string;
+    reasoning: string;
+    stateSignature: string;
+    stepIndex: number;
+  }): void {
+    const record: CaptureRecord = {
+      id: randomUUID(),
+      seq: 0, // overwritten by append()
+      timestamp: new Date().toISOString(),
+      type: RECORD_TYPES.AGENT_STEP,
+      protocol: PROTOCOLS.UNKNOWN,
+      operationType: OPERATION_TYPES.UNKNOWN,
+      method: '',
+      url: '',
+      path: '',
+      held: false,
+      requestHeaders: {},
+      requestBody: null,
+      agentAction: step.action,
+      agentTargetRef: step.targetRef,
+      agentTargetSummary: step.targetSummary,
+      agentReasoning: step.reasoning,
+      stateSignature: step.stateSignature,
+      stepIndex: step.stepIndex,
+    };
+    this.append(record);
   }
 
   /**

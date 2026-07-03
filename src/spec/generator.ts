@@ -621,8 +621,13 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   const records = readRecords(sessionDir);
   const manifest = readManifest(sessionDir);
 
-  // Separate navigation records (feeds flows) from API records (feeds endpoints/models)
-  const apiRecords = records.filter((r) => (r.type as string) !== 'navigation');
+  // Separate navigation records (feeds flows) from API records (feeds endpoints/models).
+  // D5-03: agent-step records are ALSO excluded here — they carry no method/url/path and
+  // would otherwise be grouped by templater.groupRecords into a spurious empty endpoint.
+  // Flows already filter on type==='navigation', so agent-step is naturally excluded there.
+  const apiRecords = records.filter(
+    (r) => (r.type as string) !== 'navigation' && (r.type as string) !== 'agent-step',
+  );
 
   // Endpoint templates (SPEC-01/02 via templater)
   const rawTemplates = groupRecords(apiRecords);

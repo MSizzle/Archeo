@@ -30,6 +30,10 @@ export const RECORD_TYPES = {
   // D3-03: main-frame navigation records feed UI flow inference in the spec generator.
   // Navigation records are held:false and never populate the response corpus.
   NAVIGATION: 'navigation',
+  // D5-03: one agent-step record per explorer-loop step. Carries the model's own verbatim
+  // reasoning + a short target summary — NO request/response bodies. held:false, empty
+  // method/url/path. The dashboard and the spec's flows consume the SAME records.
+  AGENT_STEP: 'agent-step',
 } as const;
 export type RecordType = typeof RECORD_TYPES[keyof typeof RECORD_TYPES];
 
@@ -104,6 +108,20 @@ export interface CaptureRecord {
 
   // JSON-RPC schema-level method identifier (not a secret); populated in 03-05, parallels graphqlOperationName.
   rpcMethod?: string;
+
+  // ---------------------------------------------------------------------------
+  // Agent-step fields (D5-03 / AGENT-05) — present ONLY on RECORD_TYPES.AGENT_STEP records.
+  // Additive + optional, mirroring the graphqlOperationName/rpcMethod precedent so no
+  // existing capture/spec/dashboard code path changes. These carry structural exploration
+  // metadata plus the model's OWN verbatim reasoning (DASH-06) — never target PII, never a
+  // request/response body. The response corpus is not populated from agent-step records.
+  // ---------------------------------------------------------------------------
+  agentAction?: string;        // the executed action: click/navigate/fill/scroll/back/done
+  agentTargetRef?: number;     // inventory ref the action targeted (if any)
+  agentTargetSummary?: string; // <=80-char human summary of the target element
+  agentReasoning?: string;     // the model's own one-line reasoning, stored VERBATIM (DASH-06)
+  stateSignature?: string;     // AGENT-03 signature of the state the step acted from
+  stepIndex?: number;          // zero-based step index within the explorer run
 }
 
 /**
