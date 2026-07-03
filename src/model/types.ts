@@ -4,7 +4,7 @@
  * MODEL-01 / D5-01: Wire contract for the model adapter layer.
  *
  * PURE TYPE FILE — no runtime imports.
- * Imported by src/agent (05-02+); never importing src/capture/ or src/spec/ (D5-01 boundary).
+ * Imported by src/agent (05-02+); never importing the capture or spec layers (D5-01 boundary).
  */
 
 /** Role of a chat message participant. */

@@ -11,8 +11,8 @@
  * This file consumes ONLY the frontier field to pick the next ref.
  *
  * IMPORT BOUNDARY (D5-01): imports ONLY from ../types.ts (model layer) and node: built-ins.
- * NEVER imports from src/capture/ or src/spec/.
- * No fetch(), no node:http/https, no key — safe for offline CI.
+ * NEVER imports from the capture or spec layers.
+ * No outbound network surface of any kind, no key — safe for offline CI.
  */
 import type { ChatMessage, ChatContentPart, Provider } from '../types.ts'
 

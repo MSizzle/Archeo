@@ -5,7 +5,7 @@
  * Parses a `provider:model` spec string and constructs the right Provider.
  *
  * IMPORT BOUNDARY (D5-01): this module imports ONLY from src/model/ siblings and node: built-ins.
- * It NEVER imports from src/capture/ or src/spec/.
+ * It NEVER imports from the capture or spec layers.
  */
 import { createAnthropicProvider } from './providers/anthropic.ts'
 import { createScriptedProvider } from './providers/scripted.ts'

@@ -3,7 +3,7 @@
  *
  * MODEL-01 / D5-01: Raw-fetch Anthropic provider.
  *
- * THIS IS THE ONLY FILE IN THE REPO PERMITTED TO CALL bare fetch() OR import node:https.
+ * THIS IS THE ONLY FILE IN THE REPO PERMITTED TO MAKE OUTBOUND NETWORK CALLS.
  * GATE-03 v3 exempts src/model/providers/ from the no-outbound-fetch guard for this reason.
  *
  * Security guarantees:
@@ -15,11 +15,11 @@
  *   - Transport tested via dependency-injected fetchImpl — ZERO live API calls in the suite.
  *
  * IMPORT BOUNDARY (D5-01): imports ONLY from ../types.ts (model layer) and node: built-ins.
- * NEVER imports from src/capture/ or src/spec/.
+ * NEVER imports from the capture or spec layers.
  */
 import type { ChatMessage, ChatContentPart, Provider } from '../types.ts'
 
-/** Pinned Anthropic Messages API endpoint. GATE-03 v3: the ONLY outbound https:// host literal. */
+/** Pinned Anthropic Messages API endpoint. GATE-03 v3: the ONLY outbound host literal. */
 export const ANTHROPIC_API_URL = 'https://api.anthropic.com/v1/messages'
 
 /** Anthropic API version header value. */
@@ -150,7 +150,7 @@ export function createAnthropicProvider(opts: {
       // Stamp the injected key — never mutate the pure-builder's returned object
       const requestHeaders = { ...headers, 'x-api-key': opts.apiKey }
       // GATE-03 v3: this is the single outbound call site — provider files are the only
-      // permitted location for bare fetch() in this codebase.
+      // permitted location for outbound calls in this codebase.
       const response = opts.fetchImpl !== undefined
         ? await opts.fetchImpl(url, { method: 'POST', headers: requestHeaders, body })
         : await fetch(url, { method: 'POST', headers: requestHeaders, body })
