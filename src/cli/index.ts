@@ -23,10 +23,12 @@ import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
+import { runExplore } from './explore.ts';
 import { profileDir } from './profile.ts';
 import { openForLogin } from './login.ts';
 import { clearOneSession, clearAllSessions } from './clearSession.ts';
 import { CaptureStore } from '../capture/store.ts';
+import { createProvider } from '../model/adapter.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
 
@@ -206,6 +208,80 @@ cli
       // Path-escape refusal (or any other failure) → clear message, exit 1 (D4-05).
       if (err instanceof Error) {
         process.stderr.write(`${err.message}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// `archeo explore <url>` — autonomous, vision-driven exploration (AGENT-02/04/05/07b)
+//
+// GATE-01: the authorization gate runs FIRST in the action handler — it opens a browser at
+//   the target, so the authorization gate applies (verifiable by source inspection).
+// FLOOR ON, NON-NEGOTIABLE (D5-03): runExplore attaches the interceptor before any goto and
+//   there is NO write-enabling option registered on this command (writes stay held). Pinned by
+//   test/cli/explore-isolation.test.ts.
+// Registered as a named subcommand BEFORE '<url>' (same pattern as spec/login/clear-session)
+//   so cac parses 'explore' by name rather than as a positional URL.
+// ---------------------------------------------------------------------------
+
+cli
+  .command('explore <url>', 'Autonomously explore a running web app (vision-driven); floor ON, writes held (AGENT-*)')
+  .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
+  .option('--no-dashboard', 'Disable the localhost SSE discovery dashboard (D3-05)')
+  .option('--dashboard-port <port>', 'Port for the localhost dashboard (default: OS-assigned)', { default: 0 })
+  .option('--max-steps <n>', 'Maximum exploration steps before stopping (default: 50)', { default: 50 })
+  .option('--model <spec>', 'Model provider spec, e.g. anthropic:claude-haiku-4-5 (default: scripted)', { default: 'scripted' })
+  .option('--model-base-url <url>', 'Override the provider API base URL (advanced)')
+  .action(async (url: string, opts: {
+    iHaveAuthorization?: boolean;
+    dashboard?: boolean;
+    dashboardPort?: number;
+    maxSteps?: number;
+    model?: string;
+    modelBaseUrl?: string;
+  }) => {
+    // WR-07: wrap the async body so any rejection surfaces as a clean error + exit 1.
+    try {
+      // GATE-01: gate runs before any browser/model code — FIRST statement in the handler.
+      await runAuthorizationGate(opts.iHaveAuthorization ?? false);
+
+      // V5 / T-01-07: validate the URL before touching Playwright.
+      if (!isValidUrl(url)) {
+        process.stderr.write(
+          `archeo: invalid URL — ${url}\n` +
+          `  URLs must be absolute (e.g. https://example.com).\n`,
+        );
+        process.exit(1);
+      }
+
+      // CAP-01: session-scoped capture store (under .archeo/captures/, gitignored).
+      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
+
+      // D3-05: start the localhost dashboard unless --no-dashboard.
+      let dashboardHandle: { port: number; close(): Promise<void> } | undefined;
+      if (opts.dashboard !== false) {
+        dashboardHandle = await startDashboard(store, { port: opts.dashboardPort ?? 0 });
+        process.stdout.write(`[archeo] dashboard: http://127.0.0.1:${dashboardHandle.port}\n`);
+      }
+
+      // D5-01: construct the provider. Default 'scripted' needs no key; 'anthropic' requires
+      // ANTHROPIC_API_KEY (createProvider throws a clean "Set ANTHROPIC_API_KEY" message,
+      // caught below → exit 1). The key is read here and injected — never hard-coded.
+      const provider = createProvider(opts.model ?? 'scripted', {
+        apiKey: process.env.ANTHROPIC_API_KEY,
+        baseUrl: opts.modelBaseUrl,
+      });
+
+      // AUTH-02/D4-02: reuse the per-hostname persistent profile. Floor ON via runExplore.
+      const profileDirPath = profileDir(new URL(url).hostname);
+      await runExplore(url, profileDirPath, store, provider, {
+        maxSteps: opts.maxSteps ?? 50,
+        dashboard: dashboardHandle,
+      });
+    } catch (err) {
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`);
       }
       process.exit(1);
     }
