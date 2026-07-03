@@ -2,8 +2,8 @@
 
 **Plan:** 06-01-PLAN.md — Provider usage plumbing (Provider.chat → {text, usage}) + token/dollar budget + pacing + stopReason surfacing (COST-01/03/04)
 **Completed:** 2026-07-04
-**Suite:** 655 tests green (611 baseline → +44)
-**Commits:** 12 atomic (6 test + 6 feat, strict TDD order)
+**Suite:** 656 tests green + 1 documented skip (611 baseline → +45)
+**Commits:** 13 atomic (7 test + 6 feat, strict TDD order)
 
 ---
 
@@ -27,7 +27,7 @@
 ### Task 4 — Loop wiring
 - `src/agent/stop.ts`: `STOP_REASONS.BUDGET = 'budget'`.
 - `src/agent/loop.ts`: imports `BudgetTracker`, `Pacer`. `ExploreResult` gains `totalTokens: number`. `explore()` opts: `maxTokens?, maxCost?, model?, paceMs?, now?, sleep?`. After `decideWithRetry`: `budget.add(decision.usage); if (budget.exceeded()) { stopReason = STOP_REASONS.BUDGET; break }`. `await pacer.wait()` before each `executeAction`.
-- `test/agent/loop.test.ts`: budget stop at maxTokens=0 (immediate, partial spec), pacing sleep counted.
+- `test/agent/loop.test.ts`: budget stop at maxTokens=0 (immediate, partial spec), budget stop under a fake usage-emitting provider ({inputTokens:1000} per decision, maxTokens:1500 → stops on the 2nd model step with the first step's partial trail preserved), pacing sleep counted.
 - `test/agent/stop.test.ts`: `STOP_REASONS.BUDGET === 'budget'`.
 
 ### Task 5 — Surface stopReason
@@ -59,7 +59,7 @@
 
 ## Deviations
 
-None. All acceptance criteria met as specified.
+None in behavior. One verification follow-up: the Task 4 fake usage-emitting provider budget-stop test ({inputTokens:1000}/decision, maxTokens:1500 → budget stop on the 2nd model step) was found missing in post-execution verification and added in a follow-up `test(06-01)` commit (feature already implemented and passing — coverage completion only). The pacing describe label was also corrected from COST-02 to COST-04 in the same commit.
 
 ---
 

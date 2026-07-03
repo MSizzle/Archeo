@@ -303,9 +303,45 @@ describe('explore — budget stop (COST-01)', () => {
       await cleanup()
     }
   })
+
+  test('fake usage-emitting provider: {inputTokens:1000} per decision, maxTokens:1500 → stops on the 2nd model step', async () => {
+    // Step 0: model decision → budget.add(1000); 1000 >= 1500 is false → click executes.
+    // Step 1: model decision → budget.add(1000) → 2000 >= 1500 → stopReason 'budget',
+    //         break BEFORE executing — partial results (the first step) preserved.
+    const usageProvider: Provider = {
+      id: 'stub-usage',
+      async chat(_msgs: ChatMessage[]) {
+        return {
+          text: JSON.stringify({ action: 'click', targetRef: 0, reasoning: 'stub: click ref0' }),
+          usage: { inputTokens: 1000, outputTokens: 0 },
+        }
+      },
+    }
+    const fake = new FakePage(
+      [
+        { path: '/', title: 'Home', raw: [link(0, 'A', '/a')], edges: { 0: '/a' } },
+        { path: '/a', title: 'A', raw: [link(0, 'B', '/b')], edges: { 0: '/b' } },
+        { path: '/b', title: 'B', raw: [], edges: {} },
+      ],
+      '/',
+    )
+    const { store, agentSteps, cleanup } = makeStore()
+    try {
+      const result = await explore(asPage(fake), usageProvider, store, {
+        maxSteps: 50,
+        maxTokens: 1500,
+      })
+      assert.equal(result.stopReason, 'budget', '2nd model decision crosses 1500 → budget stop')
+      assert.equal(result.totalTokens, 2000, 'both decisions counted before the stop')
+      assert.equal(result.steps, 1, 'only the first action executed; the 2nd was never executed')
+      assert.equal(agentSteps.length, 1, 'partial trail preserved — the first agent-step is recorded')
+    } finally {
+      await cleanup()
+    }
+  })
 })
 
-describe('explore — pacing (COST-02)', () => {
+describe('explore — pacing (COST-04)', () => {
   test('pacer.wait is called before each executeAction — injected clock/sleep', async () => {
     const sleepCalls: number[] = []
     let tick = 0

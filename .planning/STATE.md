@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: 06-01 COMPLETE — Provider.chat → ChatResult, BudgetTracker (token/dollar ceilings), Pacer (paceMs), stopReason surfaced to manifest + spec coverage + CLI stdout. 12 atomic commits (6 test + 6 feat). 655 tests green (+44 from baseline 611). Next: 06-02 (semantic change detector).
+stopped_at: 06-01 COMPLETE — Provider.chat → ChatResult, BudgetTracker (token/dollar ceilings), Pacer (paceMs), stopReason surfaced to manifest + spec coverage + CLI stdout. 13 atomic commits (7 test + 6 feat). 656 tests green (+45 from baseline 611). Next: 06-02 (semantic change detector).
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 Phase: 06 (hardening) — IN PROGRESS (1/6)
 Plan: 1 of 6 — 06-01 complete
 Next: 06-02 (semantic change detector — vision-call gating + skip accounting)
-Status: 06-01 complete. Provider.chat → ChatResult (text + TokenUsage). BudgetTracker (PRICE_TABLE, token ceiling ≥, cost ceiling > 0 guard for scripted). Pacer (injected clock, first-call baseline). STOP_REASONS.BUDGET. loop.ts wires budget.add + pacer.wait. stopReason flows: loop → explore.ts.recordStopReason → manifest.json → spec coverage.stopReason. CLI gains --max-tokens/--max-cost/--pace-ms flags; prints [archeo] exploration stopped: <reason> (<steps> steps, <tokens> tokens). 12 commits (6 test + 6 feat). 655 tests green (up from 611).
+Status: 06-01 complete. Provider.chat → ChatResult (text + TokenUsage). BudgetTracker (PRICE_TABLE, token ceiling ≥, cost ceiling > 0 guard for scripted). Pacer (injected clock, first-call baseline). STOP_REASONS.BUDGET. loop.ts wires budget.add + pacer.wait. stopReason flows: loop → explore.ts.recordStopReason → manifest.json → spec coverage.stopReason. CLI gains --max-tokens/--max-cost/--pace-ms flags; prints [archeo] exploration stopped: <reason> (<steps> steps, <tokens> tokens). 13 commits (7 test + 6 feat). 656 tests green (up from 611).
 Last activity: 2026-07-04
 
 Progress: [█░░░░░] 1/6 plans done in Phase 6
