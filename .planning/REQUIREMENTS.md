@@ -35,27 +35,27 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Spec Generator
 
-- [ ] **SPEC-01**: Observed calls collapse into endpoint templates (`/users/123` and `/users/456` → `/users/{id}`)
-- [ ] **SPEC-02**: Polling and list-refresh noise is deduplicated
-- [ ] **SPEC-03**: A synthesis pass emits the JSON build spec including data models with fields, types, and relationships
-- [ ] **SPEC-04**: The spec includes API endpoints, including held mutations flagged `held: true`
-- [ ] **SPEC-05**: The spec includes UI flows (named states and observed transitions)
-- [ ] **SPEC-06**: The spec includes business-logic rules with evidence and a confidence level
-- [ ] **SPEC-07**: The spec includes a mandatory coverage block (states/endpoints discovered, known gaps)
+- [x] **SPEC-01**: Observed calls collapse into endpoint templates (`/users/123` and `/users/456` → `/users/{id}`)
+- [x] **SPEC-02**: Polling and list-refresh noise is deduplicated
+- [x] **SPEC-03**: A synthesis pass emits the JSON build spec including data models with fields, types, and relationships
+- [x] **SPEC-04**: The spec includes API endpoints, including held mutations flagged `held: true`
+- [x] **SPEC-05**: The spec includes UI flows (named states and observed transitions)
+- [x] **SPEC-06**: The spec includes business-logic rules with evidence and a confidence level
+- [x] **SPEC-07**: The spec includes a mandatory coverage block (states/endpoints discovered, known gaps)
 
 ### Buildability Proof
 
-- [ ] **BUILD-01**: A real builder agent (Claude Code or equivalent) produces a runnable approximation of the target from an Archeo spec, confirming the spec is consumable before autonomy is built
+- [x] **BUILD-01**: A real builder agent (Claude Code or equivalent) produces a runnable approximation of the target from an Archeo spec, confirming the spec is consumable before autonomy is built
 
 ### Dashboard & Live Experience
 
-- [ ] **DASH-01**: The CLI serves a localhost web dashboard (not a desktop app) with live updates over WebSocket/SSE
-- [ ] **DASH-02**: Discovery counts (endpoints, data models, flows) climb in real time; progress is discovery, not a completion bar
-- [ ] **DASH-03**: Endpoints appear within seconds of the first page load (time-to-first-magic; no dead air in the first ten seconds)
-- [ ] **DASH-04**: The agent's browser view is streamed into the dashboard via CDP screencast (single-surface view)
-- [ ] **DASH-05**: The coverage map draws itself as states and transitions are discovered
-- [ ] **DASH-06**: The agent's real model reasoning is streamed as a one-line rationale per action (never a generated flourish)
-- [ ] **DASH-07**: The held-write moment is surfaced as a visible, reassuring beat
+- [x] **DASH-01**: The CLI serves a localhost web dashboard (not a desktop app) with live updates over WebSocket/SSE
+- [x] **DASH-02**: Discovery counts (endpoints, data models, flows) climb in real time; progress is discovery, not a completion bar
+- [x] **DASH-03**: Endpoints appear within seconds of the first page load (time-to-first-magic; no dead air in the first ten seconds)
+- [x] **DASH-04**: The agent's browser view is streamed into the dashboard via CDP screencast (single-surface view)
+- [x] **DASH-05**: The coverage map draws itself as states and transitions are discovered
+- [x] **DASH-06**: The agent's real model reasoning is streamed as a one-line rationale per action (never a generated flourish)
+- [x] **DASH-07**: The held-write moment is surfaced as a visible, reassuring beat
 - [ ] **DASH-08**: The error surface is quiet by default — recoverable errors go to a calm collapsed log with a muted counter; only run-halting errors surface clearly and pause the run
 
 ### Authentication Handoff
@@ -66,18 +66,18 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Model Adapter
 
-- [ ] **MODEL-01**: A bring-your-own-key, provider-agnostic adapter handles vision and synthesis calls; no bundled or hosted model
+- [x] **MODEL-01**: A bring-your-own-key, provider-agnostic adapter handles vision and synthesis calls; no bundled or hosted model
 
 ### Autonomous Agent Loop
 
-- [ ] **AGENT-01**: A constrained action loop drives the browser using a fixed vocabulary: `click`, `navigate`, `fill`, `scroll`, `back`, `done`
-- [ ] **AGENT-02**: The agent fills form fields to surface validation rules, rejected formats, and field dependencies
-- [ ] **AGENT-03**: The coverage map is SPA-aware — keyed on state signatures (route + DOM structure + visible component set), not URLs
-- [ ] **AGENT-04**: Exploration is directed toward unexplored frontier rather than random
-- [ ] **AGENT-05**: The agent stops on any of: step budget reached, coverage plateau, or empty frontier
-- [ ] **AGENT-06**: Every model-proposed action is validated against the live DOM before executing; hallucinated targets are rejected and the agent is re-prompted with feedback
-- [ ] **AGENT-07**: Trap avoidance — loop detection for oscillating states, backtrack-to-frontier when stuck, and a hard never-click blocklist for logout and account-switch controls
-- [ ] **AGENT-08**: The spec produced by an autonomous run matches or beats the human-driven Phase 3 spec
+- [x] **AGENT-01**: A constrained action loop drives the browser using a fixed vocabulary: `click`, `navigate`, `fill`, `scroll`, `back`, `done`
+- [x] **AGENT-02**: The agent fills form fields to surface validation rules, rejected formats, and field dependencies
+- [x] **AGENT-03**: The coverage map is SPA-aware — keyed on state signatures (route + DOM structure + visible component set), not URLs
+- [x] **AGENT-04**: Exploration is directed toward unexplored frontier rather than random
+- [x] **AGENT-05**: The agent stops on any of: step budget reached, coverage plateau, or empty frontier
+- [x] **AGENT-06**: Every model-proposed action is validated against the live DOM before executing; hallucinated targets are rejected and the agent is re-prompted with feedback
+- [x] **AGENT-07**: Trap avoidance — loop detection for oscillating states, backtrack-to-frontier when stuck, and a hard never-click blocklist for logout and account-switch controls
+- [x] **AGENT-08**: The spec produced by an autonomous run matches or beats the human-driven Phase 3 spec
 
 ### Cost, Rate & Error Hardening
 
@@ -147,33 +147,33 @@ Each requirement maps to exactly one phase.
 | CAP-03 | Phase 2 | Complete |
 | CAP-04 | Phase 2 | Complete |
 | CAP-05 | Phase 2 | Complete |
-| SPEC-01 | Phase 3 | Pending |
-| SPEC-02 | Phase 3 | Pending |
-| SPEC-03 | Phase 3 | Pending |
-| SPEC-04 | Phase 3 | Pending |
-| SPEC-05 | Phase 3 | Pending |
-| SPEC-06 | Phase 3 | Pending |
-| SPEC-07 | Phase 3 | Pending |
-| BUILD-01 | Phase 3 | Pending |
-| DASH-01 | Phase 3 | Pending |
-| DASH-02 | Phase 3 | Pending |
-| DASH-03 | Phase 3 | Pending |
+| SPEC-01 | Phase 3 | Complete (03-01; refined 03-05) |
+| SPEC-02 | Phase 3 | Complete (03-01) |
+| SPEC-03 | Phase 3 | Complete (03-02; refined 03-05) |
+| SPEC-04 | Phase 3 | Complete (03-02; refined 03-05) |
+| SPEC-05 | Phase 3 | Complete (03-02) |
+| SPEC-06 | Phase 3 | Complete (03-02) |
+| SPEC-07 | Phase 3 | Complete (03-02; refined 03-05) |
+| BUILD-01 | Phase 3 | Complete (03-04; verified live) |
+| DASH-01 | Phase 3 | Complete (03-03) |
+| DASH-02 | Phase 3 | Complete (03-03) |
+| DASH-03 | Phase 3 | Complete (03-03) |
 | AUTH-01 | Phase 4 | Complete (04-01; verified live 04-03) |
 | AUTH-02 | Phase 4 | Complete (04-01; verified live 04-03) |
 | AUTH-03 | Phase 4 | Complete (04-02; verified live 04-03) |
-| MODEL-01 | Phase 5 | Pending |
-| AGENT-01 | Phase 5 | Pending |
-| AGENT-02 | Phase 5 | Pending |
-| AGENT-03 | Phase 5 | Pending |
-| AGENT-04 | Phase 5 | Pending |
-| AGENT-05 | Phase 5 | Pending |
-| AGENT-06 | Phase 5 | Pending |
-| AGENT-07 | Phase 5 | Pending |
-| AGENT-08 | Phase 5 | Pending |
-| DASH-04 | Phase 5 | Pending |
-| DASH-05 | Phase 5 | Pending |
-| DASH-06 | Phase 5 | Pending |
-| DASH-07 | Phase 5 | Pending |
+| MODEL-01 | Phase 5 | Complete (05-01) |
+| AGENT-01 | Phase 5 | Complete (05-02; verified live 05-05) |
+| AGENT-02 | Phase 5 | Complete (05-03; verified live 05-05) |
+| AGENT-03 | Phase 5 | Complete (05-02; verified live 05-05) |
+| AGENT-04 | Phase 5 | Complete (05-03; verified live 05-05) |
+| AGENT-05 | Phase 5 | Complete (05-03; verified live 05-05) |
+| AGENT-06 | Phase 5 | Complete (05-02; verified live 05-05) |
+| AGENT-07 | Phase 5 | Complete (05-02/05-03; verified live 05-05) |
+| AGENT-08 | Phase 5 | Complete (verified live 05-05) |
+| DASH-04 | Phase 5 | Complete (05-04; verified live 05-05) |
+| DASH-05 | Phase 5 | Complete (05-04; verified live 05-05) |
+| DASH-06 | Phase 5 | Complete (05-04; verified live 05-05) |
+| DASH-07 | Phase 5 | Complete (05-04; verified live 05-05) |
 | COST-01 | Phase 6 | Pending |
 | COST-02 | Phase 6 | Pending |
 | COST-03 | Phase 6 | Pending |

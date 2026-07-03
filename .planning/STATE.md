@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 plan 05-04 complete — CDP screencast (DASH-04), self-drawing SVG coverage map (DASH-05), verbatim reasoning via textContent (DASH-06), held-write beat (DASH-07); 611/612 green (1 skip); ready for 05-05 (autonomous live verification)
+stopped_at: Phase 5 COMPLETE (5/5) → Phase 6 (Hardening) next. 05-05 verified autonomously — the real CLI explores a trapped authenticated SPA in real headed Chromium: 18/18 invariants GREEN (no logout + profile valid; oscillation escaped + bounded; zero mutations/destructive hits; dashboard SSE frame/state/transition/reasoning/held live; spec auto-gen); AGENT-08 PASS; real-key smoke deferred-pending-key. 612 suite green (611 pass + 1 skip).
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
-  completed_phases: 4
-  total_plans: 9
-  completed_plans: 19
-  percent: 50
+  completed_phases: 5
+  total_plans: 10
+  completed_plans: 20
+  percent: 63
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 05 in progress — 05-04 complete (dashboard v2: CDP screencast + SVG coverage map + verbatim reasoning + held-write beat); next 05-05 (autonomous live verification)
+**Current focus:** Phase 05 COMPLETE (5/5) — autonomous vision-driven exploration + full dashboard delivered and proven live. Next: Phase 06 (Hardening — cost/rate control, error recovery, drift re-run).
 
 ## Current Position
 
-Phase: 05 (autonomous-agent-loop) — IN PROGRESS (started 2026-07-03)
-Plan: 4 of 5 — 05-04 complete; 05-05 next
-Next: 05-05 — Autonomous live verification (trapped SPA) + AGENT-08 parity vs 03-04 baseline + phase close
-Status: 05-04 complete. DASH-04..07 delivered: CDP screencast module (src/agent only, no playwright in dashboard), typed SSE emitters (sendFrame/sendState/sendTransition/sendReasoning/sendHeldBeat), self-drawing SVG coverage map (ring layout, vanilla JS), verbatim agent reasoning (li.textContent — never innerHTML), held-write beat (#beat CSS pulse), StepEvent extended with url/title/prevSignature, explore.ts fully wired. Full suite 611/612 (1 intentional skip).
+Phase: 05 (autonomous-agent-loop) — COMPLETE (2026-07-04)
+Plan: 5 of 5 — all plans complete
+Next: Phase 06 (Hardening) — discuss → plan → execute (COST-*, FLOOR-08, CAP-06, DASH-08, DRIFT-01/02)
+Status: Phase 5 closed. 05-05 verified AUTONOMOUSLY (D5-05) — the real, unmodified CLI (`node src/cli/index.ts login|explore`) explores a login-walled, trapped SPA in real headed Chromium with the scripted provider + real floor. 18/18 invariants GREEN: logout never clicked (server counter 0) + profile still valid after; oscillation trap escaped + deliberate bounded stop (19 steps < 40 max); zero mutations/destructive hits reached the server (9 held-write records); dashboard SSE frame/state/transition/reasoning/held all live; spec auto-generated. AGENT-08 PASS (endpoints ⊇ 19, dataModels ≥ 6, states 8 > 4). Real-key smoke deferred-pending-key. Full suite 612 (611 pass + 1 skip). No src/ or test/ file touched.
 Last activity: 2026-07-04
 
-Progress: [████████░░] 4/5 plans done in Phase 5
+Progress: [██████████] 5/5 plans done in Phase 5
 
 ## Performance Metrics
 
@@ -212,6 +212,16 @@ Phase 04-03 execution decisions (PHASE 4 CLOSE):
 - Login-completion is gated on the target server's own ledger (`authAppLoads >= 1`) before the harness answers the Enter ready-prompt on stdin — observed server state, not an inferred delay. Capture stages run `--no-dashboard` for deterministic SIGINT exit (floor/interceptor/store/redaction all still active). Target-app credentials assembled from fragments at runtime + auth pages `no-store` so no secret literal reaches the profile disk cache (a fixture-fidelity fix surfaced during bring-up — Archeo captured nothing during login regardless).
 - Bookkeeping: ROADMAP Phase 4 → 3/3 Complete; REQUIREMENTS AUTH-01/02/03 → Complete (list + traceability). Noted out-of-scope: REQUIREMENTS Phase-3 rows (SPEC/BUILD/DASH) are stale `[ ]`/Pending despite Phase 3 Complete — left untouched (this plan's scope is AUTH only).
 
+Phase 05-05 execution decisions (PHASE 5 CLOSE):
+
+- Phase 5 verified AUTONOMOUSLY per explicit user directive (D5-05, mirrors 02-04 / 03-04 / 04-03) — no human-verify checkpoint. The real, unmodified CLI drives a login-walled, trapped **SPA** target (`05-05-live-verification/target-app.mjs`) in real headed Chromium with the `scripted` provider + real floor. `run-explore-verification.mjs` exits 0 with **18/18 invariants GREEN**. No src/ or test/ file touched (harness is `.planning/`-only, node built-ins, zero deps).
+- **Live invariants proven:** logout NEVER clicked (server `logoutHits=0`, a real nav-logout link was present but blocklist-masked) AND the profile still authenticates after the run (Stage C: 5 protected 2xx reads, 0 401, 0 re-login) — AGENT-07a. Oscillation trap `/ping↔/pong` escaped, run moved on to 6 other states, deliberate bounded stop (**19 agent-steps < 40 max-steps**, exit 0) — AGENT-07b/04/05. **Zero mutations reached the server** (`mutations=0`, `destructiveHits=0`) while 9 held-write records exist + destructive GET denied — FLOOR-01 under autonomy. Dashboard SSE carried `frame`(3)+`state`(8)+`transition`(18)+`reasoning`(19, verbatim)+`held`(10) — DASH-04..07. Spec auto-generated (28 endpoints / 7 models / 8 states). No cookie/password/MFA leak — CAP-05.
+- **AGENT-08 PASS:** autonomous spec vs committed 03-04 baseline — endpoints 26 ⊇ 19 (every baseline template present, `missing=[]`); dataModels 7 ≥ 6 (count basis per plan acceptance); states 8 strictly > 4; transitions 15 > 3. The one baseline model not name-reproduced is `Rpc` — NOT a regression: the JSON-RPC surface is covered as the `POST /rpc` endpoint, but the 03-05 generator intentionally skips JSON-RPC envelope shapes in `inferDataModels`. The autonomous run adds two genuine domain models the manual baseline never reached (`Order`, `Notification`).
+- **Observed vs inferred (recorded plainly):** the `explore` CLI does not surface the loop's stop-reason string on stdout/in the spec — the deliberate-bounded-stop is proven from exit 0 + steps(19) < max(40) + the scripted provider provably never emitting `done` ⟹ plateau/empty-frontier (a reporting gap, not a safety gap; no source change made). Live oscillation escape is via the directed frontier + exercised-set (breadth-first scripted never re-clicks a ref, so the `LoopDetector` counter path stays unit-proven in 05-03). The scripted provider clicks (never `fill`s), so the live held form-POST is page-fired with the exact `syntheticValue` defaults; the validation contract is proven directly via `node:http` (bad→400, good→200).
+- **Real-key smoke deferred-pending-key:** no `ANTHROPIC_API_KEY` in this environment (orchestrator fact). The harness checks at runtime and records deferred-pending-key; the phase still closes. The `anthropic` provider is unit-tested as pure functions with a DI'd fetch (05-01) — zero live API calls in the suite.
+- **Target-fixture deviation:** the target is a client-routed SPA (clicks → `history.pushState`) rather than full-page navigations, because the loop's `captureObservation` (`page.evaluate`) races with a real cross-document navigation (`Execution context was destroyed`). The signature layer is SPA-aware by design (D5-02, "SPA-ish"); pushState is a same-document navigation Playwright still reports via `framenavigated` (verified) with no context teardown, and full `page.goto` frontier-jumps render the same views — both styles covered. Fixture choice, not a source change.
+- **Bookkeeping:** ROADMAP Phase 5 → 5/5 Complete (2026-07-04); REQUIREMENTS MODEL-01/AGENT-01..08/DASH-04..07 → Complete (list + traceability), PLUS the stale Phase-3 rows (SPEC-01..07, BUILD-01, DASH-01..03) flipped Pending→Complete per the 04-03/05-CONTEXT housekeeping finding. Full suite 612 (611 pass + 1 skip, 0 fail) as both pre- and post-gate. Pre-existing unstaged `.gitignore` edit left unstaged.
+
 Phase 05-03 execution decisions:
 
 - CoverageGraph uses three ordered frontier queues (nav/form/click) + queued/exercised dedup Sets; nextFrontier drains nav>form>click FIFO, returns undefined when empty (drives empty-frontier stop). markExercised removes from all queues so an item is never re-offered.
@@ -250,8 +260,7 @@ Phase 05-01 execution decisions:
 
 ### Pending Todos
 
-None for Phase 5 plan 05-04. Next: Phase 5 plan 05-05 (autonomous live verification — trapped SPA + AGENT-08 parity vs 03-04 baseline + phase close).
-Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass (05-05 CONTEXT flags this for phase close).
+None. Phase 5 is complete (5/5). The stale Phase-3 REQUIREMENTS housekeeping (SPEC-01..07, BUILD-01, DASH-01..03) was applied at 05-05 phase close. Next: Phase 6 (Hardening) — begin with discuss-phase.
 
 ### Blockers/Concerns
 

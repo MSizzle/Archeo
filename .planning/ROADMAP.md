@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server (completed 2026-07-03)
 - [x] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing (completed 2026-07-03)
 - [x] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials (completed 2026-07-03)
-- [ ] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard
+- [x] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard (completed 2026-07-04)
 - [ ] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run
 - [ ] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec
 - [ ] **Phase 8: Differential Validation** - Diff original vs. rebuild observed behavior
@@ -184,7 +184,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 05-05-PLAN.md — Autonomous live verification (trapped SPA) + AGENT-08 parity vs the 03-04 baseline + phase close (AGENT-08)
+- [x] 05-05-PLAN.md — Autonomous live verification (trapped SPA) + AGENT-08 parity vs the 03-04 baseline + phase close (AGENT-08) (verified autonomously 2026-07-04: 18/18 invariants GREEN — real CLI explores a trapped authenticated SPA in real headed Chromium; logout never clicked + profile still valid; oscillation escaped + deliberate bounded stop; zero mutations/destructive hits reached the server; dashboard SSE frame/state/transition/reasoning/held all live; AGENT-08 PASS — endpoints ⊇, dataModels ≥, states strictly > baseline; real-key smoke deferred-pending-key)
 
 ### Phase 6: Hardening
 
@@ -241,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
-| 5. Autonomous Agent Loop + Full Dashboard | 4/5 | In progress | - |
+| 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 0/TBD | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |

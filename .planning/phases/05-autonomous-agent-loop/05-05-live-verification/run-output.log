@@ -1,0 +1,343 @@
+[harness] target app listening; login=http://localhost:57893/login?auto=1 app=http://localhost:57893/app maxSteps=40
+
+========== STAGE A: LOGIN RUN ==========
+[cli:login] archeo — authorized use required
+[cli:login] 
+[cli:login]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:login]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:login] 
+[cli:login] [cli:login] [archeo] Log in in the browser (MFA included). Press Enter here when you are logged in, or Ctrl+C to abort.
+[cli:login] [cli:login] [archeo] Press Enter here when you are logged in, or Ctrl+C to abort. [harness] STAGE A: login complete=true; answering Enter on stdin
+[cli:login] [archeo] logged-in session saved to .archeo/profiles/localhost
+[cli:login] [archeo] run 'archeo http://localhost:57893/login?auto=1' to explore authenticated; 'archeo clear-session localhost' to delete it.
+[cli:login] PASS [A1] Login handoff: authenticated app loaded + per-hostname profile persisted :: profileExists=true logins=1 mfa=1 authAppLoads=2
+
+========== STAGE B: AUTONOMOUS EXPLORE RUN ==========
+[harness] STAGE B: explore run started -> http://localhost:57893/app (dashboard :57919)
+[cli:explore] archeo — authorized use required
+[cli:explore] 
+[cli:explore]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:explore]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:explore] 
+[cli:explore] [cli:explore] [archeo] dashboard: http://127.0.0.1:57919
+[cli:explore] [cli:explore] 
+[cli:explore] [archeo] Destructive GET detected: http://localhost:57893/api/token/revoke
+[cli:explore] Allow this request? [y/N] [harness] destructive-GET prompt detected -> answering N
+[cli:explore] [archeo] spec written: .archeo/captures/session-2026-07-03-328feecf/archeo-spec.json
+[cli:explore] PASS [B1] Logout NEVER clicked (AGENT-07a blocklist): server logout counter is 0 :: ledger.logoutHits=0; a nav-logout link WAS present on the landing page
+PASS [B2] ZERO mutations reached the server (FLOOR-01 under autonomy): mutations=0 AND destructiveHits=0 :: server mutations=0 destructiveHits=0; held-write records=9
+PASS [B3] Held-write records exist while the server saw zero writes :: held-write records=9 [POST /api/users, DELETE /api/users/12, POST /api/settings, PUT /api/settings, POST /api/account, POST /graphql, POST /rpc, POST /api/form]
+PASS [B4] Form submit HELD with synthetic values only (server never validated it live) :: POST /api/form held records=1; reached-server=false
+PASS [B5] Destructive GET tripwire fired and was DENIED (server revoke never contacted) :: promptFired=true destructive-get-held=1 server destructiveHits=0
+PASS [B6] Deliberate bounded stop (plateau/empty-frontier), not a hang / not max-steps :: exit=true code=0 agent-steps=19 < maxSteps=40 (scripted provider never emits 'done')
+PASS [B7] Oscillation trap escaped (AGENT-07b/AGENT-04): ping+pong visited, run moved on and completed bounded :: visitedPing=true visitedPong=true otherNavStates=6 [/app, /app/users, /app/users/11, /app/settings, /app/catalog, /app/form]
+PASS [B8] Autonomous run explored AUTHENTICATED (protected reads 2xx, no 401) :: protected 2xx reads=54 401 records=0 re-logins=0
+PASS [B9] No session cookie / password / MFA code leaked into the capture store :: cookieLeak=0 pwLeak=0 mfaLeak=0
+PASS [B10] Dashboard SSE carried frame + state + transition + reasoning + held (DASH-04..07 live) :: kinds=[frame, held, reasoning, record, snapshot, state, transition] frames=3 states=8 transitions=18 reasoning=19 held=10
+PASS [B11] Reasoning stream carried VERBATIM agent reasoning lines (DASH-06) :: verbatim reasoning lines=19; sample="scripted: exercising frontier ref 0"
+PASS [B12] Spec auto-generated on close (deterministic Phase-3 generator) :: spec written=true endpoints=28 dataModels=7 states=8
+
+========== STAGE C: PROFILE STILL VALID ==========
+[cli:reauth] archeo — authorized use required
+[cli:reauth] 
+[cli:reauth]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:reauth]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:reauth] 
+[cli:reauth] [cli:reauth] 
+[cli:reauth] [archeo] Destructive GET detected: http://localhost:57893/api/token/revoke
+[cli:reauth] Allow this request? [y/N] [cli:reauth] [archeo] spec written: .archeo/captures/session-2026-07-03-3b5dd9c9/archeo-spec.json
+[cli:reauth] PASS [C1] Persisted profile STILL authenticates after the autonomous run (AGENT-07a live) :: follow-up protected 2xx reads=8 [/api/users, /api/users/11, /api/orders, /api/profile, /api/items] 401=0 authAppLoads(session)=7 re-logins=0 logoutHits=0
+
+========== STAGE D: VALIDATING FORM CONTRACT ==========
+PASS [D1] Validating form contract: rejects a bad value (400), accepts the synthetic shape (200) :: bad=400 good=200 (this direct test bypasses the floor; in explore mode the same POST is HELD — see B4)
+
+========== AGENT-08 PARITY ==========
+[harness] parity detail: {
+  "endpoints": {
+    "baseline": 19,
+    "auto": 26,
+    "missing": []
+  },
+  "dataModels": {
+    "baseline": 6,
+    "auto": 7,
+    "missing": [
+      "Rpc"
+    ]
+  },
+  "states": {
+    "baseline": 4,
+    "auto": 8
+  },
+  "transitions": {
+    "baseline": 3,
+    "auto": 15
+  }
+}
+PASS [P1] AGENT-08 endpoints ⊇ baseline (every baseline endpoint template present; count ≥) :: auto=26 baseline=19 missing=[]
+PASS [P2] AGENT-08 dataModels ≥ baseline (count ≥; superset on the comparable surface) :: auto=7 [User, Notification, Profile, Item, Done, Team, Order] baseline=6; not-reproduced=[Rpc] (03-05 generator skips JSON-RPC envelopes → 'Rpc' modelled as an endpoint, not a dataModel)
+PASS [P3] AGENT-08 flows/states STRICTLY greater than baseline :: states auto=8 > baseline=4; transitions auto=15 vs baseline=3
+
+========== REAL-KEY SMOKE ==========
+[harness] no ANTHROPIC_API_KEY -> real-key smoke DEFERRED-PENDING-KEY (phase still closes)
+[harness] real-key smoke: {"disposition":"deferred-pending-key","detail":"ANTHROPIC_API_KEY not present at execution time (expected in this environment)"}
+
+===== SUMMARY =====
+sessionName=session-2026-07-03-328feecf agentSteps=19 navStates=8 SSEkinds=[frame,held,reasoning,record,snapshot,state,transition]
+OVERALL: ALL GREEN
+
+===JSON===
+{
+  "allPass": true,
+  "results": [
+    {
+      "id": "A1",
+      "label": "Login handoff: authenticated app loaded + per-hostname profile persisted",
+      "pass": true,
+      "evidence": "profileExists=true logins=1 mfa=1 authAppLoads=2"
+    },
+    {
+      "id": "B1",
+      "label": "Logout NEVER clicked (AGENT-07a blocklist): server logout counter is 0",
+      "pass": true,
+      "evidence": "ledger.logoutHits=0; a nav-logout link WAS present on the landing page"
+    },
+    {
+      "id": "B2",
+      "label": "ZERO mutations reached the server (FLOOR-01 under autonomy): mutations=0 AND destructiveHits=0",
+      "pass": true,
+      "evidence": "server mutations=0 destructiveHits=0; held-write records=9"
+    },
+    {
+      "id": "B3",
+      "label": "Held-write records exist while the server saw zero writes",
+      "pass": true,
+      "evidence": "held-write records=9 [POST /api/users, DELETE /api/users/12, POST /api/settings, PUT /api/settings, POST /api/account, POST /graphql, POST /rpc, POST /api/form]"
+    },
+    {
+      "id": "B4",
+      "label": "Form submit HELD with synthetic values only (server never validated it live)",
+      "pass": true,
+      "evidence": "POST /api/form held records=1; reached-server=false"
+    },
+    {
+      "id": "B5",
+      "label": "Destructive GET tripwire fired and was DENIED (server revoke never contacted)",
+      "pass": true,
+      "evidence": "promptFired=true destructive-get-held=1 server destructiveHits=0"
+    },
+    {
+      "id": "B6",
+      "label": "Deliberate bounded stop (plateau/empty-frontier), not a hang / not max-steps",
+      "pass": true,
+      "evidence": "exit=true code=0 agent-steps=19 < maxSteps=40 (scripted provider never emits 'done')"
+    },
+    {
+      "id": "B7",
+      "label": "Oscillation trap escaped (AGENT-07b/AGENT-04): ping+pong visited, run moved on and completed bounded",
+      "pass": true,
+      "evidence": "visitedPing=true visitedPong=true otherNavStates=6 [/app, /app/users, /app/users/11, /app/settings, /app/catalog, /app/form]"
+    },
+    {
+      "id": "B8",
+      "label": "Autonomous run explored AUTHENTICATED (protected reads 2xx, no 401)",
+      "pass": true,
+      "evidence": "protected 2xx reads=54 401 records=0 re-logins=0"
+    },
+    {
+      "id": "B9",
+      "label": "No session cookie / password / MFA code leaked into the capture store",
+      "pass": true,
+      "evidence": "cookieLeak=0 pwLeak=0 mfaLeak=0"
+    },
+    {
+      "id": "B10",
+      "label": "Dashboard SSE carried frame + state + transition + reasoning + held (DASH-04..07 live)",
+      "pass": true,
+      "evidence": "kinds=[frame, held, reasoning, record, snapshot, state, transition] frames=3 states=8 transitions=18 reasoning=19 held=10"
+    },
+    {
+      "id": "B11",
+      "label": "Reasoning stream carried VERBATIM agent reasoning lines (DASH-06)",
+      "pass": true,
+      "evidence": "verbatim reasoning lines=19; sample=\"scripted: exercising frontier ref 0\""
+    },
+    {
+      "id": "B12",
+      "label": "Spec auto-generated on close (deterministic Phase-3 generator)",
+      "pass": true,
+      "evidence": "spec written=true endpoints=28 dataModels=7 states=8"
+    },
+    {
+      "id": "C1",
+      "label": "Persisted profile STILL authenticates after the autonomous run (AGENT-07a live)",
+      "pass": true,
+      "evidence": "follow-up protected 2xx reads=8 [/api/users, /api/users/11, /api/orders, /api/profile, /api/items] 401=0 authAppLoads(session)=7 re-logins=0 logoutHits=0"
+    },
+    {
+      "id": "D1",
+      "label": "Validating form contract: rejects a bad value (400), accepts the synthetic shape (200)",
+      "pass": true,
+      "evidence": "bad=400 good=200 (this direct test bypasses the floor; in explore mode the same POST is HELD — see B4)"
+    },
+    {
+      "id": "P1",
+      "label": "AGENT-08 endpoints ⊇ baseline (every baseline endpoint template present; count ≥)",
+      "pass": true,
+      "evidence": "auto=26 baseline=19 missing=[]"
+    },
+    {
+      "id": "P2",
+      "label": "AGENT-08 dataModels ≥ baseline (count ≥; superset on the comparable surface)",
+      "pass": true,
+      "evidence": "auto=7 [User, Notification, Profile, Item, Done, Team, Order] baseline=6; not-reproduced=[Rpc] (03-05 generator skips JSON-RPC envelopes → 'Rpc' modelled as an endpoint, not a dataModel)"
+    },
+    {
+      "id": "P3",
+      "label": "AGENT-08 flows/states STRICTLY greater than baseline",
+      "pass": true,
+      "evidence": "states auto=8 > baseline=4; transitions auto=15 vs baseline=3"
+    }
+  ],
+  "exploreRun": {
+    "sessionName": "session-2026-07-03-328feecf",
+    "exit": {
+      "exited": true,
+      "code": 0,
+      "sig": null
+    },
+    "agentSteps": 19,
+    "maxSteps": 40,
+    "records": 104,
+    "requestResponse": 54,
+    "heldWrites": 9,
+    "destructiveGetHeld": 1,
+    "navigations": 20,
+    "navStates": [
+      "/app",
+      "/app/catalog",
+      "/app/form",
+      "/app/settings",
+      "/app/users",
+      "/app/users/11",
+      "/ping",
+      "/pong"
+    ],
+    "reads2xx": 54,
+    "reads401": 0
+  },
+  "ledgerAfterExplore": {
+    "logoutHits": 0,
+    "mutations": 0,
+    "destructiveHits": 0
+  },
+  "sse": {
+    "kinds": [
+      "frame",
+      "held",
+      "reasoning",
+      "record",
+      "snapshot",
+      "state",
+      "transition"
+    ],
+    "counts": {
+      "snapshot": 1,
+      "record": 104,
+      "reasoning": 19,
+      "state": 8,
+      "transition": 18,
+      "held": 10,
+      "frame": 3
+    },
+    "frames": 3,
+    "held": 10,
+    "reasoning": 19,
+    "states": 8,
+    "transitions": 18,
+    "samples": {
+      "snapshot": "{\"records\":0,\"endpoints\":0,\"dataModels\":0,\"states\":0,\"heldWrites\":0,\"recentEndpoints\":[],\"coverageStates\":[],\"coverageTr",
+      "record": "{\"records\":1,\"endpoints\":1,\"dataModels\":1,\"states\":0,\"heldWrites\":0,\"recentEndpoints\":[{\"method\":\"GET\",\"pathTemplate\":\"/",
+      "reasoning": "{\"stepIndex\":0,\"action\":\"click\",\"reasoning\":\"scripted: exercising frontier ref 0\"}",
+      "state": "{\"signature\":\"6cf1f6d794db239babe229672efa1b4a56e21ea95a03f10f2299208529d405c8\",\"url\":\"http://localhost:57893/app\",\"titl",
+      "transition": "{\"from\":\"6cf1f6d794db239babe229672efa1b4a56e21ea95a03f10f2299208529d405c8\",\"to\":\"6b1f0eb5f0699d29415627ef23ba4b26b6230b6",
+      "held": "{\"path\":\"/api/users\",\"count\":1}",
+      "frame": "\"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDABALDA4MChAODQ4SERATGCgaGBYWGDEjJR0oOjM9PDkzODdASFxOQERXRTc4UG1RV19iZ2hnPk1xeXBkeFxlZ2P"
+    }
+  },
+  "parity": {
+    "endpoints": {
+      "baseline": 19,
+      "auto": 26,
+      "missing": []
+    },
+    "dataModels": {
+      "baseline": 6,
+      "auto": 7,
+      "missing": [
+        "Rpc"
+      ]
+    },
+    "states": {
+      "baseline": 4,
+      "auto": 8
+    },
+    "transitions": {
+      "baseline": 3,
+      "auto": 15
+    }
+  },
+  "realKey": {
+    "disposition": "deferred-pending-key",
+    "detail": "ANTHROPIC_API_KEY not present at execution time (expected in this environment)"
+  },
+  "spec": {
+    "endpoints": 28,
+    "dataModels": [
+      "User",
+      "Notification",
+      "Profile",
+      "Item",
+      "Done",
+      "Team",
+      "Order"
+    ],
+    "states": [
+      "app",
+      "app-users",
+      "app-users-detail",
+      "app-settings",
+      "app-catalog",
+      "app-form",
+      "ping",
+      "pong"
+    ],
+    "transitions": 15,
+    "coverage": {
+      "endpointsDiscovered": 28,
+      "dataModelsDiscovered": 7,
+      "statesDiscovered": 8,
+      "transitionsDiscovered": 15,
+      "heldWrites": 9,
+      "knownGaps": [
+        "held mutation response unobserved: POST /api/users",
+        "held mutation response unobserved: DELETE /api/users/{id}",
+        "held mutation response unobserved: POST /api/settings",
+        "held mutation response unobserved: PUT /api/settings",
+        "held mutation response unobserved: POST /api/account",
+        "held mutation response unobserved: POST /graphql",
+        "held mutation response unobserved: POST /rpc",
+        "held mutation response unobserved: GET /api/token/revoke",
+        "held mutation response unobserved: POST /api/form"
+      ],
+      "recordBreakdown": {
+        "requestResponse": 54,
+        "heldWrites": 9,
+        "navigations": 20,
+        "deadEnds": 1,
+        "destructiveGetHeld": 1
+      }
+    }
+  }
+}
+HARNESS_EXIT=0
