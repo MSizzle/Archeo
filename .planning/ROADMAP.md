@@ -162,8 +162,29 @@ Plans:
   3. The dashboard shows the agent's browser view (CDP screencast), the coverage map drawing itself as states are found, one-line model reasoning per action, and a visible reassuring beat when a write is held
   4. The autonomous spec matches or exceeds the manually-driven Phase 3 spec in endpoint and data-model coverage
 
-**Plans**: TBD
+**Plans**: 5 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Model adapter core + `anthropic` (raw fetch, no SDK) + `scripted` providers + GATE-03 second evolution (MODEL-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-02-PLAN.md — Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist (AGENT-01/03/06, AGENT-07a)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 05-03-PLAN.md — Coverage graph + frontier + loop detection/backtrack + stop conditions + form-fill + agent-step records + `archeo explore` CLI (AGENT-02/04/05/07)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 05-04-PLAN.md — Dashboard v2: CDP screencast SSE + self-drawing SVG coverage map + verbatim reasoning stream + held-write beat (DASH-04/05/06/07)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 05-05-PLAN.md — Autonomous live verification (trapped SPA) + AGENT-08 parity vs the 03-04 baseline + phase close (AGENT-08)
 
 ### Phase 6: Hardening
 
@@ -220,7 +241,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
-| 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
+| 5. Autonomous Agent Loop + Full Dashboard | 0/5 | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |
