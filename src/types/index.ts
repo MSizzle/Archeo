@@ -27,6 +27,9 @@ export const RECORD_TYPES = {
   DEAD_END: 'dead-end',
   DESTRUCTIVE_GET_HELD: 'destructive-get-held',
   DESTRUCTIVE_GET_CONFIRMED: 'destructive-get-confirmed',
+  // D3-03: main-frame navigation records feed UI flow inference in the spec generator.
+  // Navigation records are held:false and never populate the response corpus.
+  NAVIGATION: 'navigation',
 } as const;
 export type RecordType = typeof RECORD_TYPES[keyof typeof RECORD_TYPES];
 

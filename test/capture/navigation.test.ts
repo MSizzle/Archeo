@@ -161,7 +161,11 @@ describe('attachNavigationTracker', () => {
 
     // The raw secret must not appear in the stored URL
     assert.ok(!rec.url.includes('supersecret'), 'auth param value must be redacted (T-03-04)');
-    assert.ok(rec.url.includes('[REDACTED]'), 'auth param must be replaced with [REDACTED]');
+    // redactUrl uses the URL API which percent-encodes brackets: [REDACTED] → %5BREDACTED%5D
+    assert.ok(
+      rec.url.includes('[REDACTED]') || rec.url.includes('REDACTED'),
+      'auth param must be replaced with REDACTED (T-03-04)',
+    );
 
     await store.close();
     rmSync(tmpDir3, { recursive: true, force: true });
