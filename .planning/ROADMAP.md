@@ -206,7 +206,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 06-01-PLAN.md — Provider usage plumbing (Provider.chat → {text, usage}) + token/dollar budget + pacing + stopReason surfacing (COST-01/03/04)
+- [x] 06-01-PLAN.md — Provider usage plumbing (Provider.chat → {text, usage}) + token/dollar budget + pacing + stopReason surfacing (COST-01/03/04) (completed 2026-07-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 

@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 COMPLETE (5/5) → Phase 6 (Hardening) next. 05-05 verified autonomously — the real CLI explores a trapped authenticated SPA in real headed Chromium: 18/18 invariants GREEN (no logout + profile valid; oscillation escaped + bounded; zero mutations/destructive hits; dashboard SSE frame/state/transition/reasoning/held live; spec auto-gen); AGENT-08 PASS; real-key smoke deferred-pending-key. 612 suite green (611 pass + 1 skip).
+stopped_at: 06-01 COMPLETE — Provider.chat → ChatResult, BudgetTracker (token/dollar ceilings), Pacer (paceMs), stopReason surfaced to manifest + spec coverage + CLI stdout. 12 atomic commits (6 test + 6 feat). 655 tests green (+44 from baseline 611). Next: 06-02 (semantic change detector).
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 10
-  completed_plans: 20
-  percent: 63
+  completed_plans: 21
+  percent: 64
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 
 ## Current Position
 
-Phase: 05 (autonomous-agent-loop) — COMPLETE (2026-07-04)
-Plan: 5 of 5 — all plans complete
-Next: Phase 06 (Hardening) — discuss → plan → execute (COST-*, FLOOR-08, CAP-06, DASH-08, DRIFT-01/02)
-Status: Phase 5 closed. 05-05 verified AUTONOMOUSLY (D5-05) — the real, unmodified CLI (`node src/cli/index.ts login|explore`) explores a login-walled, trapped SPA in real headed Chromium with the scripted provider + real floor. 18/18 invariants GREEN: logout never clicked (server counter 0) + profile still valid after; oscillation trap escaped + deliberate bounded stop (19 steps < 40 max); zero mutations/destructive hits reached the server (9 held-write records); dashboard SSE frame/state/transition/reasoning/held all live; spec auto-generated. AGENT-08 PASS (endpoints ⊇ 19, dataModels ≥ 6, states 8 > 4). Real-key smoke deferred-pending-key. Full suite 612 (611 pass + 1 skip). No src/ or test/ file touched.
+Phase: 06 (hardening) — IN PROGRESS (1/6)
+Plan: 1 of 6 — 06-01 complete
+Next: 06-02 (semantic change detector — vision-call gating + skip accounting)
+Status: 06-01 complete. Provider.chat → ChatResult (text + TokenUsage). BudgetTracker (PRICE_TABLE, token ceiling ≥, cost ceiling > 0 guard for scripted). Pacer (injected clock, first-call baseline). STOP_REASONS.BUDGET. loop.ts wires budget.add + pacer.wait. stopReason flows: loop → explore.ts.recordStopReason → manifest.json → spec coverage.stopReason. CLI gains --max-tokens/--max-cost/--pace-ms flags; prints [archeo] exploration stopped: <reason> (<steps> steps, <tokens> tokens). 12 commits (6 test + 6 feat). 655 tests green (up from 611).
 Last activity: 2026-07-04
 
-Progress: [██████████] 5/5 plans done in Phase 5
+Progress: [█░░░░░] 1/6 plans done in Phase 6
 
 ## Performance Metrics
 
@@ -258,9 +258,22 @@ Phase 05-01 execution decisions:
 - No TypeScript enums anywhere in src/model/ — string union types and as const used throughout (native TS stripping convention)
 - All import paths in src/model/ use .ts extensions (moduleResolution:Bundler)
 
+### Phase 06-01 execution decisions:
+
+- Provider.chat return type changed from Promise<string> to Promise<ChatResult> = { text: string; usage: TokenUsage }. All providers (scripted, anthropic) and consumers (decideWithRetry, loop) updated atomically.
+- BudgetTracker exceeded() uses >= for token ceiling so maxTokens=0 immediately halts (0 >= 0 before any add()). Cost ceiling uses > 0 guard so scripted provider (zero usage → zero cost) never triggers a cost ceiling when only maxCost is set.
+- PRICE_TABLE: haiku-4-5 {1.0, 5.0}, sonnet-4-6 {3.0, 15.0}, opus-4-8 {5.0, 25.0} (USD/1M tokens). DEFAULT_MODELS.scripted = 'frontier' intentionally NOT in PRICE_TABLE → cost tracking disabled for scripted runs.
+- Pacer uses injected now()/sleep() for deterministic testing. First wait() establishes baseline (no sleep), subsequent calls sleep for remaining window.
+- STOP_REASONS.BUDGET = 'budget' added to existing stop-reason set (no enum, as const).
+- explore() in loop.ts: budget.add(decision.usage) + budget.exceeded() check after each decideWithRetry; pacer.wait() before each executeAction.
+- ExploreResult gains totalTokens: number from budget.totalTokens.
+- Store chain: store.recordStopReason(reason) → writeManifest → manifest.json stopReason field. generateSpec propagates manifest.stopReason → coverage.stopReason.
+- CLI: --max-tokens NaN guard — Number('abc') = NaN → || undefined = undefined (no ceiling applied). parseModelSpec extracts model ID for BudgetTracker price lookup.
+- .gitignore unstaged edit left unstaged throughout (never git add .gitignore).
+
 ### Pending Todos
 
-None. Phase 5 is complete (5/5). The stale Phase-3 REQUIREMENTS housekeeping (SPEC-01..07, BUILD-01, DASH-01..03) was applied at 05-05 phase close. Next: Phase 6 (Hardening) — begin with discuss-phase.
+None for 06-01. Next: 06-02 (semantic change detector + vision-call gating).
 
 ### Blockers/Concerns
 
