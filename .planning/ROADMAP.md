@@ -104,7 +104,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Endpoint templater: path collapsing + polling dedup (pure, TDD) (SPEC-01/02)
+- [x] 03-01-PLAN.md — Endpoint templater: path collapsing + polling dedup (pure, TDD) (SPEC-01/02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -201,7 +201,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
-| 3. Spec Generator + Buildability Proof | 0/4 | Not started | - |
+| 3. Spec Generator + Buildability Proof | 1/4 | In progress | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
