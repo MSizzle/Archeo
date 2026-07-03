@@ -255,6 +255,8 @@ describe('decideWithRetry — source:model path', () => {
       Object.values(ACTIONS).includes(result.action.action as any),
       `Expected action to be in ACTIONS, got: ${result.action.action}`,
     )
+    // Scripted provider usage is zeros
+    assert.deepEqual(result.usage, { inputTokens: 0, outputTokens: 0 })
   })
 })
 
@@ -285,6 +287,21 @@ describe('decideWithRetry — re-prompt then success', () => {
       `Expected feedback message with 'invalid', got: ${lastMsg.content}`,
     )
   })
+
+  test('re-prompt: usage from two calls summed — {5,7} + {5,7} = {10,14}', async () => {
+    let callCount = 0
+    const provider: Provider = {
+      id: 'stub-usage-sum',
+      async chat(_msgs: ChatMessage[]): Promise<ChatResult> {
+        callCount++
+        if (callCount === 1) return { text: 'garbage', usage: { inputTokens: 5, outputTokens: 7 } }
+        return { text: '{"action":"done","reasoning":"ok"}', usage: { inputTokens: 5, outputTokens: 7 } }
+      },
+    }
+    const result = await decideWithRetry(provider, minObs, minFrontier)
+    assert.strictEqual(result.source, 'model')
+    assert.deepEqual(result.usage, { inputTokens: 10, outputTokens: 14 })
+  })
 })
 
 // ---------------------------------------------------------------------------
@@ -308,6 +325,18 @@ describe('decideWithRetry — twice garbage → fallback', () => {
       `Expected reasoning to include 'fallback', got: ${result.action.reasoning}`,
     )
     assert.strictEqual(callCount, 2)
+  })
+
+  test('fallback: usage is sum of both garbage calls — {3,4} + {3,4} = {6,8}', async () => {
+    const provider: Provider = {
+      id: 'stub-fallback-usage',
+      async chat(_msgs: ChatMessage[]): Promise<ChatResult> {
+        return { text: 'garbage', usage: { inputTokens: 3, outputTokens: 4 } }
+      },
+    }
+    const result = await decideWithRetry(provider, minObs, minFrontier)
+    assert.strictEqual(result.source, 'fallback')
+    assert.deepEqual(result.usage, { inputTokens: 6, outputTokens: 8 })
   })
 })
 
