@@ -14,7 +14,7 @@ Archeo is built in eight phases that de-risk the value question before investing
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Scaffold, authorization gate, CLI opens target URL and exits cleanly (completed 2026-06-29)
-- [ ] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server
+- [x] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server (completed 2026-07-03)
 - [ ] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing
 - [ ] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials
 - [ ] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard
@@ -83,7 +83,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 02-04-PLAN.md — Live floor verification against a real authenticated account (human-verify checkpoint)
+- [x] 02-04-PLAN.md — Live floor verification against a real authenticated account (verified autonomously 2026-07-03: live local target app + real Chromium)
 
 ### Phase 3: Spec Generator + Buildability Proof
 
@@ -183,7 +183,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
-| 2. Capture Layer & Safety Floor | 3/4 | In Progress|  |
+| 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |

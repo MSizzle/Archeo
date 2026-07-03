@@ -1,0 +1,97 @@
+[harness] target app listening at http://localhost:64908/app
+[cli] archeo — authorized use required
+[cli] 
+[cli]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli] 
+[cli] [cli] 
+[cli] [archeo] Destructive GET detected: http://localhost:64908/api/token/revoke
+[cli] Allow this request? [y/N] 
+[harness] destructive-GET prompt detected -> answering N
+[harness] run finished: done
+PASS [a] READS captured (XHR GET request-response records) :: request-response=6; XHR GET reads (profile,items)=2
+PASS [b] REST writes held; server ledger empty; held records carry method/URL/headers/body :: held REST writes=4 (methods POST,PUT); server REST mutations=0
+PASS [c] GraphQL mutation held (query passes); JSON-RPC write held (read passes) :: gqlHeld=1 gqlQuery=1 rpcHeld=1 rpcRead=1 server GQL/RPC mutations=0
+PASS [d] Destructive GET: [y/N] prompt fired, answered N, request never reached server :: promptFired=true held=1 confirmed=0 server destructiveHits=0
+PASS [e] REDACTION: zero planted secrets; auth header names survive as [REDACTED]; field values -> type names :: secretHits={"SECRET_COOKIE_abc123":0,"SECRET_BEARER_xyz789":0,"SECRET_PASSWORD_hunter2":0,"victim@example.com":0} authHeaderPresent=true authRedacted=true profile.email==="string"
+PASS [f] Dead-end signal: type:"dead-end" with relatedHeldWriteId after a held write :: dead-end records=1 linked=1 bodiesNulled=true
+
+===== SUMMARY =====
+session dir: /private/tmp/claude-501/-Users-Montster-PrometheusUltra-Ideas-Archeo/2c5f55cd-54f0-45c8-9b02-cda6044f142f/scratchpad/.archeo/captures/session-2026-07-03-763b36f6
+manifest: {"version":"1","sessionId":"763b36f6-8039-4974-b6df-c287c3644a76","targetOrigin":"localhost","startedAt":"2026-07-03T06:42:39.713Z","updatedAt":"2026-07-03T06:42:41.366Z","recordCount":14,"heldWriteCount":7,"logFile":"capture.jsonl"}
+record type counts: {"request-response":6,"held-write":6,"dead-end":1,"destructive-get-held":1}
+server ledger: allRequests=7 mutations=0 destructiveHits=0 done=true
+server mutation ledger entries: []
+
+OVERALL: ALL GREEN
+
+===JSON===
+{
+  "allPass": true,
+  "results": [
+    {
+      "id": "a",
+      "label": "READS captured (XHR GET request-response records)",
+      "pass": true,
+      "evidence": "request-response=6; XHR GET reads (profile,items)=2"
+    },
+    {
+      "id": "b",
+      "label": "REST writes held; server ledger empty; held records carry method/URL/headers/body",
+      "pass": true,
+      "evidence": "held REST writes=4 (methods POST,PUT); server REST mutations=0"
+    },
+    {
+      "id": "c",
+      "label": "GraphQL mutation held (query passes); JSON-RPC write held (read passes)",
+      "pass": true,
+      "evidence": "gqlHeld=1 gqlQuery=1 rpcHeld=1 rpcRead=1 server GQL/RPC mutations=0"
+    },
+    {
+      "id": "d",
+      "label": "Destructive GET: [y/N] prompt fired, answered N, request never reached server",
+      "pass": true,
+      "evidence": "promptFired=true held=1 confirmed=0 server destructiveHits=0"
+    },
+    {
+      "id": "e",
+      "label": "REDACTION: zero planted secrets; auth header names survive as [REDACTED]; field values -> type names",
+      "pass": true,
+      "evidence": "secretHits={\"SECRET_COOKIE_abc123\":0,\"SECRET_BEARER_xyz789\":0,\"SECRET_PASSWORD_hunter2\":0,\"victim@example.com\":0} authHeaderPresent=true authRedacted=true profile.email===\"string\""
+    },
+    {
+      "id": "f",
+      "label": "Dead-end signal: type:\"dead-end\" with relatedHeldWriteId after a held write",
+      "pass": true,
+      "evidence": "dead-end records=1 linked=1 bodiesNulled=true"
+    }
+  ],
+  "manifest": {
+    "version": "1",
+    "sessionId": "763b36f6-8039-4974-b6df-c287c3644a76",
+    "targetOrigin": "localhost",
+    "startedAt": "2026-07-03T06:42:39.713Z",
+    "updatedAt": "2026-07-03T06:42:41.366Z",
+    "recordCount": 14,
+    "heldWriteCount": 7,
+    "logFile": "capture.jsonl"
+  },
+  "secretHits": {
+    "SECRET_COOKIE_abc123": 0,
+    "SECRET_BEARER_xyz789": 0,
+    "SECRET_PASSWORD_hunter2": 0,
+    "victim@example.com": 0
+  },
+  "serverLedger": {
+    "allRequests": 7,
+    "mutations": [],
+    "destructiveHits": []
+  },
+  "typeCounts": {
+    "request-response": 6,
+    "held-write": 6,
+    "dead-end": 1,
+    "destructive-get-held": 1
+  },
+  "sessionDir": "/private/tmp/claude-501/-Users-Montster-PrometheusUltra-Ideas-Archeo/2c5f55cd-54f0-45c8-9b02-cda6044f142f/scratchpad/.archeo/captures/session-2026-07-03-763b36f6"
+}
