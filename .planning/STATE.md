@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 complete — 04-03 autonomous live verification GREEN (login handoff, persistence across restarts, floor-under-auth, clear-session relock); ready for Phase 5 (Autonomous Agent Loop + Full Dashboard)
-last_updated: "2026-07-03T23:00:00.000Z"
+stopped_at: Phase 5 plan 05-01 complete — model adapter layer (MODEL-01) + GATE-03 v3; 442/442 green; ready for 05-02 (observation extractor + state signature + decision validation)
+last_updated: "2026-07-03T23:30:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 8
-  completed_plans: 15
+  completed_plans: 16
   percent: 50
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 04 complete — ready for Phase 5 (Autonomous Agent Loop + Full Dashboard)
+**Current focus:** Phase 05 in progress — 05-01 complete (model adapter layer); next 05-02 (observation extractor + state signature)
 
 ## Current Position
 
-Phase: 04 (authentication-handoff) — COMPLETE (2026-07-03)
-Plan: 3 of 3 — 04-03 complete; Phase 4 closed
-Next: Phase 5 — Autonomous Agent Loop + Full Dashboard (vision-driven exploration; full live dashboard)
-Status: 04-03 autonomous live verification GREEN (13/13 invariants; real CLI vs live login-walled target). AUTH-01/02/03 Complete. Full suite 398/398.
+Phase: 05 (autonomous-agent-loop) — IN PROGRESS (started 2026-07-03)
+Plan: 1 of 5 — 05-01 complete; 05-02 next
+Next: 05-02 — Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist (AGENT-01/03/06, AGENT-07a)
+Status: 05-01 complete. MODEL-01 delivered: types, adapter, anthropic (raw fetch), scripted (CI BFS), GATE-03 v3. Full suite 442/442.
 Last activity: 2026-07-03
 
-Progress: [██████████] 3/3 plans done; Phase 4 complete → Phase 5 next
+Progress: [██░░░░░░░░] 1/5 plans done in Phase 5
 
 ## Performance Metrics
 
@@ -212,9 +212,19 @@ Phase 04-03 execution decisions (PHASE 4 CLOSE):
 - Login-completion is gated on the target server's own ledger (`authAppLoads >= 1`) before the harness answers the Enter ready-prompt on stdin — observed server state, not an inferred delay. Capture stages run `--no-dashboard` for deterministic SIGINT exit (floor/interceptor/store/redaction all still active). Target-app credentials assembled from fragments at runtime + auth pages `no-store` so no secret literal reaches the profile disk cache (a fixture-fidelity fix surfaced during bring-up — Archeo captured nothing during login regardless).
 - Bookkeeping: ROADMAP Phase 4 → 3/3 Complete; REQUIREMENTS AUTH-01/02/03 → Complete (list + traceability). Noted out-of-scope: REQUIREMENTS Phase-3 rows (SPEC/BUILD/DASH) are stale `[ ]`/Pending despite Phase 3 Complete — left untouched (this plan's scope is AUTH only).
 
+Phase 05-01 execution decisions:
+
+- buildAnthropicRequest is PURE (no side effects); x-api-key header set to '' placeholder and overwritten by createAnthropicProvider at call time — key never passes through the pure builder
+- fetch() ternary form (`opts.fetchImpl !== undefined ? await opts.fetchImpl(...) : await fetch(...)`) keeps the bare `fetch(` substring visible so hasBareGlobalFetch detects it; GATE-03 v3 exempts this file via isProvider flag
+- extractLastJsonObject uses balanced-brace scanning (not regex) to extract the last valid top-level JSON object; fenced ```json block is tried first; returns null (never throws) on failure
+- contentToText joins only 'text' parts from ChatContentPart[]; image parts are ignored (envelope is always text)
+- GATE-03 v3 negative proof: `const _evil = 'https://evil.example/v1'` temporarily added to anthropic.ts; endpoint-pinning test failed with "non-anthropic URL literal: evil.example" — confirmed guard fires on real violations before revert
+- No TypeScript enums anywhere in src/model/ — string union types and as const used throughout (native TS stripping convention)
+- All import paths in src/model/ use .ts extensions (moduleResolution:Bundler)
+
 ### Pending Todos
 
-None for Phase 4. Next: Phase 5 (Autonomous Agent Loop + Full Dashboard) — discuss → plan → execute.
+None for Phase 5 plan 05-01. Next: Phase 5 plan 05-02 (Observation extractor + SPA-aware state signature + strict-JSON decision validation + never-click blocklist).
 Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass.
 
 ### Blockers/Concerns
