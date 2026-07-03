@@ -123,7 +123,110 @@ export function templatePath(pathname: string): string {
  * @param records  Array of already-redacted CaptureRecord objects.
  */
 export function groupRecords(records: CaptureRecord[]): EndpointTemplate[] {
-  // STUB — Task 2 RED phase. Implementation added in the GREEN commit.
-  void records;
-  return [];
+  // Ordered list of group keys (preserves first-seen order for deterministic output).
+  const keyOrder: string[] = [];
+
+  // Accumulated group state keyed by group key.
+  const groups = new Map<
+    string,
+    {
+      method: string;
+      pathTemplate: string;
+      protocol: CaptureRecord['protocol'];
+      operationType: CaptureRecord['operationType'];
+      held: boolean;
+      observationCount: number;
+      examplePaths: string[];
+      statusCodesSet: Set<number>;
+      requestBodyShape: unknown | null;
+      responseBodyShape: unknown | null;
+      // SPEC-02: concrete URL → repeat count within this group.
+      urlCounts: Map<string, number>;
+      polling: boolean;
+      operationName?: string;
+    }
+  >();
+
+  for (const record of records) {
+    // Skip navigation records — those feed flows in 03-02, not the endpoint set.
+    if ((record.type as string) === 'navigation') continue;
+
+    const tpath = templatePath(record.path);
+
+    // Compute the group key.
+    let key: string;
+    let operationName: string | undefined;
+    if (record.protocol === 'GraphQL') {
+      operationName = record.graphqlOperationName;
+      key = 'GraphQL:' + (operationName ?? tpath);
+    } else {
+      key = record.method + ' ' + tpath + ' ' + record.protocol;
+    }
+
+    if (!groups.has(key)) {
+      // First record for this group — initialise.
+      keyOrder.push(key);
+      groups.set(key, {
+        method: record.method,
+        pathTemplate: tpath,
+        protocol: record.protocol,
+        operationType: record.operationType,
+        held: false,
+        observationCount: 0,
+        examplePaths: [],
+        statusCodesSet: new Set(),
+        requestBodyShape: null,
+        responseBodyShape: null,
+        urlCounts: new Map(),
+        polling: false,
+        operationName,
+      });
+    }
+
+    const g = groups.get(key)!;
+
+    // Increment observation count.
+    g.observationCount += 1;
+
+    // Accumulate up to 3 distinct concrete paths.
+    if (!g.examplePaths.includes(record.path) && g.examplePaths.length < 3) {
+      g.examplePaths.push(record.path);
+    }
+
+    // Status codes.
+    if (record.responseStatus !== undefined) {
+      g.statusCodesSet.add(record.responseStatus);
+    }
+
+    // Held: true if ANY record in the group was held.
+    if (record.held) g.held = true;
+
+    // Body shapes: last-writer wins.
+    if (record.requestBody !== undefined) g.requestBodyShape = record.requestBody;
+    if (record.responseBody !== undefined) g.responseBodyShape = record.responseBody;
+
+    // SPEC-02: polling — track per-group concrete URL repeat count.
+    const urlCount = (g.urlCounts.get(record.url) ?? 0) + 1;
+    g.urlCounts.set(record.url, urlCount);
+    if (urlCount >= 3) g.polling = true;
+  }
+
+  // Build the output array in first-seen order.
+  return keyOrder.map((key) => {
+    const g = groups.get(key)!;
+    return {
+      method: g.method,
+      pathTemplate: g.pathTemplate,
+      protocol: g.protocol,
+      operationType: g.operationType,
+      held: g.held,
+      observationCount: g.observationCount,
+      examplePaths: g.examplePaths,
+      statusCodes: Array.from(g.statusCodesSet).sort((a, b) => a - b),
+      requestBodyShape: g.requestBodyShape,
+      responseBodyShape: g.responseBodyShape,
+      polling: g.polling,
+      ...(g.operationName !== undefined ? { operationName: g.operationName } : {}),
+    };
+  });
 }
