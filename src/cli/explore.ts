@@ -32,12 +32,17 @@ import { attachNavigationTracker } from '../capture/navigation.ts'
 import { writeSpec } from '../spec/generator.ts'
 import { explore } from '../agent/loop.ts'
 import type { StepEvent } from '../agent/loop.ts'
+import { startScreencast } from '../agent/screencast.ts'
 
-/** Dashboard handle shape used here — onStep is added in 05-04; optional until then. */
+/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07). */
 interface DashboardHandle {
   port?: number
   close(): Promise<void>
-  onStep?: (s: StepEvent) => void
+  sendFrame(base64: string): void
+  sendState(node: { signature: string; url: string; title: string }): void
+  sendTransition(t: { from: string; to: string; action: string }): void
+  sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void
+  sendHeldBeat(info: { path?: string; count: number }): void
 }
 
 /**
@@ -62,6 +67,10 @@ export async function runExplore(
 
   // D4-02/D4-03: persistent context preserves the authenticated session across runs.
   const context = await chromium.launchPersistentContext(profileDirPath, { headless: false })
+
+  // DASH-04: screencast handle — started after page.goto, stopped before dashboard.close().
+  // Declared here so gracefulShutdown can reference it.
+  let screencast: { stop(): Promise<void> } | undefined
 
   // ---------------------------------------------------------------------------
   // D3-04 / T-03-06: single idempotent gracefulShutdown — flush store → spec → exit 0.
@@ -92,7 +101,12 @@ export async function runExplore(
       )
     }
 
-    // 3. Close the dashboard (D3-05). A close failure never blocks or delays exit (T-03-12).
+    // 3. Stop screencast before closing the dashboard (DASH-04).
+    if (screencast) {
+      try { await screencast.stop() } catch {}
+    }
+
+    // 4. Close the dashboard (D3-05). A close failure never blocks or delays exit (T-03-12).
     if (dashboard) {
       try {
         await dashboard.close()
@@ -139,6 +153,15 @@ export async function runExplore(
     attachNavigationTracker(page, store)
 
     await page.goto(url, { waitUntil: 'domcontentloaded' })
+
+    // DASH-04: start CDP screencast — best-effort; a CDPSession failure must never halt exploration.
+    if (dashboard) {
+      try {
+        screencast = await startScreencast(context, page, (b64) => dashboard.sendFrame(b64))
+      } catch {
+        // screencast is best-effort: a CDPSession failure never halts exploration
+      }
+    }
   } catch (err) {
     if (contextClosed) {
       await closeStore()
@@ -151,8 +174,22 @@ export async function runExplore(
   }
 
   // Drive the autonomous loop to completion (bounded by maxSteps / plateau / empty-frontier).
-  // onStep feeds the dashboard in 05-04 (undefined until then — harmless).
-  await explore(page, provider, store, { maxSteps, onStep: dashboard?.onStep })
+  // onStep wires DASH-05/06 dashboard events: reasoning, state nodes, and transitions.
+  await explore(page, provider, store, {
+    maxSteps,
+    onStep: dashboard ? (s: StepEvent) => {
+      // DASH-06: verbatim agent reasoning
+      dashboard.sendReasoning({ stepIndex: s.stepIndex, action: s.action, reasoning: s.reasoning })
+      // DASH-05: new UI state node (only when the state is first seen)
+      if (s.newState) {
+        dashboard.sendState({ signature: s.signature, url: s.url, title: s.title })
+      }
+      // DASH-05: transition from previous state to current state
+      if (s.prevSignature) {
+        dashboard.sendTransition({ from: s.prevSignature, to: s.signature, action: s.action })
+      }
+    } : undefined,
+  })
 
   // Loop complete — run the same graceful shutdown as a window close: flush → spec → exit 0.
   // Remove SIGINT handler first to prevent a process hang (T-01-10).

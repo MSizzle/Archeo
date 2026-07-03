@@ -43,6 +43,12 @@ export interface StepEvent {
   reasoning: string
   signature: string
   newState: boolean
+  /** URL of the observed page at this step (feeds dashboard sendState, DASH-05). */
+  url: string
+  /** Page title at this step (feeds dashboard sendState, DASH-05). */
+  title: string
+  /** Signature of the previous state, if any (feeds dashboard sendTransition, DASH-05). */
+  prevSignature?: string
 }
 
 export interface ExploreResult {
@@ -277,7 +283,16 @@ export async function explore(
       stepIndex,
     })
     stepsTaken++
-    onStep?.({ stepIndex, action: action.action, reasoning: action.reasoning, signature: sig, newState: isNew })
+    onStep?.({
+      stepIndex,
+      action: action.action,
+      reasoning: action.reasoning,
+      signature: sig,
+      newState: isNew,
+      url: obs.url,
+      title: obs.title,
+      prevSignature: prevSig ?? undefined,
+    })
 
     if (action.action === 'done') {
       stopReason = STOP_REASONS.DONE
