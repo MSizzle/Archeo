@@ -419,6 +419,239 @@ describe('generateSpec + writeSpec', () => {
   });
 
   // -------------------------------------------------------------------------
+  // Task 3 (03-05): Type normalization — no raw values as types
+  // -------------------------------------------------------------------------
+  test('03-05 SPEC-03: UUID and datetime values normalized to type keywords (not raw values)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1, path: '/api/profiles/1',
+        url: 'https://app.example.com/api/profiles/1',
+        responseBody: {
+          id: '3f2504e0-4f89-41d3-9a0c-0305e82c3301',       // UUID → 'uuid'
+          created_at: '2024-01-15T10:00:00Z',                // ISO 8601 → 'datetime'
+          email: 'user@example.com',                          // email → 'email'
+          website: 'https://example.com',                     // URL → 'url'
+          name: 'string',                                     // already a type keyword → 'string'
+          score: 42,                                          // number → 'number'
+          active: true,                                       // boolean → 'boolean'
+        },
+      }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+    const profile = spec.dataModels.find(m => m.name === 'Profile');
+    assert.ok(profile, 'Profile model must be inferred');
+
+    const idField = profile?.fields.find(f => f.name === 'id');
+    assert.equal(idField?.type, 'uuid', 'UUID value must normalize to type "uuid"');
+
+    const createdField = profile?.fields.find(f => f.name === 'created_at');
+    assert.equal(createdField?.type, 'datetime', 'ISO datetime value must normalize to "datetime"');
+
+    const emailField = profile?.fields.find(f => f.name === 'email');
+    assert.equal(emailField?.type, 'email', 'email value must normalize to "email"');
+
+    const websiteField = profile?.fields.find(f => f.name === 'website');
+    assert.equal(websiteField?.type, 'url', 'http URL must normalize to "url"');
+
+    const nameField = profile?.fields.find(f => f.name === 'name');
+    assert.equal(nameField?.type, 'string', 'existing type keyword must stay "string"');
+
+    const scoreField = profile?.fields.find(f => f.name === 'score');
+    assert.equal(scoreField?.type, 'number', 'number value must normalize to "number"');
+
+    const activeField = profile?.fields.find(f => f.name === 'active');
+    assert.equal(activeField?.type, 'boolean', 'boolean must normalize to "boolean"');
+  });
+
+  test('03-05 SPEC-03: no raw observed value appears as a type anywhere in generated spec (recursive)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1, path: '/api/items/1',
+        url: 'https://app.example.com/api/items/1',
+        responseBody: {
+          id: '550e8400-e29b-41d4-a716-446655440001',
+          created_at: '2024-01-15T10:00:00Z',
+          name: 'string',
+        },
+      }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    // Raw UUID must not appear as a "type" value anywhere in the spec
+    for (const model of spec.dataModels) {
+      for (const field of model.fields) {
+        assert.ok(
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(field.type),
+          `field.type must never be a raw UUID — got: ${field.type}`,
+        );
+        assert.ok(
+          !/^\d{4}-\d{2}-\d{2}T/.test(field.type),
+          `field.type must never be a raw ISO datetime — got: ${field.type}`,
+        );
+      }
+    }
+
+    // responseBodyShape leaves must also be type keywords
+    for (const endpoint of spec.endpoints) {
+      if (endpoint.responseBodyShape !== null && typeof endpoint.responseBodyShape === 'object') {
+        const shapeStr = JSON.stringify(endpoint.responseBodyShape);
+        assert.ok(
+          !/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/i.test(shapeStr) ||
+            shapeStr.includes('"uuid"'),
+          'responseBodyShape must not carry raw UUIDs as leaf values',
+        );
+      }
+    }
+  });
+
+  test('03-05 SPEC-03: list-envelope response → element model, not envelope model', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1, path: '/api/items',
+        url: 'https://app.example.com/api/items',
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440001', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      }),
+      makeReadRecord({ id: 'r2', seq: 2, path: '/api/items',
+        url: 'https://app.example.com/api/items',
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440002', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      }),
+      makeReadRecord({ id: 'r3', seq: 3, path: '/api/items',
+        url: 'https://app.example.com/api/items',
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440003', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3 });
+
+    const spec = generateSpec(dir);
+
+    // Must have an Item model (element), NOT a model with 'items' and 'total' fields
+    const itemModel = spec.dataModels.find(m => m.name === 'Item');
+    assert.ok(itemModel, 'Item element model must be inferred from /api/items envelope');
+
+    const titleField = itemModel?.fields.find(f => f.name === 'title');
+    assert.ok(titleField, 'Item model must have "title" field from element, not envelope');
+
+    // Must NOT have an 'items' or 'total' field on the model (those are envelope fields)
+    const envelopeField = itemModel?.fields.find(f => f.name === 'total' || f.name === 'items');
+    assert.ok(!envelopeField, 'Item model must not contain envelope fields (total/items)');
+  });
+
+  test('03-05 SPEC-07: per-endpoint knownGaps entries (not one coarse string for all held)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1 }),
+      { id: 'hw1', seq: 2, timestamp: '2026-07-03T10:03:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/api/settings',
+        path: '/api/settings', held: true, requestHeaders: {},
+        requestBody: { theme: 'string' } },
+      { id: 'hw2', seq: 3, timestamp: '2026-07-03T10:04:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'DELETE', url: 'https://app.example.com/api/users/1',
+        path: '/api/users/{id}', held: true, requestHeaders: {},
+        requestBody: null },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3, heldWriteCount: 2 });
+
+    const spec = generateSpec(dir);
+    const gaps = spec.coverage.knownGaps;
+
+    assert.ok(gaps.length >= 2, `must have at least 2 gap entries, one per held endpoint; got ${gaps.length}`);
+
+    // Each held endpoint must have its own gap entry
+    const settingsGap = gaps.find(g => g.includes('/api/settings'));
+    assert.ok(settingsGap, 'knownGaps must have an entry for POST /api/settings');
+
+    const deleteGap = gaps.find(g => g.includes('DELETE'));
+    assert.ok(deleteGap, 'knownGaps must have an entry for DELETE endpoint');
+  });
+
+  test('03-05 SPEC-07: coverage.recordBreakdown sums to sourceRecordCount', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1 }),                              // request-response
+      makeNavRecord('/users', 2),                                          // navigation
+      { id: 'hw1', seq: 3, timestamp: '2026-07-03T10:03:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/api/users',
+        path: '/api/users', held: true, requestHeaders: {}, requestBody: null }, // held-write
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3, heldWriteCount: 1 });
+
+    const spec = generateSpec(dir);
+    const bd = spec.coverage.recordBreakdown;
+
+    assert.ok(bd, 'recordBreakdown must be present');
+    assert.ok(typeof bd.requestResponse === 'number', 'recordBreakdown.requestResponse must be a number');
+    assert.ok(typeof bd.heldWrites === 'number', 'recordBreakdown.heldWrites must be a number');
+    assert.ok(typeof bd.navigations === 'number', 'recordBreakdown.navigations must be a number');
+    assert.ok(typeof bd.deadEnds === 'number', 'recordBreakdown.deadEnds must be a number');
+    assert.ok(typeof bd.destructiveGetHeld === 'number', 'recordBreakdown.destructiveGetHeld must be a number');
+
+    const total = bd.requestResponse + bd.heldWrites + bd.navigations + bd.deadEnds + bd.destructiveGetHeld;
+    assert.equal(total, spec.meta.sourceRecordCount,
+      `recordBreakdown sum (${total}) must equal sourceRecordCount (${spec.meta.sourceRecordCount})`);
+
+    assert.equal(bd.requestResponse, 1, 'requestResponse count');
+    assert.equal(bd.heldWrites, 1, 'heldWrites count');
+    assert.equal(bd.navigations, 1, 'navigations count');
+  });
+
+  test('03-05 SPEC-03: JSON-RPC response envelope does not produce noise model', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      // A JSON-RPC read response
+      makeReadRecord({ id: 'r1', seq: 1, path: '/rpc', url: 'https://app.example.com/rpc',
+        protocol: 'JSON-RPC', operationType: 'read',
+        responseBody: { jsonrpc: '2.0', id: 1, result: { balance: 'number' } } }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    // Must NOT have a 'Rpc' or 'Done' noise model from the JSON-RPC envelope
+    const rpcModel = spec.dataModels.find(m => m.name === 'Rpc');
+    assert.ok(!rpcModel, 'JSON-RPC envelope must not produce a noise "Rpc" model');
+  });
+
+  // -------------------------------------------------------------------------
   // pagination rule detection
   // -------------------------------------------------------------------------
   test('SPEC-06: pagination rule detected when page/limit params observed', async () => {
@@ -439,6 +672,160 @@ describe('generateSpec + writeSpec', () => {
     const paginationRule = spec.rules.find((r) => r.rule.includes('pagination'));
     assert.ok(paginationRule, 'pagination rule must be detected from page/limit query params');
     assert.ok(paginationRule.evidence.length > 0, 'pagination rule must have evidence');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 4 (03-05): End-to-end regression test for the 03-04 bug pattern
+// ---------------------------------------------------------------------------
+describe('03-05 regression: 03-04 bug pattern fully fixed end-to-end', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir2() { const d = makeSessionDir(); dirs.push(d); return d; }
+
+  test('GraphQL read and mutation produce separate endpoints; Item element model; no raw types; per-endpoint gaps', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir2();
+
+    const records = [
+      // seq 1: GraphQL read (anonymous query, graphqlOperationName extracted by interceptor)
+      {
+        id: 'r1', seq: 1, timestamp: '2026-07-03T10:01:00.000Z',
+        type: 'request-response', protocol: 'GraphQL', operationType: 'read',
+        method: 'POST', url: 'https://app.example.com/graphql',
+        path: '/graphql', held: false,
+        requestHeaders: {}, requestBody: { query: 'string' },
+        responseStatus: 200, responseHeaders: { 'content-type': 'application/json' },
+        responseBody: { me: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'string' } },
+        graphqlOperationName: 'me',
+      },
+      // seq 2: GraphQL mutation (anonymous, updateProfile field — held)
+      {
+        id: 'hw1', seq: 2, timestamp: '2026-07-03T10:02:00.000Z',
+        type: 'held-write', protocol: 'GraphQL', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/graphql',
+        path: '/graphql', held: true,
+        requestHeaders: {}, requestBody: { query: 'string' },
+        graphqlOperationName: 'updateProfile',
+      },
+      // seq 3: JSON-RPC read (getBalance)
+      {
+        id: 'r2', seq: 3, timestamp: '2026-07-03T10:03:00.000Z',
+        type: 'request-response', protocol: 'JSON-RPC', operationType: 'read',
+        method: 'POST', url: 'https://app.example.com/rpc',
+        path: '/rpc', held: false,
+        requestHeaders: {}, requestBody: { jsonrpc: 'string', method: 'string', params: 'object' },
+        responseStatus: 200, responseHeaders: { 'content-type': 'application/json' },
+        responseBody: { jsonrpc: '2.0', id: 1, result: { balance: 'number', email: 'user@example.com' } },
+        rpcMethod: 'getBalance',
+      },
+      // seq 4: JSON-RPC write (deleteAccount — held)
+      {
+        id: 'hw2', seq: 4, timestamp: '2026-07-03T10:04:00.000Z',
+        type: 'held-write', protocol: 'JSON-RPC', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/rpc',
+        path: '/rpc', held: true,
+        requestHeaders: {}, requestBody: { jsonrpc: 'string', method: 'string', params: 'object' },
+        rpcMethod: 'deleteAccount',
+      },
+      // seq 5-7: /api/items list envelope
+      {
+        id: 'r3', seq: 5, timestamp: '2026-07-03T10:05:00.000Z',
+        type: 'request-response', protocol: 'REST', operationType: 'read',
+        method: 'GET', url: 'https://app.example.com/api/items',
+        path: '/api/items', held: false,
+        requestHeaders: {}, requestBody: null,
+        responseStatus: 200, responseHeaders: { 'content-type': 'application/json' },
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440003', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      },
+      {
+        id: 'r4', seq: 6, timestamp: '2026-07-03T10:06:00.000Z',
+        type: 'request-response', protocol: 'REST', operationType: 'read',
+        method: 'GET', url: 'https://app.example.com/api/items',
+        path: '/api/items', held: false,
+        requestHeaders: {}, requestBody: null,
+        responseStatus: 200, responseHeaders: { 'content-type': 'application/json' },
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440004', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      },
+      {
+        id: 'r5', seq: 7, timestamp: '2026-07-03T10:07:00.000Z',
+        type: 'request-response', protocol: 'REST', operationType: 'read',
+        method: 'GET', url: 'https://app.example.com/api/items',
+        path: '/api/items', held: false,
+        requestHeaders: {}, requestBody: null,
+        responseStatus: 200, responseHeaders: { 'content-type': 'application/json' },
+        responseBody: {
+          items: [{ id: '550e8400-e29b-41d4-a716-446655440005', title: 'string', secretNote: 'string' }],
+          total: 100,
+        },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: records.length, heldWriteCount: 2 });
+
+    const spec = generateSpec(dir);
+
+    // === ASSERT 1: GraphQL read and mutation are SEPARATE endpoints ===
+    const gqlEndpoints = spec.endpoints.filter(e => e.protocol === 'GraphQL');
+    assert.ok(gqlEndpoints.length >= 2, `must have at least 2 GraphQL endpoints (read + mutation), got ${gqlEndpoints.length}`);
+    const gqlRead = gqlEndpoints.find(e => e.operationType === 'read');
+    const gqlMutation = gqlEndpoints.find(e => e.operationType === 'mutation');
+    assert.ok(gqlRead, 'GraphQL read endpoint must exist');
+    assert.ok(gqlMutation, 'GraphQL mutation endpoint must exist');
+    assert.strictEqual(gqlRead.held, false, 'GraphQL read endpoint must have held:false');
+    assert.strictEqual(gqlMutation.held, true, 'GraphQL mutation endpoint must have held:true');
+
+    // === ASSERT 2: JSON-RPC endpoints named by method ===
+    const rpcEndpoints = spec.endpoints.filter(e => e.protocol === 'JSON-RPC');
+    assert.ok(rpcEndpoints.length >= 2, `must have at least 2 RPC endpoints, got ${rpcEndpoints.length}`);
+    const balanceEndpoint = rpcEndpoints.find(e => e.operationName === 'getBalance');
+    const deleteEndpoint = rpcEndpoints.find(e => e.operationName === 'deleteAccount');
+    assert.ok(balanceEndpoint, 'getBalance endpoint must have operationName set');
+    assert.ok(deleteEndpoint, 'deleteAccount endpoint must have operationName set');
+
+    // === ASSERT 3: Item element model from list envelope ===
+    const itemModel = spec.dataModels.find(m => m.name === 'Item');
+    assert.ok(itemModel, 'Item element model must be inferred from /api/items list envelope');
+    const titleField = itemModel?.fields.find(f => f.name === 'title');
+    assert.ok(titleField, 'Item model must have "title" field (element field, not envelope field)');
+    assert.ok(!itemModel?.fields.find(f => f.name === 'total'), 'envelope field "total" must not be on Item model');
+
+    // === ASSERT 4: zero raw values as types ===
+    for (const model of spec.dataModels) {
+      for (const field of model.fields) {
+        assert.ok(
+          !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(field.type),
+          `field ${model.name}.${field.name}.type must never be a raw UUID, got: ${field.type}`,
+        );
+        assert.ok(
+          !/^\d{4}-\d{2}-\d{2}T/.test(field.type),
+          `field ${model.name}.${field.name}.type must never be a raw ISO datetime, got: ${field.type}`,
+        );
+        assert.ok(
+          !field.type.includes('@'),
+          `field ${model.name}.${field.name}.type must never be a raw email, got: ${field.type}`,
+        );
+      }
+    }
+
+    // === ASSERT 5: per-endpoint knownGaps ===
+    const gaps = spec.coverage.knownGaps;
+    assert.ok(gaps.length >= 2, `must have at least 2 gap entries (one per held endpoint), got ${gaps.length}`);
+    const gqlMutGap = gaps.find(g => g.includes('GraphQL') || g.includes('/graphql') || g.includes('mutation'));
+    assert.ok(gqlMutGap, 'must have a gap entry referencing the GraphQL mutation endpoint');
+
+    // === ASSERT 6: recordBreakdown present ===
+    assert.ok(spec.coverage.recordBreakdown, 'recordBreakdown must be present');
+    const bd = spec.coverage.recordBreakdown;
+    const total = bd.requestResponse + bd.heldWrites + bd.navigations + bd.deadEnds + bd.destructiveGetHeld;
+    assert.equal(total, spec.meta.sourceRecordCount, 'recordBreakdown must sum to sourceRecordCount');
   });
 });
 

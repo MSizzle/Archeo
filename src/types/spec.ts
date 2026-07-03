@@ -46,7 +46,8 @@ export interface SpecMeta {
  */
 export interface DataModelField {
   name: string;
-  type: string; // inferred type name: 'string' | 'number' | 'boolean' | 'array' | 'object' | ...
+  type: string; // normalized keyword: 'uuid' | 'datetime' | 'email' | 'url' | 'number' | 'boolean' | 'null' | 'string' | 'array' | 'object'
+  example?: unknown; // allowlisted observed value from already-redacted record (T-03-05b)
 }
 
 /**
@@ -113,6 +114,18 @@ export interface Rule {
 }
 
 /**
+ * Breakdown of source records by type — explains the sourceRecordCount gap.
+ * SPEC-07: recordBreakdown fields sum to meta.sourceRecordCount.
+ */
+export interface RecordBreakdown {
+  requestResponse: number;
+  heldWrites: number;
+  navigations: number;
+  deadEnds: number;
+  destructiveGetHeld: number;
+}
+
+/**
  * Mandatory coverage summary block (SPEC-07).
  * knownGaps ALWAYS contains at least "held mutation responses unobserved".
  */
@@ -122,8 +135,10 @@ export interface Coverage {
   statesDiscovered: number;
   transitionsDiscovered: number;
   heldWrites: number;
-  /** Always non-empty: at minimum includes the held-mutation-response gap (SPEC-07). */
+  /** Per-held-endpoint gaps; always non-empty (SPEC-07). */
   knownGaps: string[];
+  /** Breakdown of sourceRecordCount by record type (SPEC-07). */
+  recordBreakdown: RecordBreakdown;
 }
 
 /**
