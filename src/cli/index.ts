@@ -25,6 +25,7 @@ import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
 import { profileDir } from './profile.ts';
 import { openForLogin } from './login.ts';
+import { clearOneSession, clearAllSessions } from './clearSession.ts';
 import { CaptureStore } from '../capture/store.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
@@ -143,6 +144,68 @@ cli
     } catch (err) {
       if (err instanceof Error) {
         process.stderr.write(`archeo: ${err.message}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// `archeo clear-session [target]` — delete a persisted login profile (AUTH-03 / D4-05)
+//
+// CRITICAL D4-05: this action is GATE-FREE and browser-free — it destroys LOCAL
+// state only. It must never invoke the authorization gate or open any browser.
+// A source-inspection test (test/cli/index.test.ts case (m)) pins this property.
+//
+// Registered as a named subcommand BEFORE '<url>' (same pattern as 'spec'/'login')
+// so cac parses it by name rather than as a positional URL.
+// ---------------------------------------------------------------------------
+
+cli
+  .command('clear-session [target]', 'Delete the persisted login profile for a target (or --all); no browsing, no gate')
+  .option('--all', 'Delete ALL persisted login profiles (the whole profiles root)')
+  .action((target: string | undefined, opts: { all?: boolean }) => {
+    // WR-07 pattern: synchronous body wrapped in try/catch → clean message + exit 1.
+    // A path-escape refusal thrown by clearSession.ts lands here (D4-05: exit 1).
+    try {
+      if (opts.all) {
+        // --all deletes the entire profiles root; the positional target is ignored.
+        const { deleted } = clearAllSessions();
+        if (deleted.length > 0) {
+          process.stdout.write(`[archeo] cleared all profiles: ${deleted[0]}\n`);
+        } else {
+          process.stdout.write(`[archeo] nothing to delete — no profiles directory exists\n`);
+        }
+        return;
+      }
+
+      // Without --all a positional target is required.
+      if (!target) {
+        process.stderr.write(
+          `archeo: clear-session requires a target (URL or hostname) or --all\n` +
+          `  Usage: archeo clear-session <url|hostname>   or   archeo clear-session --all\n`,
+        );
+        process.exit(1);
+      }
+
+      // Accept either a full URL (derive its hostname) or a bare hostname.
+      let hostname = target;
+      try {
+        hostname = new URL(target).hostname;
+      } catch {
+        // Not a parseable URL — treat the raw value as a bare hostname.
+      }
+
+      // Idempotent deletion (D4-05): exit 0 whether or not the profile existed.
+      const { deleted } = clearOneSession(hostname);
+      if (deleted.length > 0) {
+        process.stdout.write(`[archeo] cleared login profile: ${deleted[0]}\n`);
+      } else {
+        process.stdout.write(`[archeo] no profile to delete for ${hostname}\n`);
+      }
+    } catch (err) {
+      // Path-escape refusal (or any other failure) → clear message, exit 1 (D4-05).
+      if (err instanceof Error) {
+        process.stderr.write(`${err.message}\n`);
       }
       process.exit(1);
     }
