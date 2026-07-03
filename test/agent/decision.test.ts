@@ -13,7 +13,7 @@ import {
 } from '../../src/agent/decision.ts'
 import type { AgentAction, FrontierSummary } from '../../src/agent/decision.ts'
 import type { Observation } from '../../src/agent/observation.ts'
-import type { Provider, ChatMessage } from '../../src/model/types.ts'
+import type { Provider, ChatMessage, ChatResult } from '../../src/model/types.ts'
 import { createScriptedProvider } from '../../src/model/providers/scripted.ts'
 
 // ---------------------------------------------------------------------------
@@ -23,8 +23,8 @@ function makeStubProvider(responses: string[]): Provider {
   let i = 0
   return {
     id: 'stub',
-    async chat(_msgs: ChatMessage[]): Promise<string> {
-      return responses[i++] ?? '{}'
+    async chat(_msgs: ChatMessage[]): Promise<ChatResult> {
+      return { text: responses[i++] ?? '{}', usage: { inputTokens: 0, outputTokens: 0 } }
     },
   }
 }
@@ -267,11 +267,11 @@ describe('decideWithRetry — re-prompt then success', () => {
     const capturedMessages: ChatMessage[][] = []
     const provider: Provider = {
       id: 'stub-reprompt',
-      async chat(msgs: ChatMessage[]): Promise<string> {
+      async chat(msgs: ChatMessage[]): Promise<ChatResult> {
         callCount++
         capturedMessages.push(msgs)
-        if (callCount === 1) return 'not json at all'
-        return '{"action":"done","reasoning":"recovered"}'
+        if (callCount === 1) return { text: 'not json at all', usage: { inputTokens: 0, outputTokens: 0 } }
+        return { text: '{"action":"done","reasoning":"recovered"}', usage: { inputTokens: 0, outputTokens: 0 } }
       },
     }
     const result = await decideWithRetry(provider, minObs, minFrontier)
@@ -295,9 +295,9 @@ describe('decideWithRetry — twice garbage → fallback', () => {
     let callCount = 0
     const provider: Provider = {
       id: 'stub-garbage',
-      async chat(_msgs: ChatMessage[]): Promise<string> {
+      async chat(_msgs: ChatMessage[]): Promise<ChatResult> {
         callCount++
-        return 'totally not json garbage'
+        return { text: 'totally not json garbage', usage: { inputTokens: 0, outputTokens: 0 } }
       },
     }
     const result = await decideWithRetry(provider, minObs, minFrontier)
@@ -319,14 +319,14 @@ describe('AGENT-06 hallucinated targetRef rejection', () => {
     let callCount = 0
     const provider: Provider = {
       id: 'stub-hallucinate',
-      async chat(_msgs: ChatMessage[]): Promise<string> {
+      async chat(_msgs: ChatMessage[]): Promise<ChatResult> {
         callCount++
         if (callCount === 1) {
           // Hallucinated ref that doesn't exist in inventory
-          return '{"action":"click","targetRef":999,"reasoning":"click something"}'
+          return { text: '{"action":"click","targetRef":999,"reasoning":"click something"}', usage: { inputTokens: 0, outputTokens: 0 } }
         }
         // Second response is also garbage
-        return 'still garbage'
+        return { text: 'still garbage', usage: { inputTokens: 0, outputTokens: 0 } }
       },
     }
     const result = await decideWithRetry(provider, minObs, minFrontier)

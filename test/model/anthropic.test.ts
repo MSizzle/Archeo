@@ -81,12 +81,12 @@ describe('buildAnthropicRequest — pure builder', () => {
 describe('parseAnthropicResponse — pure parser', () => {
   test('concatenates multiple text blocks', () => {
     const json = { content: [{ type: 'text', text: 'A' }, { type: 'text', text: 'B' }] }
-    assert.equal(parseAnthropicResponse(json), 'AB')
+    assert.equal(parseAnthropicResponse(json).text, 'AB')
   })
 
   test('single text block returns its text', () => {
     const json = { content: [{ type: 'text', text: 'hello' }] }
-    assert.equal(parseAnthropicResponse(json), 'hello')
+    assert.equal(parseAnthropicResponse(json).text, 'hello')
   })
 
   test('error shape throws Error mentioning the message', () => {
@@ -108,7 +108,7 @@ describe('parseAnthropicResponse — pure parser', () => {
         { type: 'text', text: 'result' },
       ],
     }
-    assert.equal(parseAnthropicResponse(json), 'result')
+    assert.equal(parseAnthropicResponse(json).text, 'result')
   })
 })
 
@@ -139,7 +139,7 @@ describe('createAnthropicProvider — DI-fetch transport', () => {
 
     const result = await provider.chat([{ role: 'user', content: 'hi' }])
 
-    assert.equal(result, 'Hello World')
+    assert.equal(result.text, 'Hello World')
     assert.equal(capturedUrl, ANTHROPIC_API_URL)
     assert.equal(
       capturedHeaders?.['x-api-key'],

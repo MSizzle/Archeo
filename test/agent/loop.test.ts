@@ -139,8 +139,11 @@ function makeStore(): { store: CaptureStore; agentSteps: CaptureRecord[]; cleanu
 function alwaysClickRef0(): Provider {
   return {
     id: 'stub-osc',
-    async chat(_msgs: ChatMessage[]): Promise<string> {
-      return JSON.stringify({ action: 'click', targetRef: 0, reasoning: 'stub: always click ref0' })
+    async chat(_msgs: ChatMessage[]): Promise<import('../../src/model/types.ts').ChatResult> {
+      return {
+        text: JSON.stringify({ action: 'click', targetRef: 0, reasoning: 'stub: always click ref0' }),
+        usage: { inputTokens: 0, outputTokens: 0 },
+      }
     },
   }
 }

@@ -69,7 +69,7 @@ describe('createScriptedProvider', () => {
         content: `Navigate the app. Observation: ${JSON.stringify(envelope)}`,
       },
     ])
-    const parsed = JSON.parse(result) as Record<string, unknown>
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
     assert.equal(parsed.action, 'click')
     assert.equal(parsed.targetRef, 1)
   })
@@ -80,14 +80,14 @@ describe('createScriptedProvider', () => {
     const result = await provider.chat([
       { role: 'user', content: JSON.stringify(envelope) },
     ])
-    const parsed = JSON.parse(result) as Record<string, unknown>
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
     assert.equal(parsed.action, 'done')
   })
 
   test('chat() with no envelope → done fallback (never throws)', async () => {
     const provider = createScriptedProvider()
     const result = await provider.chat([{ role: 'user', content: 'hello world' }])
-    const parsed = JSON.parse(result) as Record<string, unknown>
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
     assert.equal(parsed.action, 'done')
     assert.ok(typeof parsed.reasoning === 'string')
   })
@@ -103,7 +103,7 @@ describe('createScriptedProvider', () => {
         ],
       },
     ])
-    const parsed = JSON.parse(result) as Record<string, unknown>
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
     assert.equal(parsed.action, 'click')
     assert.equal(parsed.targetRef, 0)
   })
@@ -114,7 +114,7 @@ describe('createScriptedProvider', () => {
     const result = await provider.chat([
       { role: 'user', content: JSON.stringify(envelope) },
     ])
-    const parsed = JSON.parse(result) as Record<string, unknown>
+    const parsed = JSON.parse(result.text) as Record<string, unknown>
     assert.equal(parsed.action, 'done')
   })
 })
