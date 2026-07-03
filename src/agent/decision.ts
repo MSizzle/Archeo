@@ -4,7 +4,7 @@
  * This is the D5-01 decision layer; AGENT-06 validation is here; the model NEVER acts on
  * a ref outside the current inventory or on a blocked element.
  */
-import type { Provider, ChatMessage } from '../model/types.ts'
+import type { Provider, ChatMessage, TokenUsage } from '../model/types.ts'
 import type { InventoryElement, Observation } from './observation.ts'
 import { isBlockedElement } from './blocklist.ts'
 
@@ -156,20 +156,27 @@ export function parseDecision(
  * Call the provider with the observation prompt. If the first response is invalid,
  * re-prompt ONCE with feedback. Falls back to { action: 'back' } if both fail.
  *
+ * Returns the chosen action, its source, and the element-wise sum of usage across
+ * all provider.chat() calls made during this decision (1 or 2).
+ *
  * NEVER throws. NEVER returns undefined.
  */
 export async function decideWithRetry(
   provider: Provider,
   obs: Observation,
   frontier: FrontierSummary,
-): Promise<{ action: AgentAction; source: 'model' | 'fallback' }> {
+): Promise<{ action: AgentAction; source: 'model' | 'fallback'; usage: TokenUsage }> {
   const prompt = buildObservationPrompt(obs, frontier)
+  let totalInputTokens = 0
+  let totalOutputTokens = 0
 
   // First attempt
-  const { text: raw } = await provider.chat(prompt)
+  const { text: raw, usage: u1 } = await provider.chat(prompt)
+  totalInputTokens += u1.inputTokens
+  totalOutputTokens += u1.outputTokens
   const result = parseDecision(raw, obs.inventory)
   if (result.ok) {
-    return { action: result.action, source: 'model' }
+    return { action: result.action, source: 'model', usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } }
   }
 
   // Re-prompt once with feedback
@@ -183,15 +190,18 @@ export async function decideWithRetry(
     feedbackMsg,
   ]
 
-  const { text: raw2 } = await provider.chat(conversation)
+  const { text: raw2, usage: u2 } = await provider.chat(conversation)
+  totalInputTokens += u2.inputTokens
+  totalOutputTokens += u2.outputTokens
   const result2 = parseDecision(raw2, obs.inventory)
   if (result2.ok) {
-    return { action: result2.action, source: 'model' }
+    return { action: result2.action, source: 'model', usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens } }
   }
 
   // Fallback
   return {
     action: { action: 'back', reasoning: `fallback: ${result2.reason}` },
     source: 'fallback',
+    usage: { inputTokens: totalInputTokens, outputTokens: totalOutputTokens },
   }
 }
