@@ -659,6 +659,140 @@ describe('handleRoute — dead-end detection (FLOOR-07 / D-05)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// handleRoute — GraphQL and JSON-RPC identifier extraction (Task 2 — 03-05)
+// ---------------------------------------------------------------------------
+describe('handleRoute — GraphQL/JSON-RPC identifier extraction (Task 2 — 03-05)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-interceptor-identifier-'));
+
+  after(() => { rmSync(tmpRoot, { recursive: true, force: true }); });
+
+  test('named GraphQL query → graphqlOperationName set on record (CAP-05 safe)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: '{"query":"query GetProfile { me { id name } }"}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.graphqlOperationName, 'GetProfile',
+      'named GraphQL op name must be extracted to graphqlOperationName');
+    store.close();
+  });
+
+  test('anonymous GraphQL query → graphqlOperationName = first selection field', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: '{"query":"query { me { id name } }"}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.graphqlOperationName, 'me',
+      'anonymous GraphQL op must fall back to first selection field name');
+    store.close();
+  });
+
+  test('GraphQL mutation (held) → graphqlOperationName set on held-write record', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: '{"query":"mutation { updateProfile(name: \\"string\\") { id } }"}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.type, 'held-write', 'mutation must be held');
+    assert.equal(record.graphqlOperationName, 'updateProfile',
+      'anonymous mutation must use first selection field as graphqlOperationName');
+    store.close();
+  });
+
+  test('JSON-RPC request → rpcMethod set on record', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/rpc',
+      headers: { 'content-type': 'application/json' },
+      body: '{"jsonrpc":"2.0","method":"getBalance","params":{},"id":1}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.rpcMethod, 'getBalance',
+      'JSON-RPC method name must be extracted to rpcMethod');
+    store.close();
+  });
+
+  test('JSON-RPC write (held) → rpcMethod set on held-write record', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/rpc',
+      headers: { 'content-type': 'application/json' },
+      body: '{"jsonrpc":"2.0","method":"deleteAccount","params":{},"id":2}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.type, 'held-write', 'write RPC method must be held');
+    assert.equal(record.rpcMethod, 'deleteAccount',
+      'JSON-RPC method extracted on held-write record');
+    store.close();
+  });
+
+  test('CAP-05 invariant: auth header still redacted when extracting identifier', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json', 'authorization': 'Bearer secret-gql-token' },
+      body: '{"query":"query GetProfile { me { id } }"}',
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await new Promise(resolve => setTimeout(resolve, 50));
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+    assert.ok(!content.includes('secret-gql-token'),
+      'CAP-05: auth header value must not appear in store even when extracting identifier');
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+    assert.equal(record.graphqlOperationName, 'GetProfile', 'identifier still extracted');
+    assert.equal(record.requestHeaders?.['authorization'], '[REDACTED]',
+      'auth header still redacted (CAP-05 ordering unchanged)');
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // attachInterceptor error fallback — CR-01 regression guard (IN-03)
 // Tests that handler errors call route.abort() (fail-closed), not route.continue().
 // ---------------------------------------------------------------------------
