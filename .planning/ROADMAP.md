@@ -118,6 +118,10 @@ Plans:
 
 - [x] 03-04-PLAN.md — Buildability proof: scripted capture → spec → fresh builder agent → runnable approximation (BUILD-01) (verified autonomously 2026-07-03: BUILD-01 PASS — spec-only builder rebuild scored vs ground truth; gap-closure plan 03-05 pending before phase close)
 
+**Wave 5** *(gap closure from buildability findings)*
+
+- [ ] 03-05-PLAN.md — Spec-quality gap closure: grouping split, type normalization, envelope unwrap, granular coverage (SPEC-01/03/04/07)
+
 ### Phase 4: Authentication Handoff
 
 **Goal**: Archeo can capture authenticated areas of a real app after the user logs in by hand, without Archeo ever touching credentials
