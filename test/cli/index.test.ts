@@ -86,4 +86,30 @@ describe('archeo CLI', () => {
       `Expected invalid URL error message. Got:\n${output}`
     );
   });
+
+  // (d) `archeo login <url>` with non-TTY stdin and no flag → exit 1 + attestation text (GATE-01/D4-04)
+  test('(d) login <url> with non-TTY stdin and no flag → exit 1 and attestation text', async () => {
+    const { code, output } = await runCli(['login', 'https://example.com']);
+    assert.equal(code, 1, `Expected exit code 1, got ${code}\nOutput:\n${output}`);
+    // Attestation must appear (GATE-01: login subcommand runs the gate first)
+    assert.ok(
+      /authorized use required|vendor.escape|Intended use|rebuild/i.test(output),
+      `Expected attestation text in output. Got:\n${output}`
+    );
+    // D-05: the non-TTY-without-flag error message must appear
+    assert.ok(
+      /interactive terminal|--i-have-authorization/i.test(output),
+      `Expected non-TTY error message. Got:\n${output}`
+    );
+  });
+
+  // (e) `archeo login not-a-url --i-have-authorization` → exit 1 + invalid-URL message, no browser
+  test('(e) login not-a-url --i-have-authorization → exit 1 and invalid-URL message, no browser', async () => {
+    const { code, output } = await runCli(['login', 'not-a-url', '--i-have-authorization']);
+    assert.equal(code, 1, `Expected exit code 1, got ${code}\nOutput:\n${output}`);
+    assert.ok(
+      /invalid url|invalid/i.test(output),
+      `Expected invalid URL error message. Got:\n${output}`
+    );
+  });
 });
