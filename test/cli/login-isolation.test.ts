@@ -108,7 +108,12 @@ describe("D4-01: index.ts login action block must NOT create a CaptureStore or s
   // legitimately use CaptureStore and startDashboard for the capture <url> command).
 
   const loginBlockStart = indexSrc.indexOf("command('login");
-  const urlCommandPos = indexSrc.indexOf("command('<url>'", loginBlockStart);
+  // End the login block at the NEXT command registration after login. Originally this was
+  // `command('<url>'`, but named subcommands (clear-session, and the 05-03 `explore` browsing
+  // command) are registered BETWEEN login and <url>; slicing to <url> would wrongly pull the
+  // explore action (which legitimately uses CaptureStore/startDashboard) into the login block.
+  // The next `.command(` after login is the true end of the login action.
+  const urlCommandPos = indexSrc.indexOf('.command(', loginBlockStart + 1);
   const helpPos = indexSrc.indexOf('cli.help(', loginBlockStart);
 
   // End = whichever comes first after loginBlockStart

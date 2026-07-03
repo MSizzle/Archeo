@@ -44,22 +44,21 @@ describe('CLI dashboard wiring — source inspection (Task 4, plan 03-03)', () =
     );
   });
 
-  test('src/cli/index.ts calls startDashboard only under the <url> command, NOT the spec subcommand', () => {
+  test('src/cli/index.ts calls startDashboard under browsing commands, NOT the spec subcommand', () => {
     // The spec subcommand must not start a dashboard (no browsing happens, D3-04).
-    // Check: the CALL to startDashboard() appears AFTER the <url> command registration,
-    // not in the spec command block. The import of startDashboard will be at the top
-    // (before both commands), so we look for the call site 'startDashboard(' (with paren).
+    // Slice the spec command block (from its registration to the next command) and assert
+    // no startDashboard( call appears inside it. Browsing commands (explore, <url>) DO call
+    // startDashboard — hence we check the spec block specifically, not global call ordering
+    // (05-03 added the `explore` browsing command BEFORE `<url>`).
     const specActionStart = indexSrc.indexOf("command('spec");
-    const urlCommandStart = indexSrc.indexOf("command('<url>'");
     assert.ok(specActionStart !== -1, 'spec command must be present in index.ts');
-    assert.ok(urlCommandStart !== -1, '<url> command must be present in index.ts');
-    // startDashboard must be called (not just imported) in index.ts
+    const specBlockEnd = indexSrc.indexOf('.command(', specActionStart + 1);
+    const specBlock = indexSrc.slice(specActionStart, specBlockEnd === -1 ? indexSrc.length : specBlockEnd);
+    // startDashboard must be called (not just imported) somewhere in index.ts
     assert.ok(indexSrc.includes('startDashboard('), 'startDashboard() must be called in index.ts');
-    // The CALL startDashboard( must appear AFTER the <url> command registration
-    const startDashboardCallPos = indexSrc.indexOf('startDashboard(');
     assert.ok(
-      startDashboardCallPos > urlCommandStart,
-      'startDashboard() call must appear after the <url> command registration (not in spec command)',
+      !specBlock.includes('startDashboard('),
+      'spec subcommand must NOT start a dashboard (no browsing happens, D3-04)',
     );
   });
 

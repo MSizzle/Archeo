@@ -127,6 +127,31 @@ describe('archeo CLI', () => {
       `Expected invalid URL error message. Got:\n${output}`
     );
   });
+
+  // (n) `archeo explore <url>` with non-TTY stdin and no flag → exit 1 + attestation (GATE-01).
+  //     The explore subcommand opens a browser at the target, so the gate runs first.
+  test('(n) explore <url> with non-TTY stdin and no flag → exit 1 and attestation text', async () => {
+    const { code, output } = await runCli(['explore', 'https://example.com']);
+    assert.equal(code, 1, `Expected exit code 1, got ${code}\nOutput:\n${output}`);
+    assert.ok(
+      /authorized use required|vendor.escape|Intended use|rebuild/i.test(output),
+      `Expected attestation text in output. Got:\n${output}`
+    );
+    assert.ok(
+      /interactive terminal|--i-have-authorization/i.test(output),
+      `Expected non-TTY error message. Got:\n${output}`
+    );
+  });
+
+  // (o) `archeo explore not-a-url --i-have-authorization` → exit 1 + invalid-URL, no browser (T-01-07).
+  test('(o) explore not-a-url --i-have-authorization → exit 1 and invalid-URL message, no browser', async () => {
+    const { code, output } = await runCli(['explore', 'not-a-url', '--i-have-authorization']);
+    assert.equal(code, 1, `Expected exit code 1, got ${code}\nOutput:\n${output}`);
+    assert.ok(
+      /invalid url|invalid/i.test(output),
+      `Expected invalid URL error message. Got:\n${output}`
+    );
+  });
 });
 
 // ---------------------------------------------------------------------------
