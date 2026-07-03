@@ -98,8 +98,25 @@ Plans:
   3. The CLI serves a localhost dashboard that shows captured endpoints and discovery counts climbing in real time; endpoints appear within seconds of the first page load
   4. A real builder agent (Claude Code or equivalent) produces a runnable approximation of the target app from the spec alone — closing the value loop before autonomy is built
 
-**Plans**: TBD
+**Plans**: 4 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Endpoint templater: path collapsing + polling dedup (pure, TDD) (SPEC-01/02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-02-PLAN.md — Navigation capture + deterministic spec generator + `archeo spec` subcommand + auto-gen on close (SPEC-03/04/05/06/07)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 03-03-PLAN.md — Localhost SSE dashboard + GATE-03 test evolution (DASH-01/02/03)
+
+**Wave 4** *(blocked on Wave 2 + Wave 3 completion)*
+
+- [ ] 03-04-PLAN.md — Buildability proof: scripted capture → spec → fresh builder agent → runnable approximation (BUILD-01)
 
 ### Phase 4: Authentication Handoff
 
@@ -184,7 +201,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
-| 3. Spec Generator + Buildability Proof | 0/TBD | Not started | - |
+| 3. Spec Generator + Buildability Proof | 0/4 | Not started | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
