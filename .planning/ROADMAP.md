@@ -200,8 +200,33 @@ Plans:
   4. Re-running against the same target diffs the new capture against the prior spec and reports new endpoints, removed flows, and altered shapes
   5. The dashboard error surface stays quiet during self-healing; only run-halting errors surface clearly and pause the run
 
-**Plans**: TBD
+**Plans**: 6 plans
 **UI hint**: yes
+
+Plans:
+**Wave 1**
+
+- [ ] 06-01-PLAN.md — Provider usage plumbing (Provider.chat → {text, usage}) + token/dollar budget + pacing + stopReason surfacing (COST-01/03/04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-02-PLAN.md — Semantic change detector + vision-call gating + skip accounting (coverage block + dashboard counter) (COST-02)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-03-PLAN.md — Error recovery incl. the mandatory context-destroyed re-observe fix + quiet dashboard error surface (issues panel + halt banner) (COST-05, DASH-08)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 06-04-PLAN.md — Session-expiry pause/resume (pass-through-unrecorded) + incremental `--resume` seeding + `archeo diff` drift (COST-06, DRIFT-01, DRIFT-02)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+
+- [ ] 06-05-PLAN.md — `--allow-writes` (banner + confirmation + spec mode flag) + CAP-06 external-command redaction seam (FLOOR-08, CAP-06)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+
+- [ ] 06-06-PLAN.md — Autonomous live verification (trapped app w/ REAL cross-document navigation) + phase close (D6-08)
 
 ### Phase 7: Open Source Readiness
 
@@ -242,6 +267,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
-| 6. Hardening | 0/TBD | Not started | - |
+| 6. Hardening | 0/6 | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |
