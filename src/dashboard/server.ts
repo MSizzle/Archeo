@@ -1,7 +1,12 @@
 /**
  * src/dashboard/server.ts
  *
- * Localhost SSE dashboard server (D3-05, D13, DASH-01/02/03).
+ * Localhost SSE dashboard server (D3-05, D13, DASH-01/02/03/04/05/06/07).
+ *
+ * DASH-04: sendFrame() — forwards CDP screencast frames to SSE clients.
+ * DASH-05: sendState() / sendTransition() — feeds the self-drawing SVG coverage map.
+ * DASH-06: sendReasoning() — verbatim agent reasoning lines.
+ * DASH-07: sendHeldBeat() — pulse notification for held writes.
  *
  * Security: node:http ONLY for serving — no outbound client calls.
  *   - Binds 127.0.0.1 explicitly (loopback only, T-03-09).
@@ -39,6 +44,12 @@ interface DashboardSnapshot {
   heldWrites: number;
   /** Last MAX_RECENT_ENDPOINTS endpoints, most-recent last. */
   recentEndpoints: Array<{ method: string; pathTemplate: string; held: boolean }>;
+  /** DASH-05: accumulated coverage map states for late-connecting clients. */
+  coverageStates: Array<{ signature: string; url: string; title: string }>;
+  /** DASH-05: accumulated coverage map transitions for late-connecting clients. */
+  coverageTransitions: Array<{ from: string; to: string; action: string }>;
+  /** DASH-04: last screencast frame for late-connecting clients (null if none yet). */
+  lastFrame: string | null;
 }
 
 const MAX_RECENT_ENDPOINTS = 10;
@@ -54,18 +65,29 @@ const MAX_RECENT_ENDPOINTS = 10;
  * - GET / serves the inline HTML/JS page (renderPage()).
  * - GET /events serves SSE: full snapshot on connect + one event per appended record.
  * - store.onRecord drives incremental aggregates and per-record SSE push (DASH-02/03).
+ * - sendFrame / sendState / sendTransition / sendReasoning / sendHeldBeat push typed
+ *   events from the agent layer (DASH-04..07).
  *
  * INBOUND ONLY: this server never makes outbound calls. It does not import
  * http.request, http.get, node:https, axios, undici, got, or bare fetch.
  *
  * @param store  Running CaptureStore; its onRecord hook drives the aggregates.
  * @param opts   Optional { port } — default is 0 (OS-assigned free port).
- * @returns      Resolved with { port, close() } once the server is listening.
+ * @returns      Resolved with { port, close(), sendFrame, sendState, sendTransition,
+ *               sendReasoning, sendHeldBeat } once the server is listening.
  */
 export function startDashboard(
   store: CaptureStore,
   opts?: { port?: number },
-): Promise<{ port: number; close(): Promise<void> }> {
+): Promise<{
+  port: number;
+  close(): Promise<void>;
+  sendFrame(base64: string): void;
+  sendState(node: { signature: string; url: string; title: string }): void;
+  sendTransition(t: { from: string; to: string; action: string }): void;
+  sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void;
+  sendHeldBeat(info: { path?: string; count: number }): void;
+}> {
   // ---------------------------------------------------------------------------
   // In-memory aggregates (DASH-02: counts climb as discovery progresses)
   // ---------------------------------------------------------------------------
@@ -86,6 +108,11 @@ export function startDashboard(
   // Recent endpoints: sliding window of MAX_RECENT_ENDPOINTS items, most-recent last.
   const recentEndpoints: Array<{ method: string; pathTemplate: string; held: boolean }> = [];
 
+  // DASH-04..07: new emitters state (coverage map + frame cache)
+  const coverageStates: Array<{ signature: string; url: string; title: string }> = [];
+  const coverageTransitions: Array<{ from: string; to: string; action: string }> = [];
+  let lastFrame: string | null = null;
+
   // ---------------------------------------------------------------------------
   // SSE client management
   // ---------------------------------------------------------------------------
@@ -101,6 +128,11 @@ export function startDashboard(
       states: stateNames.size,
       heldWrites,
       recentEndpoints: recentEndpoints.slice(-MAX_RECENT_ENDPOINTS),
+      // DASH-05: coverage map state for late-connecting clients
+      coverageStates: coverageStates.slice(),
+      coverageTransitions: coverageTransitions.slice(),
+      // DASH-04: last frame for late-connecting clients
+      lastFrame,
     };
   }
 
@@ -118,6 +150,43 @@ export function startDashboard(
     const snap = buildSnapshot();
     for (const client of clients) {
       writeEvent(client, 'record', snap);
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Typed emitter functions (DASH-04..07)
+  // ---------------------------------------------------------------------------
+
+  function sendFrame(base64: string): void {
+    lastFrame = base64;
+    for (const client of clients) {
+      writeEvent(client, 'frame', base64);
+    }
+  }
+
+  function sendState(node: { signature: string; url: string; title: string }): void {
+    coverageStates.push(node);
+    for (const client of clients) {
+      writeEvent(client, 'state', node);
+    }
+  }
+
+  function sendTransition(t: { from: string; to: string; action: string }): void {
+    coverageTransitions.push(t);
+    for (const client of clients) {
+      writeEvent(client, 'transition', t);
+    }
+  }
+
+  function sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void {
+    for (const client of clients) {
+      writeEvent(client, 'reasoning', line);
+    }
+  }
+
+  function sendHeldBeat(info: { path?: string; count: number }): void {
+    for (const client of clients) {
+      writeEvent(client, 'held', info);
     }
   }
 
@@ -163,6 +232,12 @@ export function startDashboard(
 
       // One SSE event per record — no batching (DASH-03: time-to-first-magic)
       broadcastRecord();
+
+      // DASH-07: emit held beat AFTER the record event (kept separate so the record
+      // snapshot arrives first and existing tests that collect exactly 2 events still pass).
+      if (record.held) {
+        sendHeldBeat({ path: record.path || undefined, count: heldWrites });
+      }
     } catch (e) {
       process.stderr.write(
         `[archeo] dashboard aggregate error: ${e instanceof Error ? e.message : String(e)}\n`,
@@ -197,6 +272,11 @@ export function startDashboard(
 
       // Push the current snapshot immediately on connect (DASH-03: no batching)
       writeEvent(res, 'snapshot', buildSnapshot());
+
+      // DASH-04: replay last cached frame so a late client shows the current browser view
+      if (lastFrame !== null) {
+        writeEvent(res, 'frame', lastFrame);
+      }
 
       // Register client; remove on disconnect
       clients.add(res);
@@ -239,6 +319,12 @@ export function startDashboard(
             });
           });
         },
+
+        sendFrame,
+        sendState,
+        sendTransition,
+        sendReasoning,
+        sendHeldBeat,
       });
     });
   });
