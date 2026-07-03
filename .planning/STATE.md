@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 plan 03-03 complete — ready for 03-04 (buildability proof)
-last_updated: "2026-07-03T04:00:00.000Z"
+stopped_at: Phase 3 plan 03-04 complete (BUILD-01 PASS) — 03-05 gap closure pending before phase close
+last_updated: "2026-07-03T13:30:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 7
-  completed_plans: 10
+  completed_plans: 11
   percent: 32
 ---
 
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 03 (spec-generator-buildability) — IN PROGRESS
-Plan: 3 of 4 — done (03-03 localhost SSE dashboard + GATE-03 evolution)
-Next: 03-04 — buildability proof (scripted capture → spec → builder agent → runnable approximation)
-Status: 03-03 complete (2026-07-03); blocked on 03-03 → 03-04 (wave 4)
+Plan: 4 of 4 — done (03-04 buildability proof, BUILD-01 PASS, verified autonomously)
+Next: 03-05 — gap closure (generator defects surfaced by the buildability proof); phase NOT closed until 03-05 lands
+Status: 03-04 complete (2026-07-03); 03-05 gap-closure plan pending
 Last activity: 2026-07-03
 
-Progress: [██████░░░░] 75% of Phase 3
+Progress: [████████░░] 4/4 planned plans done; 03-05 gap closure pending
 
 ## Performance Metrics
 
@@ -62,6 +62,7 @@ Progress: [██████░░░░] 75% of Phase 3
 | Phase 03-spec-generator-buildability P01 | 30min | 2 tasks | 4 files |
 | Phase 03-spec-generator-buildability P02 | 45min | 4 tasks | 10 files |
 | Phase 03-spec-generator-buildability P03 | 45min | 4 tasks | 8 files |
+| Phase 03-spec-generator-buildability P04 | ~3h (3 stages) | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -136,6 +137,27 @@ Phase 03-03 execution decisions:
 - openAndWait extended with optional dashboard? third param so CLI can pass the handle without changing
   the store param signature; backward-compatible with all existing tests.
 
+Phase 03-04 execution decisions:
+
+- BUILD-01 verified AUTONOMOUSLY per explicit user directive (mirrors 02-04). Three-stage isolation:
+  capture agent (real CLI scripted capture + private ground-truth.json) → fresh spec-only Sonnet
+  builder (input = archeo-spec.json ONLY; no target source/repo/network) → ground-truth scoring.
+  Scores: endpoint paths 17/17, logical-op fidelity 15/17, model fields 17/17, write→read-back 3/3,
+  flows 4/4 pages + 3/3 transitions. Verdict: BUILD-01 PASS (03-04-BUILDABILITY.md).
+- Auto-spec-gen on graceful close WORKED live (archeo-spec.json present before the `archeo spec`
+  subcommand re-ran deterministically). Zero planted secrets in spec + store. Target server ledger:
+  0 mutations / 0 destructive hits under the full scripted session.
+- The consumed archeo-spec.json is saved as the repo's FIRST EXAMPLE CANDIDATE (Phase 7 / OSS-02);
+  examples/ intentionally not created (D3-06).
+- Generator bug found (root-caused, NOT capture): capture held GraphQL query/mutation as separate
+  correct records, but the templater merged them into one held:true "read" endpoint because
+  graphqlOperationName is unpopulated for anonymous operations (key falls back to path) and the
+  grouping key ignores operationType/held. Same merge hit JSON-RPC. Fix owned by 03-05.
+- Stage-A agent crashed on an API error after its artifacts were complete and verified; resumed for
+  scoring with no artifact loss. Dashboard live cross-check (DASH-02/03 under real traffic) PASSED
+  before the crash (SSE counts climbed 0→19 endpoints over 27 record events); raw SSE transcript was
+  lost — the driver's printed checks are the surviving evidence and the run is reproducible.
+
 Phase 02-04 execution decisions:
 
 - 02-04 (live floor verification) was verified AUTONOMOUSLY per explicit user directive, replacing the
@@ -149,7 +171,13 @@ Phase 02-04 execution decisions:
 
 ### Pending Todos
 
-None yet.
+03-05 gap closure (generator fixes from the buildability proof's spec-quality findings):
+
+- Templater grouping key must include operationType + held (stop merging reads with held writes on shared paths)
+- Anonymous-GraphQL operationName fallback (extract from query text when the operationName field is absent)
+- Type normalization in the generator (emit type names — uuid/datetime/number — never observed values; stop mixing literals and type keywords in responseBodyShape)
+- Per-endpoint knownGaps (list the specific held endpoints affected instead of one coarse bucket)
+- List-envelope unwrap heuristic (Item model captured {total, items} envelope instead of the element shape)
 
 ### Blockers/Concerns
 

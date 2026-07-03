@@ -1,0 +1,41 @@
+{
+  "_comment": "Ground truth for 03-04 buildability scoring (STAGE A). Derived from the ACTUAL target app (scratchpad/buildability/target-app.mjs — an extended COPY of the 02-04 target app). This file stays with the executor for STAGE C scoring; the builder agent NEVER sees it.",
+  "provenance": "target-app.mjs = COPY of .planning/phases/02-capture-layer-safety-floor/02-04-live-verification/target-app.mjs, extended (original untouched) with multi-page navigation + list/detail/CRUD + a related model.",
+  "apiEndpoints": [
+    { "method": "GET",    "path": "/api/profile",       "protocol": "REST",     "kind": "read",        "held": false },
+    { "method": "GET",    "path": "/api/items",         "protocol": "REST",     "kind": "read-list",   "held": false },
+    { "method": "GET",    "path": "/api/users",         "protocol": "REST",     "kind": "read-list",   "held": false },
+    { "method": "GET",    "path": "/api/teams",         "protocol": "REST",     "kind": "read-list",   "held": false },
+    { "method": "GET",    "path": "/api/users/{id}",    "protocol": "REST",     "kind": "read-detail", "held": false },
+    { "method": "POST",   "path": "/api/users",         "protocol": "REST",     "kind": "create",      "held": true },
+    { "method": "DELETE", "path": "/api/users/{id}",    "protocol": "REST",     "kind": "delete",      "held": true },
+    { "method": "POST",   "path": "/api/settings",      "protocol": "REST",     "kind": "write",       "held": true },
+    { "method": "PUT",    "path": "/api/settings",      "protocol": "REST",     "kind": "write",       "held": true },
+    { "method": "POST",   "path": "/api/account",       "protocol": "REST",     "kind": "write",       "held": true },
+    { "method": "POST",   "path": "/graphql",           "protocol": "GraphQL",  "kind": "query",       "held": false, "operationName": "Me" },
+    { "method": "POST",   "path": "/graphql",           "protocol": "GraphQL",  "kind": "mutation",    "held": true,  "operationName": "UpdateProfile" },
+    { "method": "POST",   "path": "/rpc",               "protocol": "JSON-RPC", "kind": "read",        "held": false, "rpcMethod": "getAccount" },
+    { "method": "POST",   "path": "/rpc",               "protocol": "JSON-RPC", "kind": "write",       "held": true,  "rpcMethod": "deleteAccount" },
+    { "method": "GET",    "path": "/api/broken",        "protocol": "REST",     "kind": "read-error-500", "held": false, "note": "always 500 — feeds dead-end signal" },
+    { "method": "GET",    "path": "/api/token/revoke",  "protocol": "REST",     "kind": "destructive-get", "held": true, "note": "held via [y/N] prompt; answered N" },
+    { "method": "GET",    "path": "/__done__",          "protocol": "REST",     "kind": "beacon",      "held": false, "note": "harness end-of-run beacon — NOT a product endpoint" }
+  ],
+  "productApiEndpointCount": 14,
+  "productApiEndpointNote": "14 = the real product surface (excludes /api/broken, /api/token/revoke exercise routes and the /__done__ harness beacon). GraphQL and JSON-RPC each count as 2 logical ops sharing one path.",
+  "models": [
+    { "name": "Profile", "fields": ["id", "email", "displayName", "role", "created_at"], "source": "GET /api/profile" },
+    { "name": "Item",    "fields": ["id", "title", "secretNote"], "source": "GET /api/items (elements of items[]; response is a {total, items[]} envelope)" },
+    { "name": "User",    "fields": ["id", "name", "email", "role", "teamId", "createdAt"], "relationships": [{ "field": "teamId", "target": "Team" }], "source": "GET /api/users (list) + GET /api/users/{id} (detail)" },
+    { "name": "Team",    "fields": ["id", "name", "ownerId"], "relationships": [{ "field": "ownerId", "target": "User" }], "source": "GET /api/teams" }
+  ],
+  "realDomainModelCount": 4,
+  "pages": [
+    { "path": "/app",           "name": "landing",     "loads": ["GET /api/profile", "GET /api/items"] },
+    { "path": "/app/users",     "name": "users-list",  "loads": ["GET /api/users", "GET /api/teams"] },
+    { "path": "/app/users/{id}","name": "user-detail", "loads": ["GET /api/users/{id}", "POST /api/users", "DELETE /api/users/{id}"] },
+    { "path": "/app/settings",  "name": "settings",    "loads": ["POST /api/settings", "PUT /api/settings", "POST /api/account", "graphql", "rpc", "GET /api/broken", "GET /api/token/revoke"] }
+  ],
+  "expectedFlow": ["/app", "/app/users", "/app/users/{id}", "/app/settings"],
+  "plantedSecrets": ["SECRET_COOKIE_abc123", "SECRET_BEARER_xyz789", "SECRET_PASSWORD_hunter2", "victim@example.com"],
+  "heldWriteContract": "Every mutating request (POST/PUT/DELETE REST, GraphQL mutation, JSON-RPC write, destructive GET) must be HELD by Archeo and reach the server ZERO times. Verified: server ledger mutations=0, destructiveHits=0."
+}

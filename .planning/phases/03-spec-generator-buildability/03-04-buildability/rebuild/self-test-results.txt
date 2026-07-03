@@ -1,0 +1,131 @@
+Archeo Rebuild – Self-Test Results
+====================================
+Generated: 2026-07-03T12:36:54.148Z
+
+Summary: 89 passed, 0 failed, 89 total
+
+
+── GET /api/profile ──
+  [PASS] status 200  (got 200)
+  [PASS] has id  ("3f2504e0-4f89-41d3-9a0c-0305e82c3301")
+  [PASS] has email  (alice@example.com)
+  [PASS] has displayName  (Alice Admin)
+  [PASS] has role  (admin)
+  [PASS] has created_at  (2024-01-15T10:00:00Z)
+
+── GET /api/items ──
+  [PASS] status 200
+  [PASS] has total (number)
+  [PASS] has items (array)
+  [PASS] items[0] has id
+  [PASS] items[0] has title
+  [PASS] items[0] has secretNote
+  [PASS] total matches items.length
+
+── GET /api/users ──
+  [PASS] status 200
+  [PASS] returns array
+  [PASS] at least 2 users
+  [PASS] user has id (number)
+  [PASS] user has name (string)
+  [PASS] user has email (string)
+  [PASS] user has role (string)
+  [PASS] user has teamId
+  [PASS] user has createdAt
+
+── GET /api/users/{id} ──
+  [PASS] status 200
+  [PASS] id is 11  (11)
+  [PASS] has name
+  [PASS] has email
+  [PASS] has role
+  [PASS] has teamId
+  [PASS] has createdAt
+
+── GET /api/users/12 ──
+  [PASS] status 200
+  [PASS] id is 12  (12)
+
+── GET /api/teams ──
+  [PASS] status 200
+  [PASS] returns array
+  [PASS] at least 2 teams
+  [PASS] team has id (number)
+  [PASS] team has name (string)
+  [PASS] team has ownerId
+
+── GET /api/broken ──
+  [PASS] status 500  (got 500)
+
+── GET /__done__ ──
+  [PASS] status 200
+  [PASS] has done (boolean)
+
+── GET /api/token/revoke (held – no observed status) ──
+  [PASS] status 200 (assumed convention)  (got 200)
+  [PASS] has revoked field
+
+── POST /api/users (held mutation + write-readback) ──
+  [PASS] status 201  (got 201)
+  [PASS] has id  (100)
+  [PASS] name matches
+  [PASS] email matches
+  [PASS] teamId matches
+  [PASS] WRITE-READBACK: new user visible in GET /api/users  (id=100)
+  [PASS] WRITE-READBACK: new user GET /api/users/100
+
+── DELETE /api/users/{id} (held mutation) ──
+  [PASS] status 204  (got 204)
+  [PASS] WRITE-READBACK: deleted user returns 404  (got 404)
+  [PASS] WRITE-READBACK: deleted user absent from list
+
+── POST /api/settings (held mutation + write-readback) ──
+  [PASS] status 200  (got 200)
+  [PASS] theme updated to dark  ({"theme":"dark"})
+  [PASS] WRITE-READBACK: settings GET reflects dark theme
+
+── PUT /api/settings (held mutation) ──
+  [PASS] status 200  (got 200)
+  [PASS] theme updated to light  ({"theme":"light"})
+
+── POST /api/account (held mutation) ──
+  [PASS] status 201  (got 201)
+  [PASS] has id
+  [PASS] email matches
+  [PASS] displayName matches
+  [PASS] no password in response
+  [PASS] WRITE-READBACK: profile email updated
+
+── POST /graphql (held – me query) ──
+  [PASS] status 200  (got 200)
+  [PASS] has data.me
+  [PASS] data.me.id is string
+  [PASS] data.me.email is string
+  [PASS] data.me.displayName is string
+
+── POST /rpc (JSON-RPC 2.0, held) ──
+  [PASS] status 200  (got 200)
+  [PASS] has jsonrpc field
+  [PASS] has id field
+  [PASS] has result.balance
+  [PASS] has result.email
+
+── Flow pages – HTML + transition links ──
+  [PASS] GET /app status 200  (got 200)
+  [PASS] GET /app returns HTML  (text/html; charset=utf-8)
+  [PASS] GET /app has link /app/users  (searched in /app)
+  [PASS] GET /app has link /app/settings  (searched in /app)
+  [PASS] GET /app/users status 200  (got 200)
+  [PASS] GET /app/users returns HTML  (text/html; charset=utf-8)
+  [PASS] GET /app/users has link /app/settings  (searched in /app/users)
+  [PASS] GET /app/users/11 status 200  (got 200)
+  [PASS] GET /app/users/11 returns HTML  (text/html; charset=utf-8)
+  [PASS] GET /app/users/11 has link /app/users  (searched in /app/users/11)
+  [PASS] GET /app/users/11 has link /app/settings  (searched in /app/users/11)
+  [PASS] GET /app/settings status 200  (got 200)
+  [PASS] GET /app/settings returns HTML  (text/html; charset=utf-8)
+  [PASS] GET /app/settings has link /app  (searched in /app/settings)
+  [PASS] GET /app/settings has link /app/users  (searched in /app/settings)
+
+── 404 for unknown routes ──
+  [PASS] returns 404

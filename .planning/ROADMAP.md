@@ -116,7 +116,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 2 + Wave 3 completion)*
 
-- [ ] 03-04-PLAN.md — Buildability proof: scripted capture → spec → fresh builder agent → runnable approximation (BUILD-01)
+- [x] 03-04-PLAN.md — Buildability proof: scripted capture → spec → fresh builder agent → runnable approximation (BUILD-01) (verified autonomously 2026-07-03: BUILD-01 PASS — spec-only builder rebuild scored vs ground truth; gap-closure plan 03-05 pending before phase close)
 
 ### Phase 4: Authentication Handoff
 
@@ -201,7 +201,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
-| 3. Spec Generator + Buildability Proof | 2/4 | In progress | - |
+| 3. Spec Generator + Buildability Proof | 4/4 (+03-05 gap closure pending) | In progress | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |

@@ -1,0 +1,626 @@
+{
+  "meta": {
+    "specVersion": "1",
+    "tool": "archeo",
+    "target": "localhost",
+    "sessionId": "4769f1a3-3992-4daf-bcd5-f6faeea5457f",
+    "generatedAt": "2026-07-03T10:38:44.565Z",
+    "sourceRecordCount": 27
+  },
+  "dataModels": [
+    {
+      "name": "Profile",
+      "fields": [
+        {
+          "name": "id",
+          "type": "3f2504e0-4f89-41d3-9a0c-0305e82c3301"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "displayName",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "created_at",
+          "type": "2024-01-15T10:00:00Z"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    },
+    {
+      "name": "Item",
+      "fields": [
+        {
+          "name": "total",
+          "type": "number"
+        },
+        {
+          "name": "items",
+          "type": "array"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    },
+    {
+      "name": "User",
+      "fields": [
+        {
+          "name": "id",
+          "type": "number"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "teamId",
+          "type": "number"
+        },
+        {
+          "name": "createdAt",
+          "type": "string"
+        }
+      ],
+      "relationships": [
+        {
+          "field": "teamId",
+          "kind": "reference",
+          "target": "Team"
+        }
+      ],
+      "confidence": "high",
+      "observationCount": 3
+    },
+    {
+      "name": "Team",
+      "fields": [
+        {
+          "name": "id",
+          "type": "number"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "ownerId",
+          "type": "number"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    },
+    {
+      "name": "Rpc",
+      "fields": [
+        {
+          "name": "jsonrpc",
+          "type": "string"
+        },
+        {
+          "name": "id",
+          "type": "number"
+        },
+        {
+          "name": "result",
+          "type": "object"
+        }
+      ],
+      "relationships": [
+        {
+          "field": "result",
+          "kind": "embedded",
+          "target": "Result"
+        }
+      ],
+      "confidence": "medium",
+      "observationCount": 2
+    },
+    {
+      "name": "Done",
+      "fields": [
+        {
+          "name": "done",
+          "type": "boolean"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "pathTemplate": "/app",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/app"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/profile",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/profile"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "id": "3f2504e0-4f89-41d3-9a0c-0305e82c3301",
+        "email": "string",
+        "displayName": "string",
+        "role": "string",
+        "created_at": "2024-01-15T10:00:00Z"
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/items",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/items"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "total": 2,
+        "items": [
+          {
+            "id": 11,
+            "title": "string",
+            "secretNote": "string"
+          },
+          {
+            "id": 12,
+            "title": "string",
+            "secretNote": "string"
+          }
+        ]
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/app/users",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/app/users"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/users",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/users"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": [
+        {
+          "id": 11,
+          "name": "string",
+          "email": "string",
+          "role": "string",
+          "teamId": "number",
+          "createdAt": "string"
+        },
+        {
+          "id": 12,
+          "name": "string",
+          "email": "string",
+          "role": "string",
+          "teamId": "number",
+          "createdAt": "string"
+        }
+      ],
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/teams",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/teams"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": [
+        {
+          "id": 7,
+          "name": "string",
+          "ownerId": "number"
+        },
+        {
+          "id": 8,
+          "name": "string",
+          "ownerId": "number"
+        }
+      ],
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/app/users/{id}",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/app/users/11"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/users/{id}",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 2,
+      "examplePaths": [
+        "/api/users/11",
+        "/api/users/12"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "id": 12,
+        "name": "string",
+        "email": "string",
+        "role": "string",
+        "teamId": "number",
+        "createdAt": "string"
+      },
+      "polling": false
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/api/users",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/users"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "name": "string",
+        "email": "string",
+        "teamId": "number"
+      },
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "DELETE",
+      "pathTemplate": "/api/users/{id}",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/users/12"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/app/settings",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/app/settings"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/api/settings",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 2,
+      "examplePaths": [
+        "/api/settings"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "theme": "string"
+      },
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "PUT",
+      "pathTemplate": "/api/settings",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/settings"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "theme": "string"
+      },
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/api/account",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/account"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "email": "string",
+        "password": "string",
+        "displayName": "string"
+      },
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/graphql",
+      "protocol": "GraphQL",
+      "operationType": "read",
+      "held": true,
+      "observationCount": 2,
+      "examplePaths": [
+        "/graphql"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": {
+        "query": "string"
+      },
+      "responseBodyShape": {
+        "data": {
+          "me": {
+            "id": "string",
+            "email": "string",
+            "displayName": "string"
+          }
+        }
+      },
+      "polling": false
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/rpc",
+      "protocol": "JSON-RPC",
+      "operationType": "read",
+      "held": true,
+      "observationCount": 2,
+      "examplePaths": [
+        "/rpc"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": {
+        "jsonrpc": "string",
+        "id": 2,
+        "method": "string",
+        "params": {
+          "confirm": "boolean"
+        }
+      },
+      "responseBodyShape": {
+        "jsonrpc": "string",
+        "id": 1,
+        "result": {
+          "balance": "number",
+          "email": "string"
+        }
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/broken",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/broken"
+      ],
+      "statusCodes": [
+        500
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/token/revoke",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/token/revoke"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/__done__",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/__done__"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "done": "boolean"
+      },
+      "polling": false
+    }
+  ],
+  "flows": {
+    "states": [
+      {
+        "name": "app",
+        "path": "/app"
+      },
+      {
+        "name": "app-users",
+        "path": "/app/users"
+      },
+      {
+        "name": "app-users-detail",
+        "path": "/app/users/11"
+      },
+      {
+        "name": "app-settings",
+        "path": "/app/settings"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "app",
+        "to": "app-users",
+        "count": 1
+      },
+      {
+        "from": "app-users",
+        "to": "app-users-detail",
+        "count": 1
+      },
+      {
+        "from": "app-users-detail",
+        "to": "app-settings",
+        "count": 1
+      }
+    ]
+  },
+  "rules": [
+    {
+      "rule": "resource-crud: /api/users",
+      "evidence": [
+        "508dc3f3-5921-4d36-be24-dd0ad860b57d",
+        "421ea7b7-c89c-4e88-8c01-9cefa34606bd",
+        "2e9b0fc6-1d58-4815-8080-2dbcaca6ccab"
+      ],
+      "confidence": "high"
+    },
+    {
+      "rule": "write-held-behavior",
+      "evidence": [
+        "508dc3f3-5921-4d36-be24-dd0ad860b57d",
+        "2e9b0fc6-1d58-4815-8080-2dbcaca6ccab",
+        "6979bce9-c780-4c28-b865-596c795fc16a"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "coverage": {
+    "endpointsDiscovered": 19,
+    "dataModelsDiscovered": 6,
+    "statesDiscovered": 4,
+    "transitionsDiscovered": 3,
+    "heldWrites": 8,
+    "knownGaps": [
+      "held mutation responses unobserved"
+    ]
+  }
+}
