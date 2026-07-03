@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 plan 03-02 complete — ready for 03-03 (SSE dashboard + GATE-03 evolution)
-last_updated: "2026-07-03T02:00:00.000Z"
+stopped_at: Phase 3 plan 03-03 complete — ready for 03-04 (buildability proof)
+last_updated: "2026-07-03T04:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 7
-  completed_plans: 9
-  percent: 30
+  completed_plans: 10
+  percent: 32
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 03 (spec-generator-buildability) — IN PROGRESS
-Plan: 2 of 4 — done (03-02 navigation capture + spec generator + archeo spec + auto-gen)
-Next: 03-03 — localhost SSE dashboard + GATE-03 evolution (DASH-01/02/03)
-Status: 03-02 complete (2026-07-03); blocked on 03-02 → 03-03 (wave 3)
+Plan: 3 of 4 — done (03-03 localhost SSE dashboard + GATE-03 evolution)
+Next: 03-04 — buildability proof (scripted capture → spec → builder agent → runnable approximation)
+Status: 03-03 complete (2026-07-03); blocked on 03-03 → 03-04 (wave 4)
 Last activity: 2026-07-03
 
-Progress: [████░░░░░░] 50% of Phase 3
+Progress: [██████░░░░] 75% of Phase 3
 
 ## Performance Metrics
 
@@ -61,6 +61,7 @@ Progress: [████░░░░░░] 50% of Phase 3
 | Phase 02-capture-layer-safety-floor P03 | 7min | 2 tasks | 4 files |
 | Phase 03-spec-generator-buildability P01 | 30min | 2 tasks | 4 files |
 | Phase 03-spec-generator-buildability P02 | 45min | 4 tasks | 10 files |
+| Phase 03-spec-generator-buildability P03 | 45min | 4 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -118,6 +119,22 @@ Phase 03-02 execution decisions:
   subcommand; the <url> action's gate-first ordering is completely unchanged (GATE-01/T-01-09).
 - gracefulShutdown() uses closure-scoped shuttingDown boolean (not module-scoped) so each openAndWait
   call gets its own idempotent guard — safe for multiple session lifetimes in the same process.
+
+Phase 03-03 execution decisions:
+
+- GATE-03 Task 3 RED used two-phase approach: RED commit added 127.0.0.1 structural assertion +
+  DASHBOARD_FORBIDDEN while keeping node:http globally forbidden (producing RED failure from server.ts).
+  GREEN commit moved node:http into NON_DASHBOARD_FORBIDDEN (non-dashboard check only).
+- Task 4 TDD used source-inspection tests (readFileSync + string assertions) because the CLI browser
+  session is untestable in CI without Playwright. One deviation: initial RED test checked
+  indexOf('startDashboard') which matched the import line; corrected to indexOf('startDashboard(')
+  to match the call site only (no functional impact).
+- server.ts comment lines contain 'http.request' etc. for documentation. GATE-03's stripCommentLines()
+  strips these before scanning — same safe pattern established in 03-02 for generator.ts.
+- Dashboard dataModel name heuristic: last non-placeholder lowercase path segment (e.g. 'users' from
+  /api/users/{id}). Simpler than spec generator's full inference — intentionally cheap for live display.
+- openAndWait extended with optional dashboard? third param so CLI can pass the handle without changing
+  the store param signature; backward-compatible with all existing tests.
 
 Phase 02-04 execution decisions:
 

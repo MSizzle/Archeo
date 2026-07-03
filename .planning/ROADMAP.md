@@ -112,7 +112,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 03-03-PLAN.md — Localhost SSE dashboard + GATE-03 test evolution (DASH-01/02/03)
+- [x] 03-03-PLAN.md — Localhost SSE dashboard + GATE-03 test evolution (DASH-01/02/03)
 
 **Wave 4** *(blocked on Wave 2 + Wave 3 completion)*
 
