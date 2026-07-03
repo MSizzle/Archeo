@@ -1,31 +1,42 @@
 /**
  * test/security/no-network.test.ts
  *
- * GATE-03 (evolved — plan 03-03): Static guard — asserts that no source file under
- * src/ imports or uses an OUTBOUND network/HTTP client.
+ * GATE-03 v3 (evolved — plan 05-01): Static guard — asserts that no source file under
+ * src/ imports or uses an OUTBOUND network/HTTP client, except the pinned provider surface.
  *
- * Evolution from plan 03-03 (D3-05 / D13):
- *   node:http is now ALLOWED under src/dashboard/ — that directory implements the
- *   inbound-only loopback dashboard server (D13 decision). It is forbidden elsewhere.
- *   The dashboard may SERVE but never make client calls: http.request and http.get
- *   are added to a DASHBOARD_FORBIDDEN list applied only to src/dashboard/ files.
- *   A structural assertion also confirms src/dashboard/server.ts calls listen() with
- *   the '127.0.0.1' host literal, making the loopback-bind guarantee non-aspirational.
+ * Evolution from plan 03-03 (v2 — D3-05 / D13):
+ *   node:http is ALLOWED under src/dashboard/ — inbound-only loopback dashboard server (D13).
+ *   It is forbidden elsewhere. The dashboard may SERVE but never make client calls:
+ *   http.request and http.get are added to DASHBOARD_FORBIDDEN.
+ *   A structural assertion confirms src/dashboard/server.ts calls listen() with '127.0.0.1'.
+ *
+ * Evolution from plan 05-01 (v3 — MODEL-01 / D5-01):
+ *   src/model/providers/ is the SOLE PERMITTED outbound surface. The Anthropic provider
+ *   makes raw fetch() calls to api.anthropic.com — the ONLY permitted outbound host.
+ *   Three new guards are added:
+ *     1. hasBareGlobalFetch is SKIPPED for provider files (they are the permitted fetch site).
+ *     2. node:https moves to NON_PROVIDER_FORBIDDEN — provider files may use it in principle
+ *        (currently they use fetch(), but the exemption is scoped to the provider layer).
+ *     3. "GATE-03 v3: provider endpoint pinning" — verifies that every URL literal in
+ *        src/model/providers/ points to api.anthropic.com (no second hard-coded host).
+ *     4. "GATE-03 v3: src/model import boundary" — verifies that no file under src/model/
+ *        imports from src/capture/ or src/spec/ (D5-01 layer isolation).
  *
  * Rationale:
- *   GATE-03 forbids OUTBOUND calls — telemetry, fetch, HTTP client usage. An inbound
- *   loopback server (node:http.createServer) is not an outbound call; it is the D13
- *   dashboard decision. Allowing node:http only under src/dashboard/ keeps the spirit
- *   of the guard (no phone-home) while enabling the loopback server. The scoped
- *   DASHBOARD_FORBIDDEN list ensures the dashboard module can never be repurposed as
- *   a client by adding http.request or http.get.
+ *   GATE-03 forbids OUTBOUND calls — telemetry, fetch, HTTP client usage. The inbound
+ *   loopback dashboard server (D13) and the pinned provider fetch (MODEL-01/D5-01) are the
+ *   two deliberate exceptions. Scoping each exception to the smallest possible directory
+ *   (src/dashboard/ and src/model/providers/) keeps the spirit of the guard intact.
  *
- * Tokens forbidden for ALL src/ files (including src/dashboard/):
- *   node:https, require('http, from 'http', from 'https', axios, undici, 'got',
- *   and bare global fetch().
+ * Tokens forbidden for ALL src/ files (including src/dashboard/ and src/model/providers/):
+ *   require('http, from 'http', from 'https', axios, undici, 'got',
+ *   and bare global fetch() — EXCEPT src/model/providers/ is exempt from the fetch() check.
  *
  * Tokens forbidden for NON-dashboard src/ files only:
  *   node:http (inbound-only dashboard exception applies to src/dashboard/ only).
+ *
+ * Tokens forbidden for NON-provider src/ files only:
+ *   node:https (provider layer is the permitted outbound surface).
  *
  * Tokens forbidden for src/dashboard/ files only:
  *   http.request, http.get (outbound client calls — dashboard may serve, never call out).
@@ -74,27 +85,20 @@ function stripCommentLines(source: string): string {
 }
 
 /**
- * Tokens whose presence in non-comment source lines indicates an outbound network
- * import — forbidden (GATE-03: no telemetry, no phone-home).
- *
- * Note on 'fetch(': Playwright's route.fetch() and response.fetch() are internal
- * Playwright APIs that use Chromium's network infrastructure — they are NOT outbound
- * HTTP client calls and must not be flagged. The check uses a regex that requires
- * 'fetch(' to NOT be preceded by '.' (property accessor), so route.fetch() is allowed
- * while bare fetch(url) Web Fetch API calls are still detected and rejected.
- */
-/**
- * Tokens forbidden for ALL src/ files (including src/dashboard/).
+ * Tokens forbidden for ALL src/ files (including src/dashboard/ and src/model/providers/).
  *
  * node:http is NOT in this list — it has a dashboard-scoped exception.
  *   Files under src/dashboard/ may import node:http for the inbound loopback server (D13).
  *   All other src/ files still have node:http forbidden (see NON_DASHBOARD_FORBIDDEN below).
  *
- * node:https, axios, undici, got, require('http, from 'http', from 'https', and bare
- * fetch() remain forbidden EVERYWHERE including src/dashboard/ (outbound surfaces).
+ * node:https is NOT in this list — it has a provider-scoped exception (MODEL-01 / D5-01).
+ *   Files under src/model/providers/ are the sole permitted outbound surface.
+ *   All other src/ files still have node:https forbidden (see NON_PROVIDER_FORBIDDEN below).
+ *
+ * axios, undici, got, require('http, from 'http', from 'https', and bare fetch() remain
+ * forbidden EVERYWHERE (except fetch() is also skipped for provider files — see the loop).
  */
 const FORBIDDEN_TOKENS = [
-  'node:https',
   "require('http",
   "from 'http'",
   "from 'https'",
@@ -111,6 +115,13 @@ const FORBIDDEN_TOKENS = [
  * It remains forbidden everywhere else to prevent accidental outbound HTTP client usage.
  */
 const NON_DASHBOARD_FORBIDDEN = ['node:http'];
+
+/**
+ * Tokens forbidden for NON-provider src/ files only (MODEL-01 / D5-01).
+ * node:https is allowed under src/model/providers/ (the sole permitted outbound surface).
+ * It remains forbidden everywhere else to prevent accidental outbound HTTPS client usage.
+ */
+const NON_PROVIDER_FORBIDDEN = ['node:https'];
 
 /**
  * Check a source file for bare fetch( calls (not preceded by '.', meaning not a
@@ -134,6 +145,19 @@ const DASHBOARD_FORBIDDEN = ['http.request', 'http.get'];
  */
 const DASHBOARD_SRC_PREFIX = join(srcDir, 'dashboard');
 
+/**
+ * Path prefix identifying the provider module directory (MODEL-01 / D5-01).
+ * Bare fetch() is allowed here — this is the SOLE PERMITTED outbound fetch site.
+ * node:https is allowed here in principle (currently providers use fetch(), not node:https).
+ */
+const PROVIDER_SRC_PREFIX = join(srcDir, 'model', 'providers');
+
+/**
+ * Path prefix identifying the entire model layer (MODEL-01 / D5-01).
+ * No file under src/model/ may import from src/capture/ or src/spec/ (D5-01 boundary).
+ */
+const MODEL_SRC_PREFIX = join(srcDir, 'model');
+
 describe('GATE-03: no outbound network surface in src/', () => {
   const tsFiles = collectTsFiles(srcDir);
 
@@ -144,17 +168,20 @@ describe('GATE-03: no outbound network surface in src/', () => {
   for (const filePath of tsFiles) {
     const label = filePath.slice(rootDir.length);
     const isDashboard = filePath.startsWith(DASHBOARD_SRC_PREFIX);
+    const isProvider = filePath.startsWith(PROVIDER_SRC_PREFIX);
 
     test(`${label} — no forbidden network tokens`, () => {
       const code = stripCommentLines(readFileSync(filePath, 'utf8'));
 
-      // Check for bare global fetch() calls (not Playwright method calls like route.fetch())
-      assert.ok(
-        !hasBareGlobalFetch(code),
-        `${label} must not contain bare global fetch() call (use route.fetch() for Playwright interceptors)`,
-      );
+      // Check for bare global fetch() calls — skipped for provider files (sole permitted fetch site).
+      if (!isProvider) {
+        assert.ok(
+          !hasBareGlobalFetch(code),
+          `${label} must not contain bare global fetch() call (use route.fetch() for Playwright interceptors)`,
+        );
+      }
 
-      // All FORBIDDEN_TOKENS apply to every src/ file (including src/dashboard/).
+      // All FORBIDDEN_TOKENS apply to every src/ file (including src/dashboard/ and providers).
       for (const token of FORBIDDEN_TOKENS) {
         assert.ok(
           !code.includes(token),
@@ -169,6 +196,17 @@ describe('GATE-03: no outbound network surface in src/', () => {
           assert.ok(
             !code.includes(token),
             `${label} must not contain forbidden token (allowed only in src/dashboard/): ${JSON.stringify(token)}`,
+          );
+        }
+      }
+
+      // NON_PROVIDER_FORBIDDEN: node:https is forbidden outside src/model/providers/.
+      // src/model/providers/ is the sole permitted outbound surface (MODEL-01 / D5-01).
+      if (!isProvider) {
+        for (const token of NON_PROVIDER_FORBIDDEN) {
+          assert.ok(
+            !code.includes(token),
+            `${label} must not contain forbidden token (allowed only in src/model/providers/): ${JSON.stringify(token)}`,
           );
         }
       }
@@ -198,4 +236,74 @@ describe('GATE-03: structural assertion — dashboard binds 127.0.0.1', () => {
       `src/dashboard/server.ts must call server.listen() with host '127.0.0.1' (T-03-09 loopback-only bind)`,
     );
   });
+});
+
+describe('GATE-03 v3: provider endpoint pinning', () => {
+  const providerFiles = collectTsFiles(PROVIDER_SRC_PREFIX);
+
+  test('at least one provider .ts file found under src/model/providers/', () => {
+    assert.ok(
+      providerFiles.length > 0,
+      `Expected at least one .ts file under ${PROVIDER_SRC_PREFIX}`,
+    );
+  });
+
+  for (const filePath of providerFiles) {
+    const label = filePath.slice(rootDir.length);
+    test(`${label} — all URL literals point to api.anthropic.com`, () => {
+      const code = stripCommentLines(readFileSync(filePath, 'utf8'));
+      const urlMatches = code.match(/https?:\/\/[^\s"'`]+/g) ?? [];
+      for (const url of urlMatches) {
+        let host: string;
+        try {
+          host = new URL(url).hostname;
+        } catch {
+          // Malformed URL literal — skip (not an outbound call target)
+          continue;
+        }
+        assert.equal(
+          host,
+          'api.anthropic.com',
+          `${label} contains a non-anthropic URL literal: ${url} (host: ${host})`,
+        );
+      }
+    });
+  }
+});
+
+describe('GATE-03 v3: src/model import boundary', () => {
+  const modelFiles = collectTsFiles(MODEL_SRC_PREFIX);
+
+  test('at least one model .ts file found under src/model/', () => {
+    assert.ok(
+      modelFiles.length > 0,
+      `Expected at least one .ts file under ${MODEL_SRC_PREFIX}`,
+    );
+  });
+
+  /**
+   * Tokens that would indicate a cross-layer import from src/model/ into src/capture/ or src/spec/.
+   * D5-01: the model layer must be self-contained — no deps on capture or spec layers.
+   */
+  const IMPORT_BOUNDARY_FORBIDDEN = [
+    "from '../capture",
+    "from '../../capture",
+    "from '../spec",
+    "from '../../spec",
+    'capture/',
+    'spec/',
+  ];
+
+  for (const filePath of modelFiles) {
+    const label = filePath.slice(rootDir.length);
+    test(`${label} — no cross-layer imports (capture/ or spec/)`, () => {
+      const code = stripCommentLines(readFileSync(filePath, 'utf8'));
+      for (const token of IMPORT_BOUNDARY_FORBIDDEN) {
+        assert.ok(
+          !code.includes(token),
+          `${label} must not import from capture/ or spec/ (D5-01 boundary): found ${JSON.stringify(token)}`,
+        );
+      }
+    });
+  }
 });
