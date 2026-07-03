@@ -38,6 +38,7 @@ import type {
   Rule,
   Coverage,
   Confidence,
+  RecordBreakdown,
 } from '../types/spec.ts';
 import type { EndpointTemplate } from '../types/spec.ts';
 import { groupRecords, templatePath } from './templater.ts';
@@ -152,10 +153,76 @@ function modelNameFromTemplate(pathTemplate: string): string | undefined {
 // inferDataModels — SPEC-03
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Type normalization helpers (03-05: SPEC-03/04 — no raw values as types)
+// ---------------------------------------------------------------------------
+
+/**
+ * Normalize a field value from a redacted response body into a type keyword.
+ * Raw observed values that survived redaction (UUIDs, dates, emails, URLs) are
+ * normalized to their semantic type keyword; the value moves to 'example'.
+ *
+ * Known type keywords from redactBody ('string','number','boolean','null','array','object')
+ * are returned as-is without an example (they are already abstractions).
+ *
+ * CAP-05 / T-03-05b: values in already-redacted records are the only source;
+ * no raw pre-redaction values ever reach this function.
+ */
+const KNOWN_TYPE_KEYWORDS = new Set(['string', 'number', 'boolean', 'null', 'array', 'object', 'uuid', 'datetime', 'email', 'url']);
+const UUID_RE_FIELD = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const ISO8601_RE = /^\d{4}-\d{2}-\d{2}(T\d{2}:\d{2}:\d{2})/;
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const URL_RE = /^https?:\/\//;
+
+function normalizeFieldType(value: unknown): { type: string; example?: unknown } {
+  if (value === null) return { type: 'null' };
+  if (typeof value === 'boolean') return { type: 'boolean' };
+  if (typeof value === 'number') return { type: 'number' };
+  if (Array.isArray(value)) return { type: 'array' };
+  if (typeof value === 'object') return { type: 'object' };
+  if (typeof value === 'string') {
+    // Already a type keyword (produced by redactBody) → use as-is
+    if (KNOWN_TYPE_KEYWORDS.has(value)) return { type: value };
+    // UUID pattern
+    if (UUID_RE_FIELD.test(value)) return { type: 'uuid', example: value };
+    // ISO 8601 datetime
+    if (ISO8601_RE.test(value)) return { type: 'datetime', example: value };
+    // Email
+    if (EMAIL_RE.test(value)) return { type: 'email', example: value };
+    // HTTP/HTTPS URL
+    if (URL_RE.test(value)) return { type: 'url', example: value };
+    // Fallback: short string value → type 'string', carry as example
+    return { type: 'string', example: value };
+  }
+  return { type: 'string' };
+}
+
+/**
+ * Recursively walk a response body shape and normalize all leaf values to type keywords.
+ * This ensures responseBodyShape in EndpointTemplates carries only type annotations,
+ * never raw observed values.
+ */
+function normalizeShapeLeaves(shape: unknown): unknown {
+  if (shape === null || typeof shape !== 'object') {
+    // Leaf value — normalize
+    const { type } = normalizeFieldType(shape);
+    return type;
+  }
+  if (Array.isArray(shape)) {
+    return shape.map(normalizeShapeLeaves);
+  }
+  const obj = shape as Record<string, unknown>;
+  const result: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(obj)) {
+    result[k] = normalizeShapeLeaves(v);
+  }
+  return result;
+}
+
 /**
  * Flatten the first-level keys of a redacted response body shape into DataModelFields.
- * Values in already-redacted records are TYPE NAMES (e.g. 'string', 'number', 'boolean',
- * 'null', 'array', 'object') — never raw API values (CAP-05).
+ * Values are normalized via normalizeFieldType: type keywords stay as-is;
+ * raw observed values (UUIDs, dates, emails, URLs) become type keywords with an example.
  * Returns [] for null / non-object shapes.
  */
 function fieldsFromShape(shape: unknown): DataModelField[] {
@@ -163,20 +230,34 @@ function fieldsFromShape(shape: unknown): DataModelField[] {
 
   const fields: DataModelField[] = [];
   for (const [key, value] of Object.entries(shape as Record<string, unknown>)) {
-    let typeName: string;
-    if (value === null) {
-      typeName = 'null';
-    } else if (typeof value === 'string') {
-      // Already a type-name string (CAP-05 redacted) — use as-is
-      typeName = value;
-    } else if (typeof value === 'object') {
-      typeName = Array.isArray(value) ? 'array' : 'object';
-    } else {
-      typeName = typeof value;
-    }
-    fields.push({ name: key, type: typeName });
+    const { type, example } = normalizeFieldType(value);
+    const field: DataModelField = { name: key, type };
+    if (example !== undefined) field.example = example;
+    fields.push(field);
   }
   return fields;
+}
+
+/** Returns true if the shape looks like a JSON-RPC 2.0 response envelope. */
+function isJsonRpcEnvelope(shape: unknown): boolean {
+  if (shape === null || typeof shape !== 'object' || Array.isArray(shape)) return false;
+  const obj = shape as Record<string, unknown>;
+  return 'jsonrpc' in obj || ('result' in obj && 'id' in obj);
+}
+
+/**
+ * Detect a list-envelope response shape: {items|data|results: [...], ...meta}.
+ * Returns the array if an envelope is detected, null otherwise.
+ */
+function detectListEnvelope(shape: unknown): unknown[] | null {
+  if (shape === null || typeof shape !== 'object' || Array.isArray(shape)) return null;
+  const obj = shape as Record<string, unknown>;
+  for (const key of ['items', 'data', 'results']) {
+    if (Array.isArray(obj[key])) {
+      return obj[key] as unknown[];
+    }
+  }
+  return null;
 }
 
 /**
@@ -184,6 +265,10 @@ function fieldsFromShape(shape: unknown): DataModelField[] {
  * D3-04: for each non-GraphQL endpoint with a non-null responseBodyShape, derive the model
  * name from the path template. Deduplicates by name (merges observationCount, keeps first
  * fields set). Relationships inferred after all models are known.
+ *
+ * 03-05 additions:
+ *   - Skip JSON-RPC envelopes ({jsonrpc,id,result} noise)
+ *   - Unwrap list envelopes: {items|data|results:[...]} → model the element
  *
  * Confidence: >=3 → 'high'; ==2 → 'medium'; ==1 → 'low'.
  */
@@ -199,15 +284,27 @@ export function inferDataModels(templates: EndpointTemplate[]): DataModel[] {
     if (tmpl.protocol === 'GraphQL') continue;
     if (tmpl.responseBodyShape === null || tmpl.responseBodyShape === undefined) continue;
 
-    // Handle array responses: if the response shape is an array, try to infer from the first element
+    // Skip JSON-RPC response envelopes ({jsonrpc,id,result} noise)
+    if (isJsonRpcEnvelope(tmpl.responseBodyShape)) continue;
+
     let shapeToUse = tmpl.responseBodyShape;
-    if (Array.isArray(shapeToUse)) {
-      // Array of objects — try first element (already redacted)
+
+    // Envelope unwrap: {items|data|results: [...]} → model the element
+    const envelopeArray = detectListEnvelope(shapeToUse);
+    if (envelopeArray !== null) {
+      const first = envelopeArray[0];
+      if (first !== null && typeof first === 'object' && !Array.isArray(first)) {
+        shapeToUse = first;
+      } else {
+        continue; // can't infer element model
+      }
+    } else if (Array.isArray(shapeToUse)) {
+      // Direct array response — try first element
       const first = (shapeToUse as unknown[])[0];
       if (first !== null && typeof first === 'object' && !Array.isArray(first)) {
         shapeToUse = first;
       } else {
-        continue; // can't infer model from non-object array
+        continue;
       }
     }
 
@@ -219,56 +316,36 @@ export function inferDataModels(templates: EndpointTemplate[]): DataModel[] {
     if (fields.length === 0) continue;
 
     if (rawModels.has(modelName)) {
-      // Merge: accumulate observation count; keep existing fields (first-wins)
-      const existing = rawModels.get(modelName)!;
-      existing.observationCount += tmpl.observationCount;
+      rawModels.get(modelName)!.observationCount += tmpl.observationCount;
     } else {
       rawModels.set(modelName, { fields, observationCount: tmpl.observationCount });
     }
   }
 
-  // Build models with relationships
+  // Build models with relationships (unchanged logic)
   const modelNames = new Set(rawModels.keys());
-
   const models: DataModel[] = [];
   for (const [name, raw] of rawModels.entries()) {
     const relationships: DataModelRelationship[] = [];
-
     for (const field of raw.fields) {
-      // Reference detection: field name ends in 'Id' or '_id'
       if (/Id$/.test(field.name) || /_id$/.test(field.name)) {
-        // Extract potential model name: 'ownerId' → 'Owner', 'user_id' → 'User'
-        const baseName = field.name
-          .replace(/_id$/i, '')
-          .replace(/Id$/, '');
+        const baseName = field.name.replace(/_id$/i, '').replace(/Id$/, '');
         const targetModel = toPascalCase(baseName);
         if (modelNames.has(targetModel) && targetModel !== name) {
           relationships.push({ field: field.name, kind: 'reference', target: targetModel });
         }
       }
-
-      // Embedded detection: field type is 'object'
       if (field.type === 'object') {
-        // The embedded type name is PascalCase of the field name
         const embeddedTarget = toPascalCase(field.name);
         if (embeddedTarget !== name) {
           relationships.push({ field: field.name, kind: 'embedded', target: embeddedTarget });
         }
       }
     }
-
     const obs = raw.observationCount;
     const confidence: Confidence = obs >= 3 ? 'high' : obs === 2 ? 'medium' : 'low';
-
-    models.push({
-      name,
-      fields: raw.fields,
-      relationships,
-      confidence,
-      observationCount: obs,
-    });
+    models.push({ name, fields: raw.fields, relationships, confidence, observationCount: obs });
   }
-
   return models;
 }
 
@@ -470,8 +547,11 @@ export function inferRules(templates: EndpointTemplate[], records: CaptureRecord
 
 /**
  * Build the mandatory coverage block.
- * SPEC-07: knownGaps ALWAYS starts with "held mutation responses unobserved".
- * Adds binary/oversized gap when any binary responseBody was skipped.
+ * SPEC-07:
+ *   - knownGaps has one entry per held endpoint (per-endpoint gaps, not one coarse string).
+ *   - Falls back to "held mutation responses unobserved" if no held endpoints exist.
+ *   - Adds binary/oversized gap when any binary responseBody was skipped.
+ *   - recordBreakdown explains sourceRecordCount by record type.
  */
 export function buildCoverage(
   templates: EndpointTemplate[],
@@ -481,10 +561,14 @@ export function buildCoverage(
 ): Coverage {
   const heldWrites = templates.filter((t) => t.held).length;
 
-  const knownGaps: string[] = [
-    // SPEC-07: mandatory gap — always present
-    'held mutation responses unobserved',
-  ];
+  // Per-endpoint held gaps (SPEC-07: one entry per held endpoint)
+  const heldTemplates = templates.filter(t => t.held);
+  const knownGaps: string[] = heldTemplates.map(
+    t => `held mutation response unobserved: ${t.method} ${t.pathTemplate}`,
+  );
+  if (knownGaps.length === 0) {
+    knownGaps.push('held mutation responses unobserved');
+  }
 
   // Binary/oversized gap
   const hasBinary = records.some(
@@ -498,6 +582,17 @@ export function buildCoverage(
     knownGaps.push('binary or oversized response bodies skipped (body content not captured)');
   }
 
+  // Record breakdown (SPEC-07: explains sourceRecordCount)
+  const recordBreakdown: RecordBreakdown = {
+    requestResponse: records.filter(r =>
+      r.type === 'request-response' || r.type === 'destructive-get-confirmed',
+    ).length,
+    heldWrites: records.filter(r => r.type === 'held-write').length,
+    navigations: records.filter(r => r.type === 'navigation').length,
+    deadEnds: records.filter(r => r.type === 'dead-end').length,
+    destructiveGetHeld: records.filter(r => r.type === 'destructive-get-held').length,
+  };
+
   return {
     endpointsDiscovered: templates.length,
     dataModelsDiscovered: models.length,
@@ -505,6 +600,7 @@ export function buildCoverage(
     transitionsDiscovered: flows.transitions.length,
     heldWrites,
     knownGaps,
+    recordBreakdown,
   };
 }
 
@@ -529,7 +625,14 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   const apiRecords = records.filter((r) => (r.type as string) !== 'navigation');
 
   // Endpoint templates (SPEC-01/02 via templater)
-  const templates = groupRecords(apiRecords);
+  const rawTemplates = groupRecords(apiRecords);
+
+  // Normalize responseBodyShape and requestBodyShape leaves (SPEC-03/04: no raw values as types)
+  const templates = rawTemplates.map(t => ({
+    ...t,
+    responseBodyShape: t.responseBodyShape !== null ? normalizeShapeLeaves(t.responseBodyShape) : null,
+    requestBodyShape: t.requestBodyShape !== null ? normalizeShapeLeaves(t.requestBodyShape) : null,
+  }));
 
   // Data models (SPEC-03)
   const dataModels = inferDataModels(templates);
