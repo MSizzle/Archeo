@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 05 in progress — 05-01 complete (model adapter layer); next 05-02 (observation extractor + state signature)
+**Current focus:** Phase 05 in progress — 05-02 complete (observation + action layer); next 05-03 (frontier tracker + main agent loop)
 
 ## Current Position
 
