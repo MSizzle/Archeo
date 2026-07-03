@@ -830,6 +830,33 @@ describe('03-05 regression: 03-04 bug pattern fully fixed end-to-end', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task 5 (06-01): stopReason surfaced into coverage block
+// ---------------------------------------------------------------------------
+describe('generateSpec — stopReason propagation (06-01)', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDirSR() { const d = makeSessionDir(); dirs.push(d); return d; }
+
+  test('manifest with stopReason:budget → coverage.stopReason === "budget"', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirSR();
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL([makeReadRecord({ id: 'r1', seq: 1 })]));
+    writeManifest(dir, { recordCount: 1, stopReason: 'budget' });
+    const spec = generateSpec(dir);
+    assert.equal(spec.coverage.stopReason, 'budget', 'stopReason must propagate from manifest to coverage');
+  });
+
+  test('manifest without stopReason → coverage.stopReason field absent', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirSR();
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL([makeReadRecord({ id: 'r1', seq: 1 })]));
+    writeManifest(dir, { recordCount: 1 });
+    const spec = generateSpec(dir);
+    assert.ok(!('stopReason' in spec.coverage), 'stopReason must be absent when not in manifest');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GATE-03 guard: generator must not import HTTP client or Playwright
 // ---------------------------------------------------------------------------
 describe('GATE-03 guard — generator source', () => {

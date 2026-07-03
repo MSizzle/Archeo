@@ -302,6 +302,32 @@ describe('CaptureStore — onRecord observer hook (03-03, D3-05)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// CaptureStore.recordStopReason (06-01 Task 5)
+// ---------------------------------------------------------------------------
+describe('CaptureStore — recordStopReason (06-01)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-store-stopreason-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('recordStopReason writes stopReason into manifest.json', () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    store.recordStopReason('budget');
+    const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'));
+    assert.equal(manifest.stopReason, 'budget', 'manifest must contain stopReason after recordStopReason');
+    store.close();
+  });
+
+  test('manifest without recordStopReason has no stopReason field', () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const manifest = JSON.parse(readFileSync(join(store.dir, 'manifest.json'), 'utf8'));
+    assert.ok(!('stopReason' in manifest), 'manifest must not have stopReason before recordStopReason');
+    store.close();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // CaptureStore.close() → Promise<void> (Task 4, plan 03-02)
 // WR-04: idempotent — a second close() must not throw 'write after end'.
 // ---------------------------------------------------------------------------
