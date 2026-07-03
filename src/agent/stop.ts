@@ -20,6 +20,7 @@ export const STOP_REASONS = {
   PLATEAU: 'plateau',
   EMPTY_FRONTIER: 'empty-frontier',
   DONE: 'model-done',
+  BUDGET: 'budget',
 } as const
 
 export type StopReason = typeof STOP_REASONS[keyof typeof STOP_REASONS]

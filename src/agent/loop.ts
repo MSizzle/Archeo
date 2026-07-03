@@ -36,6 +36,8 @@ import { StopController, STOP_REASONS } from './stop.ts'
 import type { StopReason } from './stop.ts'
 import { syntheticValue } from './formfill.ts'
 import { templatePath } from '../spec/templater.ts'
+import { BudgetTracker } from './budget.ts'
+import { Pacer } from './pace.ts'
 
 export interface StepEvent {
   stepIndex: number
@@ -57,6 +59,8 @@ export interface ExploreResult {
   transitions: number
   endpointsSeen: number
   stopReason: StopReason
+  /** Total tokens consumed across all decideWithRetry calls in this run. */
+  totalTokens: number
 }
 
 // Frontier tier ranking for the per-state decision list (nav > form > click).
@@ -161,12 +165,23 @@ export async function explore(
   page: Page,
   provider: Provider,
   store: CaptureStore,
-  opts: { maxSteps: number; onStep?: (s: StepEvent) => void },
+  opts: {
+    maxSteps: number
+    onStep?: (s: StepEvent) => void
+    maxTokens?: number
+    maxCost?: number
+    model?: string
+    paceMs?: number
+    now?: () => number
+    sleep?: (ms: number) => Promise<void>
+  },
 ): Promise<ExploreResult> {
   const { maxSteps, onStep } = opts
   const graph = new CoverageGraph()
   const loopDetect = new LoopDetector()
   const stop = new StopController({ maxSteps, plateauK: 10 })
+  const budget = new BudgetTracker({ maxTokens: opts.maxTokens, maxCost: opts.maxCost, model: opts.model })
+  const pacer = new Pacer({ paceMs: opts.paceMs ?? 0, now: opts.now, sleep: opts.sleep })
 
   // Track distinct endpoint templates seen so far via the store's own record stream, so a
   // step counts as "new endpoint" for the plateau detector. Agent-step records are ignored.
@@ -263,6 +278,11 @@ export async function explore(
           urls: currentUnexercised.map((it) => it.url).filter((u): u is string => typeof u === 'string'),
         }
         const decision = await decideWithRetry(provider, obs, frontier)
+        budget.add(decision.usage)
+        if (budget.exceeded()) {
+          stopReason = STOP_REASONS.BUDGET
+          break
+        }
         action = decision.action
         targetRef = action.targetRef
         if (targetRef !== undefined) {
@@ -299,6 +319,7 @@ export async function explore(
       break
     }
 
+    await pacer.wait()
     await executeAction(page, action, obs)
 
     // Mark a model-chosen ref exercised so directed exploration never re-offers it.
@@ -317,5 +338,6 @@ export async function explore(
     transitions: graph.transitions.length,
     endpointsSeen: endpointKeys.size,
     stopReason,
+    totalTokens: budget.totalTokens,
   }
 }
