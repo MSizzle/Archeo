@@ -19,11 +19,77 @@
 // Use: export const FOO = { A: 'a', B: 'b' } as const; export type Foo = typeof FOO[keyof typeof FOO];
 
 import cac from 'cac';
+import { readdirSync } from 'node:fs';
+import { join, resolve } from 'node:path';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
 import { CaptureStore } from '../capture/store.ts';
+import { writeSpec } from '../spec/generator.ts';
+
+// ---------------------------------------------------------------------------
+// latestSessionDir — resolve the most-recent session under .archeo/captures
+// D3-04: used by `archeo spec` when no captureDir arg is given.
+// ---------------------------------------------------------------------------
+
+/**
+ * Find the lexically-latest session-* directory under the given captures root.
+ * Returns its absolute path, or throws a user-friendly Error if none exists.
+ *
+ * D3-04: the convention for "latest" is lexical sort of 'session-*' entries,
+ * which is equivalent to chronological order given the 'session-YYYY-MM-DD-...' naming scheme.
+ *
+ * @param capturesRoot  The captures root directory (e.g. '.archeo/captures')
+ */
+function latestSessionDir(capturesRoot: string): string {
+  let entries: string[];
+  try {
+    entries = readdirSync(capturesRoot);
+  } catch {
+    throw new Error(`captures directory not found: ${resolve(capturesRoot)}`);
+  }
+  const sessions = entries
+    .filter((e) => e.startsWith('session-'))
+    .sort();
+  const latest = sessions.pop();
+  if (!latest) {
+    throw new Error(`no session directories found under ${resolve(capturesRoot)}`);
+  }
+  return join(capturesRoot, latest);
+}
+
+// ---------------------------------------------------------------------------
+// CLI setup
+// ---------------------------------------------------------------------------
 
 const cli = cac('archeo');
+
+// ---------------------------------------------------------------------------
+// `archeo spec [captureDir]` — gate-free deterministic spec generation (D3-04)
+// CRITICAL: this command must NOT call runAuthorizationGate (no browsing happens).
+// The existing `<url>` command's gate-first ordering below is NOT changed (GATE-01/T-01-09).
+// ---------------------------------------------------------------------------
+
+cli
+  .command('spec [captureDir]', 'Generate an archeo build spec from a capture session (no browsing; gate not required)')
+  .action((captureDir?: string) => {
+    // WR-07 pattern: wrap the synchronous body in try/catch so any Error produces
+    // a clean user-facing message rather than an uncaught exception stack trace.
+    try {
+      // D3-04: resolve the target directory.
+      // If a captureDir arg was given, use it directly.
+      // Otherwise, default to the lexically-latest session under .archeo/captures.
+      const targetDir = captureDir ?? latestSessionDir('.archeo/captures');
+
+      // Call the deterministic spec generator — no LLM, no browsing, no gate.
+      const specPath = writeSpec(targetDir);
+      process.stdout.write(`[archeo] spec written: ${specPath}\n`);
+    } catch (err) {
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`);
+      }
+      process.exit(1);
+    }
+  });
 
 cli
   .command('<url>', 'Analyze a running web application')

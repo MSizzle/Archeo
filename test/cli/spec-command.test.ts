@@ -174,7 +174,8 @@ describe('archeo spec subcommand', () => {
     const specPath = join(sessionDir, 'archeo-spec.json');
     assert.ok(existsSync(specPath), 'archeo-spec.json must exist');
 
-    const spec = JSON.parse(require('node:fs').readFileSync(specPath, 'utf8'));
+    const { readFileSync: readSpec } = await import('node:fs');
+    const spec = JSON.parse(readSpec(specPath, 'utf8'));
     assert.ok(spec.meta, 'spec must have meta');
     assert.ok(spec.endpoints, 'spec must have endpoints');
     assert.ok(spec.dataModels, 'spec must have dataModels');
