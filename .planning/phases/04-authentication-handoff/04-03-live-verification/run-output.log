@@ -1,0 +1,163 @@
+[harness] target app listening; login=http://localhost:56313/login?auto=1 app=http://localhost:56313/app?drive=1
+
+========== STAGE 1: LOGIN RUN ==========
+[cli:login] archeo — authorized use required
+[cli:login] 
+[cli:login]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:login]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:login] 
+[cli:login] [cli:login] [archeo] Log in in the browser (MFA included). Press Enter here when you are logged in, or Ctrl+C to abort.
+[cli:login] [cli:login] [archeo] Press Enter here when you are logged in, or Ctrl+C to abort. [harness] STAGE1: login complete=true (readyPrompt seen=true); answering Enter
+[cli:login] [archeo] logged-in session saved to .archeo/profiles/localhost
+[cli:login] [archeo] run 'archeo http://localhost:56313/login?auto=1' to explore authenticated; 'archeo clear-session localhost' to delete it.
+[cli:login] PASS [S1-a] Login run: per-hostname profile dir exists afterward :: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost exists=true entries=14; server logins=1 mfa=1 authAppLoads=1
+PASS [S1-b] Login run: NOTHING captured (no capture session created) :: captures dir exists=false sessions=0
+PASS [S1-c] Login run: planted password + MFA code absent across ALL of .archeo/ :: password hits=0 []; mfaCode hits=0 []
+PASS [S1-d] Login run: session cookie value absent under captures/ (profile-only by design) :: cookie under captures hits=0
+
+========== STAGE 2: AUTHENTICATED CAPTURE RUN ==========
+[harness] STAGE2: capture run started -> http://localhost:56313/app?drive=1
+[cli:cap] archeo — authorized use required
+[cli:cap] 
+[cli:cap]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:cap]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:cap] 
+[cli:cap] [cli:cap] 
+[cli:cap] [archeo] Destructive GET detected: http://localhost:56313/api/token/revoke
+[cli:cap] Allow this request? [y/N] [harness] destructive-GET prompt detected -> answering N
+[harness] STAGE2: page sequence finished (done-beacon)
+[cli:cap] [archeo] spec written: .archeo/captures/session-2026-07-03-160069c1/archeo-spec.json
+[cli:cap] PASS [S2-a] Auth capture: authenticated pages load WITHOUT re-login (server saw the session; no login POST) :: authAppLoads=1 logins=0 mfa=0 protected2xxReads=2
+PASS [S2-b] Auth capture: protected reads captured with 2xx (request-response records) :: protected 2xx reads=2 (/api/profile:200, /api/items:200)
+PASS [S2-c] Auth capture: at least one write HELD (floor still on under auth); server saw zero writes :: held-write records=2 (POST /api/settings, POST /api/account); server /api writes=0
+PASS [S2-d] Auth capture: NO 401 records (proves the run was authenticated) :: 401 request-response records=0
+PASS [S2-e] Auth capture: session cookie value + password ABSENT from the store :: cookie hits(jsonl)=0 password hits(jsonl)=0 session-dir(cookie+pw)=0
+PASS [S2-f] Auth capture: destructive-GET tripwire fired and was answered N (server never hit) :: promptFired=true destructive-get-held=1 server destructiveHits=0
+
+========== STAGE 3: PERSISTENCE RUN (2nd capture) ==========
+[harness] STAGE3: capture run started -> http://localhost:56313/app?drive=1
+[cli:cap] archeo — authorized use required
+[cli:cap] 
+[cli:cap]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:cap]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:cap] 
+[cli:cap] [cli:cap] 
+[cli:cap] [archeo] Destructive GET detected: http://localhost:56313/api/token/revoke
+[cli:cap] Allow this request? [y/N] [harness] destructive-GET prompt detected -> answering N
+[harness] STAGE3: page sequence finished (done-beacon)
+[cli:cap] [archeo] spec written: .archeo/captures/session-2026-07-03-9e81bfd5/archeo-spec.json
+[cli:cap] PASS [S3-a] Persistence: second run STILL authenticated without re-login (no 401, no login POST) :: authAppLoads=1 logins=0 protected2xxReads=2 401records=0
+
+========== STAGE 4: CLEAR-SESSION + RELOCK ==========
+[cli:clear] [archeo] cleared login profile: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost
+[cli:clear] PASS [S4-a] clear-session: per-hostname profile dir is GONE after clear :: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost exists=false; clear stdout="[archeo] cleared login profile: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost"
+[harness] STAGE4: capture run started -> http://localhost:56313/app?drive=1
+[cli:cap] archeo — authorized use required
+[cli:cap] 
+[cli:cap]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[cli:cap]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[cli:cap] 
+[cli:cap] [harness] STAGE4: page sequence finished (done-beacon)
+[cli:cap] [archeo] spec written: .archeo/captures/session-2026-07-03-294c6ea4/archeo-spec.json
+[cli:cap] PASS [S4-b] Relock: a fresh capture run now hits the 401 / login wall (clear was real) :: captured 401 reads=2 server api401=2 authAppLoads(this run)=0 wallHits=1
+
+===== SUMMARY =====
+stage1 profile dir: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost exists-after-stage1=yes cleared-in-stage4=yes
+OVERALL: ALL GREEN
+
+===JSON===
+{
+  "allPass": true,
+  "results": [
+    {
+      "id": "S1-a",
+      "label": "Login run: per-hostname profile dir exists afterward",
+      "pass": true,
+      "evidence": "/Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost exists=true entries=14; server logins=1 mfa=1 authAppLoads=1"
+    },
+    {
+      "id": "S1-b",
+      "label": "Login run: NOTHING captured (no capture session created)",
+      "pass": true,
+      "evidence": "captures dir exists=false sessions=0"
+    },
+    {
+      "id": "S1-c",
+      "label": "Login run: planted password + MFA code absent across ALL of .archeo/",
+      "pass": true,
+      "evidence": "password hits=0 []; mfaCode hits=0 []"
+    },
+    {
+      "id": "S1-d",
+      "label": "Login run: session cookie value absent under captures/ (profile-only by design)",
+      "pass": true,
+      "evidence": "cookie under captures hits=0"
+    },
+    {
+      "id": "S2-a",
+      "label": "Auth capture: authenticated pages load WITHOUT re-login (server saw the session; no login POST)",
+      "pass": true,
+      "evidence": "authAppLoads=1 logins=0 mfa=0 protected2xxReads=2"
+    },
+    {
+      "id": "S2-b",
+      "label": "Auth capture: protected reads captured with 2xx (request-response records)",
+      "pass": true,
+      "evidence": "protected 2xx reads=2 (/api/profile:200, /api/items:200)"
+    },
+    {
+      "id": "S2-c",
+      "label": "Auth capture: at least one write HELD (floor still on under auth); server saw zero writes",
+      "pass": true,
+      "evidence": "held-write records=2 (POST /api/settings, POST /api/account); server /api writes=0"
+    },
+    {
+      "id": "S2-d",
+      "label": "Auth capture: NO 401 records (proves the run was authenticated)",
+      "pass": true,
+      "evidence": "401 request-response records=0"
+    },
+    {
+      "id": "S2-e",
+      "label": "Auth capture: session cookie value + password ABSENT from the store",
+      "pass": true,
+      "evidence": "cookie hits(jsonl)=0 password hits(jsonl)=0 session-dir(cookie+pw)=0"
+    },
+    {
+      "id": "S2-f",
+      "label": "Auth capture: destructive-GET tripwire fired and was answered N (server never hit)",
+      "pass": true,
+      "evidence": "promptFired=true destructive-get-held=1 server destructiveHits=0"
+    },
+    {
+      "id": "S3-a",
+      "label": "Persistence: second run STILL authenticated without re-login (no 401, no login POST)",
+      "pass": true,
+      "evidence": "authAppLoads=1 logins=0 protected2xxReads=2 401records=0"
+    },
+    {
+      "id": "S4-a",
+      "label": "clear-session: per-hostname profile dir is GONE after clear",
+      "pass": true,
+      "evidence": "/Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost exists=false; clear stdout=\"[archeo] cleared login profile: /Users/Montster/PrometheusUltra/Ideas/Archeo/.planning/phases/04-authentication-handoff/04-03-live-verification/.archeo/profiles/localhost\""
+    },
+    {
+      "id": "S4-b",
+      "label": "Relock: a fresh capture run now hits the 401 / login wall (clear was real)",
+      "pass": true,
+      "evidence": "captured 401 reads=2 server api401=2 authAppLoads(this run)=0 wallHits=1"
+    }
+  ],
+  "stage2": {
+    "records": 8,
+    "sessionName": "session-2026-07-03-160069c1"
+  },
+  "stage3": {
+    "records": 8,
+    "sessionName": "session-2026-07-03-9e81bfd5"
+  },
+  "stage4": {
+    "records": 5,
+    "sessionName": "session-2026-07-03-294c6ea4"
+  }
+}

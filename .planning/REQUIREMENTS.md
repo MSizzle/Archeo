@@ -60,9 +60,9 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Authentication Handoff
 
-- [ ] **AUTH-01**: The user logs in manually (including MFA) and signals ready; Archeo never handles credentials
-- [ ] **AUTH-02**: The authenticated browser context is persisted (Playwright `storageState` or persistent user-data dir) and the agent explores from there
-- [ ] **AUTH-03**: The persisted session lives in one gitignored local location, never enters the capture store or spec, and is cleared on request
+- [x] **AUTH-01**: The user logs in manually (including MFA) and signals ready; Archeo never handles credentials
+- [x] **AUTH-02**: The authenticated browser context is persisted (Playwright `storageState` or persistent user-data dir) and the agent explores from there
+- [x] **AUTH-03**: The persisted session lives in one gitignored local location, never enters the capture store or spec, and is cleared on request
 
 ### Model Adapter
 
@@ -158,9 +158,9 @@ Each requirement maps to exactly one phase.
 | DASH-01 | Phase 3 | Pending |
 | DASH-02 | Phase 3 | Pending |
 | DASH-03 | Phase 3 | Pending |
-| AUTH-01 | Phase 4 | Pending |
-| AUTH-02 | Phase 4 | Pending |
-| AUTH-03 | Phase 4 | Pending |
+| AUTH-01 | Phase 4 | Complete (04-01; verified live 04-03) |
+| AUTH-02 | Phase 4 | Complete (04-01; verified live 04-03) |
+| AUTH-03 | Phase 4 | Complete (04-02; verified live 04-03) |
 | MODEL-01 | Phase 5 | Pending |
 | AGENT-01 | Phase 5 | Pending |
 | AGENT-02 | Phase 5 | Pending |

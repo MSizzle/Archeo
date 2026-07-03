@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 4 — 04-02 complete (clear-session + AUTH-03 hygiene suite); ready for 04-03 (autonomous live verification + phase close)
-last_updated: "2026-07-03T18:30:00.000Z"
+stopped_at: Phase 4 complete — 04-03 autonomous live verification GREEN (login handoff, persistence across restarts, floor-under-auth, clear-session relock); ready for Phase 5 (Autonomous Agent Loop + Full Dashboard)
+last_updated: "2026-07-03T23:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 8
-  completed_plans: 14
-  percent: 42
+  completed_plans: 15
+  percent: 50
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 03 complete — ready for Phase 4 (Authentication Handoff)
+**Current focus:** Phase 04 complete — ready for Phase 5 (Autonomous Agent Loop + Full Dashboard)
 
 ## Current Position
 
-Phase: 04 (authentication-handoff) — IN PROGRESS
-Plan: 2 of 3 — 04-02 complete (2026-07-03); 04-03 next
-Next: 04-03 — autonomous live verification (login-walled target, four-stage proof) + phase close
-Status: 04-02 complete (`archeo clear-session` + AUTH-03 hygiene suite landed; full suite 398/398)
+Phase: 04 (authentication-handoff) — COMPLETE (2026-07-03)
+Plan: 3 of 3 — 04-03 complete; Phase 4 closed
+Next: Phase 5 — Autonomous Agent Loop + Full Dashboard (vision-driven exploration; full live dashboard)
+Status: 04-03 autonomous live verification GREEN (13/13 invariants; real CLI vs live login-walled target). AUTH-01/02/03 Complete. Full suite 398/398.
 Last activity: 2026-07-03
 
-Progress: [███████░░░] 2/3 plans done; Phase 4 in progress
+Progress: [██████████] 3/3 plans done; Phase 4 complete → Phase 5 next
 
 ## Performance Metrics
 
@@ -203,9 +203,19 @@ Phase 04-02 execution decisions:
 - Task 3 delivered as a single test(04-02) commit (pure standing-assertion suite — no feature code exists for a GREEN commit).
 - Flake fix (out-of-plan, documented): interceptor.test.ts's 15 fixed 50ms flush sleeps replaced with `await store.close()` (deterministic 'finish'-event flush, WR-04 idempotent) after the plan's added test files raised parallel load and exposed the race (~1 in 4 full-suite runs). Suite verified stable across 4 consecutive 398/398 runs.
 
+Phase 04-03 execution decisions (PHASE 4 CLOSE):
+
+- AUTH-01/02/03 verified AUTONOMOUSLY per explicit user directive (D4-06, mirrors 02-04 / 03-04) — no human-verify checkpoint. Four stages through the REAL, unmodified CLI (`node src/cli/index.ts login|<url>|clear-session`) against a live login-walled target app (`04-03-live-verification/target-app.mjs`) in real headed Chromium. 13/13 invariants GREEN; `run-auth-verification.mjs` exits 0. No src/ or test/ file touched.
+- Login wall design: `fetch`-POST planted creds → pre-MFA `pending` cookie → fake MFA step → persistent HttpOnly `session=SESSION_SECRET_qrs789` cookie with `Max-Age=86400` (so it is written to the profile cookie store and survives a process restart — the crux of AUTH-02); all `/api/*` 401 without it.
+- Login+MFA also refactored the profile-resolution confidence: login and capture actions in index.ts both compute `profileDir(new URL(url).hostname)` (default root), so with a shared cwd they resolve the SAME `.archeo/profiles/localhost/` — the warned-about "dead `void profileDir` in login.ts" is a harmless import-boundary marker; index.ts owns the path for both commands. Persistence across two separate capture processes confirmed live (stages 2+3: authAppLoads=1, logins=0, zero 401).
+- Stage 1 proved D4-01 live: the login run created NO capture session at all; planted password + MFA code grep = 0 across ALL of `.archeo/` (Chromium profile included). Stage 2 proved the floor still HELD writes under auth (server saw 0 /api writes) and the session cookie is absent from the store (grep = 0). Stage 4 proved clear-session is real: profile dir gone, next capture run hit the 401 wall (server api401=2, authAppLoads=0).
+- Login-completion is gated on the target server's own ledger (`authAppLoads >= 1`) before the harness answers the Enter ready-prompt on stdin — observed server state, not an inferred delay. Capture stages run `--no-dashboard` for deterministic SIGINT exit (floor/interceptor/store/redaction all still active). Target-app credentials assembled from fragments at runtime + auth pages `no-store` so no secret literal reaches the profile disk cache (a fixture-fidelity fix surfaced during bring-up — Archeo captured nothing during login regardless).
+- Bookkeeping: ROADMAP Phase 4 → 3/3 Complete; REQUIREMENTS AUTH-01/02/03 → Complete (list + traceability). Noted out-of-scope: REQUIREMENTS Phase-3 rows (SPEC/BUILD/DASH) are stale `[ ]`/Pending despite Phase 3 Complete — left untouched (this plan's scope is AUTH only).
+
 ### Pending Todos
 
-None for 04-02. Next: 04-03 (autonomous live verification + phase close).
+None for Phase 4. Next: Phase 5 (Autonomous Agent Loop + Full Dashboard) — discuss → plan → execute.
+Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass.
 
 ### Blockers/Concerns
 

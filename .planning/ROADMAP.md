@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Foundation** - Scaffold, authorization gate, CLI opens target URL and exits cleanly (completed 2026-06-29)
 - [x] **Phase 2: Capture Layer & Safety Floor** - Trustworthy redacted traffic capture; no mutations reach the server (completed 2026-07-03)
 - [x] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing (completed 2026-07-03)
-- [ ] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials
+- [x] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials (completed 2026-07-03)
 - [ ] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard
 - [ ] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run
 - [ ] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec
@@ -147,7 +147,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 04-03-PLAN.md — autonomous live verification: login-walled target, four-stage proof (login captures nothing → authenticated persistence → floor holds → clear-session restores the 401 wall) + phase close (AUTH-01, AUTH-02, AUTH-03)
+- [x] 04-03-PLAN.md — autonomous live verification: login-walled target, four-stage proof (login captures nothing → authenticated persistence → floor holds → clear-session restores the 401 wall) + phase close (AUTH-01, AUTH-02, AUTH-03) (verified autonomously 2026-07-03: 13/13 invariants GREEN — login handoff, persistence across restarts, floor-under-auth, clear-session relock)
 
 ### Phase 5: Autonomous Agent Loop + Full Dashboard
 
@@ -219,7 +219,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
-| 4. Authentication Handoff | 2/3 | In progress | - |
+| 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
