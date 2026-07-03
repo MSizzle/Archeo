@@ -225,13 +225,19 @@ describe('groupRecords', () => {
       assert.strictEqual(t.held, false);
     });
 
-    test('held:true propagates from ANY record in the group (mixed held + non-held)', () => {
+    test('records with different operationType/held on same path → two separate templates', () => {
       const records = [
-        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users', held: false }),
-        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users', held: true }),
+        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users',
+          operationType: 'read', held: false }),
+        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users',
+          operationType: 'mutation', held: true }),
       ];
-      const [t] = groupRecords(records);
-      assert.strictEqual(t.held, true);
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2, 'read and mutation must produce separate templates');
+      const readTmpl = templates.find(t => t.operationType === 'read');
+      const mutTmpl = templates.find(t => t.operationType === 'mutation');
+      assert.ok(readTmpl && !readTmpl.held, 'read template must have held:false');
+      assert.ok(mutTmpl && mutTmpl.held, 'mutation template must have held:true');
     });
   });
 
@@ -385,6 +391,73 @@ describe('groupRecords', () => {
   describe('empty input', () => {
     test('groupRecords([]) → []', () => {
       assert.deepStrictEqual(groupRecords([]), []);
+    });
+  });
+
+  describe('GraphQL read vs mutation split — SPEC-01 (Task 1 — 03-05)', () => {
+    test('anonymous GraphQL query and mutation on same path → TWO templates (never merged)', () => {
+      const records = [
+        rec({ method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read', held: false }),
+        rec({ method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'mutation', held: true }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2, 'read and mutation must not share a template');
+      const readTmpl = templates.find(t => t.operationType === 'read');
+      const mutTmpl = templates.find(t => t.operationType === 'mutation');
+      assert.ok(readTmpl, 'read template must exist');
+      assert.ok(mutTmpl, 'mutation template must exist');
+      assert.strictEqual(readTmpl.held, false, 'read template must have held:false');
+      assert.strictEqual(mutTmpl.held, true, 'mutation template must have held:true');
+    });
+
+    test('named GraphQL operationName does not override operationType split', () => {
+      // Same operationName but different operationType → still TWO templates
+      const records = [
+        rec({ method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read', held: false,
+          graphqlOperationName: 'GetUser' }),
+        rec({ method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'mutation', held: true,
+          graphqlOperationName: 'GetUser' }), // same name but mutation
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2, 'same operationName but different operationType → two templates');
+    });
+  });
+
+  describe('JSON-RPC grouping by rpcMethod (Task 1 — 03-05)', () => {
+    test('two distinct rpcMethods → two templates, operationName set from rpcMethod', () => {
+      const records = [
+        rec({ method: 'POST', url: 'https://x/rpc', path: '/rpc',
+          protocol: 'JSON-RPC', operationType: 'read', held: false,
+          rpcMethod: 'getBalance' }),
+        rec({ method: 'POST', url: 'https://x/rpc', path: '/rpc',
+          protocol: 'JSON-RPC', operationType: 'mutation', held: true,
+          rpcMethod: 'deleteAccount' }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2, 'distinct rpcMethods must produce separate templates');
+      const balanceTmpl = templates.find(t => t.operationName === 'getBalance');
+      const deleteTmpl = templates.find(t => t.operationName === 'deleteAccount');
+      assert.ok(balanceTmpl, 'getBalance template must have operationName set');
+      assert.ok(deleteTmpl, 'deleteAccount template must have operationName set');
+    });
+
+    test('same rpcMethod twice → one template, observationCount 2', () => {
+      const records = [
+        rec({ method: 'POST', url: 'https://x/rpc', path: '/rpc',
+          protocol: 'JSON-RPC', operationType: 'read', held: false,
+          rpcMethod: 'getBalance' }),
+        rec({ method: 'POST', url: 'https://x/rpc', path: '/rpc',
+          protocol: 'JSON-RPC', operationType: 'read', held: false,
+          rpcMethod: 'getBalance' }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 1, 'same rpcMethod → one template');
+      assert.strictEqual(templates[0].observationCount, 2);
+      assert.strictEqual(templates[0].operationName, 'getBalance');
     });
   });
 

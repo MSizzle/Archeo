@@ -101,6 +101,9 @@ export interface CaptureRecord {
   // GraphQL schema-level operation identifier (not a secret); populated in 03-02,
   // consumed by templater GraphQL grouping.
   graphqlOperationName?: string;
+
+  // JSON-RPC schema-level method identifier (not a secret); populated in 03-05, parallels graphqlOperationName.
+  rpcMethod?: string;
 }
 
 /**
