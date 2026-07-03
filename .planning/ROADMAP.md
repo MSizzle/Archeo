@@ -176,7 +176,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 05-03-PLAN.md — Coverage graph + frontier + loop detection/backtrack + stop conditions + form-fill + agent-step records + `archeo explore` CLI (AGENT-02/04/05/07)
+- [x] 05-03-PLAN.md — Coverage graph + frontier + loop detection/backtrack + stop conditions + form-fill + agent-step records + `archeo explore` CLI (AGENT-02/04/05/07)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 

@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 plan 05-02 complete — observation extractor + SPA signature + blocklist + decision layer (AGENT-01/03/06/07a); 518/519 green (1 skip); ready for 05-03 (frontier + main loop)
-last_updated: "2026-07-03T00:00:00.000Z"
-last_activity: 2026-07-03
+stopped_at: Phase 5 plan 05-03 complete — coverage graph + frontier + loop detect/backtrack + stop conditions + form-fill + agent-step records + `archeo explore` CLI (AGENT-02/04/05/07); 572/573 green (1 skip); ready for 05-04 (dashboard v2)
+last_updated: "2026-07-04T00:00:00.000Z"
+last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 8
-  completed_plans: 17
+  completed_plans: 18
   percent: 50
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 05 in progress — 05-02 complete (observation + action layer); next 05-03 (frontier tracker + main agent loop)
+**Current focus:** Phase 05 in progress — 05-03 complete (explorer loop + `archeo explore` CLI); next 05-04 (dashboard v2)
 
 ## Current Position
 
 Phase: 05 (autonomous-agent-loop) — IN PROGRESS (started 2026-07-03)
-Plan: 2 of 5 — 05-02 complete; 05-03 next
-Next: 05-03 — Frontier tracker + main agent loop (AGENT-02/04/05)
-Status: 05-02 complete. AGENT-01/03/06/07a delivered: blocklist, observation normalization, SPA-aware signature, strict-JSON decision validation + retry/fallback. Full suite 518/519 (1 intentional skip).
-Last activity: 2026-07-03
+Plan: 3 of 5 — 05-03 complete; 05-04 next
+Next: 05-04 — Dashboard v2: CDP screencast SSE + self-drawing SVG coverage map + verbatim reasoning stream + held-write beat (DASH-04/05/06/07)
+Status: 05-03 complete. AGENT-02/04/05/07 delivered: CoverageGraph + prioritized frontier, LoopDetector backtrack-to-frontier, StopController (max-steps/plateau/empty-frontier with recorded reason), synthetic form-fill, agent-step store records (single source of truth), the bounded explorer loop (fake-page + scripted provider deterministic), and the `archeo explore` CLI (gate-first, profile reuse, floor ON — no `--allow-writes`, dashboard on, spec auto-gen). Full suite 572/573 (1 intentional skip).
+Last activity: 2026-07-04
 
-Progress: [████░░░░░░] 2/5 plans done in Phase 5
+Progress: [██████░░░░] 3/5 plans done in Phase 5
 
 ## Performance Metrics
 
@@ -212,6 +212,19 @@ Phase 04-03 execution decisions (PHASE 4 CLOSE):
 - Login-completion is gated on the target server's own ledger (`authAppLoads >= 1`) before the harness answers the Enter ready-prompt on stdin — observed server state, not an inferred delay. Capture stages run `--no-dashboard` for deterministic SIGINT exit (floor/interceptor/store/redaction all still active). Target-app credentials assembled from fragments at runtime + auth pages `no-store` so no secret literal reaches the profile disk cache (a fixture-fidelity fix surfaced during bring-up — Archeo captured nothing during login regardless).
 - Bookkeeping: ROADMAP Phase 4 → 3/3 Complete; REQUIREMENTS AUTH-01/02/03 → Complete (list + traceability). Noted out-of-scope: REQUIREMENTS Phase-3 rows (SPEC/BUILD/DASH) are stale `[ ]`/Pending despite Phase 3 Complete — left untouched (this plan's scope is AUTH only).
 
+Phase 05-03 execution decisions:
+
+- CoverageGraph uses three ordered frontier queues (nav/form/click) + queued/exercised dedup Sets; nextFrontier drains nav>form>click FIFO, returns undefined when empty (drives empty-frontier stop). markExercised removes from all queues so an item is never re-offered.
+- LoopDetector keys UNORDERED pairs (sorted) so A→B and B→A collapse to one oscillation counter; any discoveredNew=true clears ALL counters (progress breaks the loop); trapped at counter ≥3.
+- StopController order = empty-frontier → model-done → max-steps → plateau; frontierSize defaults to 1 pre-first-record so a fresh controller never spuriously reports empty-frontier. StopController records once per loop iteration; the for-loop maxSteps bound is a redundant absolute safety.
+- The loop reconciles TWO frontiers: a per-(sig,ref) decision list passed to the model (current-state unexercised, priority-ordered) and the GLOBAL CoverageGraph frontier used for backtrack + empty-frontier. When the current state is exhausted the loop JUMPS to graph.nextFrontier() (directed exploration) instead of stopping; only a globally-empty frontier stops the run. This is why the scripted provider (which only sees the current-state frontier) still traverses the whole site.
+- Trapped + exhausted both backtrack via graph.nextFrontier() (navigate to a frontier URL, else page.goBack) — trapped forces it despite unexercised current refs to break oscillation; the recorded agent-step carries `backtrack: oscillation detected` reasoning.
+- Loop derives signature landmarks (form count) from the inventory since captureObservation returns no DOM landmark counts; full landmark extraction is a 05-05 live-integration refinement.
+- Action executor clicks by bbox centre (page.mouse.click) — no selector needed; fill = focus-then-keyboard.type(syntheticValue); navigate = page.goto(value ?? href); back = page.goBack. The fake-page test reverse-maps click coords to a ref (bbox.x = ref*100) to drive a deterministic in-memory site.
+- appendAgentStep constructs a held:false record with empty method/url/path + no bodies and reuses store.append() (seq/manifest/onRecord). The generator apiRecords filter now excludes 'agent-step' as well as 'navigation' (deviation — templater.groupRecords only skips navigation, so agent-step would have formed a spurious empty endpoint).
+- explore command registered BEFORE `<url>` (named-subcommand pattern); this pushed capture wiring between login/spec and `<url>`, so two pre-existing greedy source slices (login-isolation, dashboard-wiring) were re-bounded to their true action blocks. No production behaviour changed.
+- Floor ON pinned by explore-isolation.test.ts (source inspection: gate-before-runExplore; no allow-writes token; attachInterceptor-before-goto) + machine grep `grep -nE "allow-writes|allowWrites" src/cli/explore.ts` empty. No `--allow-writes` option exists in this phase.
+
 Phase 05-02 execution decisions:
 
 - annotateBlocklist uses a generic type parameter <T extends BlocklistCheckable> to avoid circular dependency with observation.ts — InventoryElement satisfies the constraint because all BlocklistCheckable fields are optional except `blocked`
@@ -237,8 +250,8 @@ Phase 05-01 execution decisions:
 
 ### Pending Todos
 
-None for Phase 5 plan 05-02. Next: Phase 5 plan 05-03 (Frontier tracker + main agent loop).
-Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass.
+None for Phase 5 plan 05-03. Next: Phase 5 plan 05-04 (Dashboard v2 — CDP screencast SSE + self-drawing coverage map + verbatim reasoning stream + held-write beat). Note for 05-04: the explorer loop's `onStep` callback + `store.appendAgentStep` agent-step records are the single source of truth the dashboard consumes; the dashboard handle grows an `onStep` field (runExplore already threads `dashboard?.onStep`).
+Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass (05-05 CONTEXT flags this for phase close).
 
 ### Blockers/Concerns
 
