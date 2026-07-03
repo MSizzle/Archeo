@@ -61,7 +61,14 @@ export async function runExplore(
   profileDirPath: string,
   store: CaptureStore,
   provider: Provider,
-  opts: { maxSteps: number; dashboard?: DashboardHandle },
+  opts: {
+    maxSteps: number
+    dashboard?: DashboardHandle
+    maxTokens?: number
+    maxCost?: number
+    model?: string
+    paceMs?: number
+  },
 ): Promise<void> {
   const { maxSteps, dashboard } = opts
 
@@ -175,8 +182,12 @@ export async function runExplore(
 
   // Drive the autonomous loop to completion (bounded by maxSteps / plateau / empty-frontier).
   // onStep wires DASH-05/06 dashboard events: reasoning, state nodes, and transitions.
-  await explore(page, provider, store, {
+  const result = await explore(page, provider, store, {
     maxSteps,
+    maxTokens: opts.maxTokens,
+    maxCost: opts.maxCost,
+    model: opts.model,
+    paceMs: opts.paceMs,
     onStep: dashboard ? (s: StepEvent) => {
       // DASH-06: verbatim agent reasoning
       dashboard.sendReasoning({ stepIndex: s.stepIndex, action: s.action, reasoning: s.reasoning })
@@ -190,6 +201,14 @@ export async function runExplore(
       }
     } : undefined,
   })
+
+  // Record the stop reason into the manifest (06-01 COST-01).
+  store.recordStopReason(result.stopReason)
+
+  // Print a summary line to stdout.
+  process.stdout.write(
+    `[archeo] exploration stopped: ${result.stopReason} (${result.steps} steps, ${result.totalTokens} tokens)\n`,
+  )
 
   // Loop complete — run the same graceful shutdown as a window close: flush → spec → exit 0.
   // Remove SIGINT handler first to prevent a process hang (T-01-10).

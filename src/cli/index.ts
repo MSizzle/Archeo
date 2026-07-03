@@ -28,7 +28,7 @@ import { profileDir } from './profile.ts';
 import { openForLogin } from './login.ts';
 import { clearOneSession, clearAllSessions } from './clearSession.ts';
 import { CaptureStore } from '../capture/store.ts';
-import { createProvider } from '../model/adapter.ts';
+import { createProvider, parseModelSpec } from '../model/adapter.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
 
@@ -233,6 +233,9 @@ cli
   .option('--max-steps <n>', 'Maximum exploration steps before stopping (default: 50)', { default: 50 })
   .option('--model <spec>', 'Model provider spec, e.g. anthropic:claude-haiku-4-5 (default: scripted)', { default: 'scripted' })
   .option('--model-base-url <url>', 'Override the provider API base URL (advanced)')
+  .option('--max-tokens <n>', 'Hard token ceiling; stop cleanly when reached (COST-01)')
+  .option('--max-cost <usd>', 'Hard dollar ceiling; stop cleanly when reached (COST-03)')
+  .option('--pace-ms <ms>', 'Minimum milliseconds between actions (default: 500)', { default: 500 })
   .action(async (url: string, opts: {
     iHaveAuthorization?: boolean;
     dashboard?: boolean;
@@ -240,6 +243,9 @@ cli
     maxSteps?: number;
     model?: string;
     modelBaseUrl?: string;
+    maxTokens?: number | string;
+    maxCost?: number | string;
+    paceMs?: number | string;
   }) => {
     // WR-07: wrap the async body so any rejection surfaces as a clean error + exit 1.
     try {
@@ -275,9 +281,22 @@ cli
 
       // AUTH-02/D4-02: reuse the per-hostname persistent profile. Floor ON via runExplore.
       const profileDirPath = profileDir(new URL(url).hostname);
+
+      // Parse budget/pacing opts — NaN from non-numeric strings becomes undefined (no ceiling).
+      const maxTokens = opts.maxTokens !== undefined ? Number(opts.maxTokens) || undefined : undefined;
+      const maxCost = opts.maxCost !== undefined ? Number(opts.maxCost) || undefined : undefined;
+      const paceMs = opts.paceMs !== undefined ? Number(opts.paceMs) : 500;
+
+      // Model ID (without provider prefix) for BudgetTracker price lookup.
+      const modelId = parseModelSpec(opts.model ?? 'scripted').model;
+
       await runExplore(url, profileDirPath, store, provider, {
         maxSteps: opts.maxSteps ?? 50,
         dashboard: dashboardHandle,
+        maxTokens,
+        maxCost,
+        model: modelId,
+        paceMs,
       });
     } catch (err) {
       if (err instanceof Error) {
