@@ -81,3 +81,13 @@ describe('archeo explore — FLOOR-01 ordering (interceptor before navigation)',
     assert.ok(block.includes('runExplore'), 'explore action delegates browser wiring to runExplore')
   })
 })
+
+describe('archeo explore — recordStopReason called (06-01)', () => {
+  test('explore.ts calls store.recordStopReason with the result stopReason', () => {
+    const code = stripCommentLines(readFileSync(EXPLORE_PATH, 'utf8'))
+    assert.ok(
+      code.includes('recordStopReason'),
+      'explore.ts must call store.recordStopReason to persist the stop reason',
+    )
+  })
+})

@@ -158,6 +158,23 @@ describe('archeo CLI', () => {
 // `archeo clear-session` — 04-02 Task 2 (AUTH-03 / D4-05, gate-free)
 // ---------------------------------------------------------------------------
 
+describe('archeo explore — new flags (06-01)', () => {
+  // --max-tokens abc: non-numeric value should not produce a stack trace
+  test('(p) explore not-a-url --i-have-authorization --max-tokens abc → exit 1 + invalid-URL, no stack trace', async () => {
+    const { code, output } = await runCli(['explore', 'not-a-url', '--i-have-authorization', '--max-tokens', 'abc'])
+    assert.equal(code, 1, `Expected exit code 1, got ${code}\nOutput:\n${output}`)
+    assert.ok(
+      /invalid url|invalid/i.test(output),
+      `Expected invalid URL error message. Got:\n${output}`,
+    )
+    // Must not produce a raw JS stack trace
+    assert.ok(
+      !output.includes('at Object.') && !output.includes('TypeError'),
+      `Must not produce a stack trace. Got:\n${output}`,
+    )
+  })
+})
+
 describe('archeo clear-session (04-02 — AUTH-03/D4-05)', () => {
   // (f) clear-session on a non-existent profile → exit 0, idempotent, NO gate prompt.
   //     Spawned with a temp cwd so '.archeo/profiles' resolves under the temp dir.
