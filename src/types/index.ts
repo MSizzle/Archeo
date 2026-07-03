@@ -94,6 +94,10 @@ export interface CaptureRecord {
 
   // Dead-end linkage (FLOOR-07, D-05)
   relatedHeldWriteId?: string;
+
+  // GraphQL schema-level operation identifier (not a secret); populated in 03-02,
+  // consumed by templater GraphQL grouping.
+  graphqlOperationName?: string;
 }
 
 /**
