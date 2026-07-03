@@ -307,3 +307,26 @@ describe('GATE-03 v3: src/model import boundary', () => {
     });
   }
 });
+
+describe('GATE-03: dashboard imports no playwright (DASH-04)', () => {
+  const dashboardFiles = collectTsFiles(DASHBOARD_SRC_PREFIX);
+
+  test('at least one .ts file found under src/dashboard/', () => {
+    assert.ok(dashboardFiles.length > 0, `Expected at least one .ts file under ${DASHBOARD_SRC_PREFIX}`);
+  });
+
+  for (const filePath of dashboardFiles) {
+    const label = filePath.slice(rootDir.length);
+    test(`${label} — no playwright import`, () => {
+      const code = stripCommentLines(readFileSync(filePath, 'utf8'));
+      assert.ok(
+        !code.includes("from 'playwright'"),
+        `${label} must not import from 'playwright' (dashboard must be playwright-free, DASH-04)`,
+      );
+      assert.ok(
+        !code.includes("require('playwright"),
+        `${label} must not require('playwright') (dashboard must be playwright-free, DASH-04)`,
+      );
+    });
+  }
+});
