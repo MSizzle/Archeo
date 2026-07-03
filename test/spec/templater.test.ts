@@ -7,7 +7,7 @@
  */
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { templatePathSegment, templatePath } from '../../src/spec/templater.ts';
+import { templatePathSegment, templatePath, groupRecords } from '../../src/spec/templater.ts';
 import type { CaptureRecord } from '../../src/types/index.ts';
 
 // ---------------------------------------------------------------------------
@@ -137,5 +137,255 @@ describe('templatePath', () => {
 
   test('hex segment in path → {hash}', () =>
     assert.strictEqual(templatePath('/api/blobs/a1b2c3d4e5f6a7b8'), '/api/blobs/{hash}'));
+
+});
+
+// ---------------------------------------------------------------------------
+// Task 2: groupRecords — SPEC-01 collapsing, SPEC-02 polling, GraphQL keying
+// ---------------------------------------------------------------------------
+describe('groupRecords', () => {
+
+  describe('SPEC-01: id-varying paths collapse into one template', () => {
+    test('3 GETs with different numeric ids → one template, observationCount 3', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1', responseStatus: 200 }),
+        rec({ method: 'GET', url: 'https://x/api/users/2', path: '/api/users/2', responseStatus: 200 }),
+        rec({ method: 'GET', url: 'https://x/api/users/3', path: '/api/users/3', responseStatus: 200 }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 1, 'should have exactly one template');
+      assert.strictEqual(templates[0].pathTemplate, '/api/users/{id}');
+      assert.strictEqual(templates[0].observationCount, 3);
+    });
+
+    test('examplePaths holds at most 3 distinct concrete paths', () => {
+      const records = Array.from({ length: 5 }, (_, i) =>
+        rec({ method: 'GET', url: `https://x/api/users/${i}`, path: `/api/users/${i}` }),
+      );
+      const [t] = groupRecords(records);
+      assert.ok(t.examplePaths.length <= 3, `examplePaths length ${t.examplePaths.length} exceeds 3`);
+    });
+
+    test('examplePaths contains only DISTINCT concrete paths', () => {
+      // Two distinct paths, then the first path repeated — should stay 2 distinct entries.
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1' }),
+        rec({ method: 'GET', url: 'https://x/api/users/2', path: '/api/users/2' }),
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1' }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.observationCount, 3);
+      assert.strictEqual(t.examplePaths.length, 2);
+    });
+  });
+
+  describe('short slugs stay DISTINCT — not collapsed', () => {
+    test('GET /api/users and GET /api/orders → two templates', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users', path: '/api/users' }),
+        rec({ method: 'GET', url: 'https://x/api/orders', path: '/api/orders' }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2);
+    });
+  });
+
+  describe('HTTP method differentiates templates', () => {
+    test('GET /api/users/{id} and POST /api/users → two separate templates', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1' }),
+        rec({
+          method: 'POST', url: 'https://x/api/users', path: '/api/users',
+          operationType: 'mutation', held: true,
+        }),
+      ];
+      assert.strictEqual(groupRecords(records).length, 2);
+    });
+  });
+
+  describe('held mutations', () => {
+    test('held POST → template.held is true and requestBodyShape is non-null', () => {
+      const records = [
+        rec({
+          method: 'POST', url: 'https://x/api/users', path: '/api/users',
+          operationType: 'mutation', held: true,
+          requestBody: { name: 'string', email: 'string' },
+        }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.held, true);
+      assert.notStrictEqual(t.requestBodyShape, null);
+    });
+
+    test('non-held GET → template.held is false', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users', path: '/api/users' }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.held, false);
+    });
+
+    test('held:true propagates from ANY record in the group (mixed held + non-held)', () => {
+      const records = [
+        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users', held: false }),
+        rec({ method: 'POST', url: 'https://x/api/users', path: '/api/users', held: true }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.held, true);
+    });
+  });
+
+  describe('statusCodes — distinct, ascending', () => {
+    test('[200, 404] from records with 200, 404, 200 (deduped, sorted)', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1', responseStatus: 200 }),
+        rec({ method: 'GET', url: 'https://x/api/users/2', path: '/api/users/2', responseStatus: 404 }),
+        rec({ method: 'GET', url: 'https://x/api/users/3', path: '/api/users/3', responseStatus: 200 }),
+      ];
+      const [t] = groupRecords(records);
+      assert.deepStrictEqual(t.statusCodes, [200, 404]);
+    });
+
+    test('statusCodes empty when no responseStatus on any record', () => {
+      const records = [rec({ method: 'GET', url: 'https://x/api/users', path: '/api/users' })];
+      const [t] = groupRecords(records);
+      assert.deepStrictEqual(t.statusCodes, []);
+    });
+  });
+
+  describe('SPEC-02: polling dedup', () => {
+    test('same concrete URL seen 3 times → polling:true, observationCount 3', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/poll', path: '/api/poll' }),
+        rec({ method: 'GET', url: 'https://x/api/poll', path: '/api/poll' }),
+        rec({ method: 'GET', url: 'https://x/api/poll', path: '/api/poll' }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.polling, true, 'expected polling:true for 3 repeats');
+      assert.strictEqual(t.observationCount, 3);
+      assert.strictEqual(groupRecords(records).length, 1, 'should still be one template');
+    });
+
+    test('same concrete URL seen 2 times → polling:false', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/poll', path: '/api/poll' }),
+        rec({ method: 'GET', url: 'https://x/api/poll', path: '/api/poll' }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.polling, false, 'expected polling:false for only 2 repeats');
+    });
+
+    test('different concrete URLs in same group do not trigger polling:true individually', () => {
+      // Two different concrete URLs (same template), each seen once — polling:false.
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1' }),
+        rec({ method: 'GET', url: 'https://x/api/users/2', path: '/api/users/2' }),
+      ];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.polling, false);
+    });
+  });
+
+  describe('GraphQL grouping by operationName (not by path)', () => {
+    test('two distinct operationNames on same /graphql path → two templates', () => {
+      const records = [
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'mutation', held: true,
+          graphqlOperationName: 'CreateUser',
+        }),
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read',
+          graphqlOperationName: 'ListUsers',
+        }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 2, 'expected two templates for two operationNames');
+      const names = templates.map((t) => t.operationName).sort();
+      assert.deepStrictEqual(names, ['CreateUser', 'ListUsers']);
+    });
+
+    test('same operationName on same path → one template, observationCount 2', () => {
+      const records = [
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read',
+          graphqlOperationName: 'ListUsers',
+        }),
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read',
+          graphqlOperationName: 'ListUsers',
+        }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 1);
+      assert.strictEqual(templates[0].observationCount, 2);
+      assert.strictEqual(templates[0].operationName, 'ListUsers');
+    });
+
+    test('GraphQL record with no operationName → keyed by templatePath (falls back)', () => {
+      const records = [
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read',
+          // no graphqlOperationName
+        }),
+        rec({
+          method: 'POST', url: 'https://x/graphql', path: '/graphql',
+          protocol: 'GraphQL', operationType: 'read',
+          // no graphqlOperationName
+        }),
+      ];
+      const templates = groupRecords(records);
+      assert.strictEqual(templates.length, 1, 'no-op-name records on same path should share one template');
+      assert.strictEqual(templates[0].observationCount, 2);
+    });
+  });
+
+  describe('responseBodyShape / requestBodyShape — last-writer wins', () => {
+    test('responseBodyShape is from the LATEST record in the group', () => {
+      const records = [
+        rec({ method: 'GET', url: 'https://x/api/users/1', path: '/api/users/1', responseBody: { first: true } }),
+        rec({ method: 'GET', url: 'https://x/api/users/2', path: '/api/users/2', responseBody: { last: true } }),
+      ];
+      const [t] = groupRecords(records);
+      assert.deepStrictEqual(t.responseBodyShape, { last: true });
+    });
+
+    test('requestBodyShape is null when no record has a requestBody', () => {
+      const records = [rec({ method: 'GET', url: 'https://x/api/users', path: '/api/users' })];
+      const [t] = groupRecords(records);
+      assert.strictEqual(t.requestBodyShape, null);
+    });
+  });
+
+  describe('navigation records are ignored', () => {
+    test('type:navigation records are skipped — not counted as endpoints', () => {
+      const navRecord = Object.assign(
+        rec({ method: 'GET', url: 'https://x/', path: '/' }),
+        { type: 'navigation' },
+      ) as CaptureRecord;
+      const apiRecord = rec({ method: 'GET', url: 'https://x/api/users', path: '/api/users' });
+      const templates = groupRecords([navRecord, apiRecord]);
+      assert.strictEqual(templates.length, 1, 'navigation record must not produce a template');
+      assert.strictEqual(templates[0].pathTemplate, '/api/users');
+    });
+
+    test('array of only navigation records → empty output', () => {
+      const navRecord = Object.assign(
+        rec({ method: 'GET', url: 'https://x/', path: '/' }),
+        { type: 'navigation' },
+      ) as CaptureRecord;
+      assert.deepStrictEqual(groupRecords([navRecord]), []);
+    });
+  });
+
+  describe('empty input', () => {
+    test('groupRecords([]) → []', () => {
+      assert.deepStrictEqual(groupRecords([]), []);
+    });
+  });
 
 });
