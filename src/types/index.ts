@@ -122,6 +122,15 @@ export interface CaptureRecord {
   agentReasoning?: string;     // the model's own one-line reasoning, stored VERBATIM (DASH-06)
   stateSignature?: string;     // AGENT-03 signature of the state the step acted from
   stepIndex?: number;          // zero-based step index within the explorer run
+  /**
+   * D6-02 / COST-02: source of the decision for this step.
+   * 'model'  — a real decideWithRetry call was made (the vision model was consulted).
+   * 'policy' — the step was a deterministic frontier policy step (change detector skipped
+   *            the vision call; reasoning is the real deterministic policy line, NOT a
+   *            fabricated model rationale — DASH-06 verbatim rule preserved).
+   * Absent on pre-06-02 records (treated as 'model' by consumers).
+   */
+  agentSource?: 'model' | 'policy';
 }
 
 /**
@@ -139,4 +148,9 @@ export interface CaptureManifest {
   logFile: string;          // filename only, relative to session dir
   /** Reason the explorer loop stopped (set by CaptureStore.recordStopReason). */
   stopReason?: string;
+  /**
+   * D6-02 / COST-02: number of vision-model calls skipped by the change detector.
+   * Absent on pre-06-02 sessions. Set by CaptureStore.recordModelCallsSkipped().
+   */
+  modelCallsSkipped?: number;
 }

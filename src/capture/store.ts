@@ -55,6 +55,7 @@ export class CaptureStore {
   private seq = 0;
   private heldWriteCount = 0;
   private _stopReason: string | undefined = undefined;
+  private _modelCallsSkipped: number | undefined = undefined;
 
   /**
    * WR-04 / D3-04: idempotent-close guard.
@@ -117,6 +118,18 @@ export class CaptureStore {
    */
   public recordStopReason(reason: string): void {
     this._stopReason = reason;
+    this.writeManifest();
+  }
+
+  /**
+   * Record the number of vision-model calls skipped by the change detector (06-02 COST-02).
+   * Persists the count into manifest.json immediately via writeManifest().
+   * Mirrors recordStopReason — both are additive manifest fields set at the end of explore().
+   *
+   * @param n  Number of model calls that were skipped in this session.
+   */
+  public recordModelCallsSkipped(n: number): void {
+    this._modelCallsSkipped = n;
     this.writeManifest();
   }
 
@@ -291,6 +304,15 @@ export class CaptureStore {
     reasoning: string;
     stateSignature: string;
     stepIndex: number;
+    /**
+     * D6-02 / COST-02: source of the step decision.
+     * 'model'  — a real decideWithRetry call was made.
+     * 'policy' — the change detector skipped the vision call; step is a deterministic
+     *            frontier policy step (DASH-06 verbatim rule intact: the reasoning field
+     *            carries the real deterministic line, NOT fabricated model output).
+     * Omit for backwards compatibility — consumers treat absent as 'model'.
+     */
+    source?: 'model' | 'policy';
   }): void {
     const record: CaptureRecord = {
       id: randomUUID(),
@@ -312,6 +334,11 @@ export class CaptureStore {
       stateSignature: step.stateSignature,
       stepIndex: step.stepIndex,
     };
+    // D6-02: only set agentSource when source is explicitly provided; omit otherwise
+    // so pre-06-02 callers (no source arg) produce records without the field.
+    if (step.source !== undefined) {
+      record.agentSource = step.source;
+    }
     this.append(record);
   }
 
@@ -350,6 +377,9 @@ export class CaptureStore {
     };
     if (this._stopReason !== undefined) {
       manifest.stopReason = this._stopReason;
+    }
+    if (this._modelCallsSkipped !== undefined) {
+      manifest.modelCallsSkipped = this._modelCallsSkipped;
     }
     writeFileSync(this.manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   }
