@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 5 plan 05-03 complete — coverage graph + frontier + loop detect/backtrack + stop conditions + form-fill + agent-step records + `archeo explore` CLI (AGENT-02/04/05/07); 572/573 green (1 skip); ready for 05-04 (dashboard v2)
+stopped_at: Phase 5 plan 05-04 complete — CDP screencast (DASH-04), self-drawing SVG coverage map (DASH-05), verbatim reasoning via textContent (DASH-06), held-write beat (DASH-07); 611/612 green (1 skip); ready for 05-05 (autonomous live verification)
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 4
-  total_plans: 8
-  completed_plans: 18
+  total_plans: 9
+  completed_plans: 19
   percent: 50
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 05 in progress — 05-03 complete (explorer loop + `archeo explore` CLI); next 05-04 (dashboard v2)
+**Current focus:** Phase 05 in progress — 05-04 complete (dashboard v2: CDP screencast + SVG coverage map + verbatim reasoning + held-write beat); next 05-05 (autonomous live verification)
 
 ## Current Position
 
 Phase: 05 (autonomous-agent-loop) — IN PROGRESS (started 2026-07-03)
-Plan: 3 of 5 — 05-03 complete; 05-04 next
-Next: 05-04 — Dashboard v2: CDP screencast SSE + self-drawing SVG coverage map + verbatim reasoning stream + held-write beat (DASH-04/05/06/07)
-Status: 05-03 complete. AGENT-02/04/05/07 delivered: CoverageGraph + prioritized frontier, LoopDetector backtrack-to-frontier, StopController (max-steps/plateau/empty-frontier with recorded reason), synthetic form-fill, agent-step store records (single source of truth), the bounded explorer loop (fake-page + scripted provider deterministic), and the `archeo explore` CLI (gate-first, profile reuse, floor ON — no `--allow-writes`, dashboard on, spec auto-gen). Full suite 572/573 (1 intentional skip).
+Plan: 4 of 5 — 05-04 complete; 05-05 next
+Next: 05-05 — Autonomous live verification (trapped SPA) + AGENT-08 parity vs 03-04 baseline + phase close
+Status: 05-04 complete. DASH-04..07 delivered: CDP screencast module (src/agent only, no playwright in dashboard), typed SSE emitters (sendFrame/sendState/sendTransition/sendReasoning/sendHeldBeat), self-drawing SVG coverage map (ring layout, vanilla JS), verbatim agent reasoning (li.textContent — never innerHTML), held-write beat (#beat CSS pulse), StepEvent extended with url/title/prevSignature, explore.ts fully wired. Full suite 611/612 (1 intentional skip).
 Last activity: 2026-07-04
 
-Progress: [██████░░░░] 3/5 plans done in Phase 5
+Progress: [████████░░] 4/5 plans done in Phase 5
 
 ## Performance Metrics
 
@@ -250,7 +250,7 @@ Phase 05-01 execution decisions:
 
 ### Pending Todos
 
-None for Phase 5 plan 05-03. Next: Phase 5 plan 05-04 (Dashboard v2 — CDP screencast SSE + self-drawing coverage map + verbatim reasoning stream + held-write beat). Note for 05-04: the explorer loop's `onStep` callback + `store.appendAgentStep` agent-step records are the single source of truth the dashboard consumes; the dashboard handle grows an `onStep` field (runExplore already threads `dashboard?.onStep`).
+None for Phase 5 plan 05-04. Next: Phase 5 plan 05-05 (autonomous live verification — trapped SPA + AGENT-08 parity vs 03-04 baseline + phase close).
 Housekeeping (non-blocking): REQUIREMENTS.md Phase-3 checkboxes/traceability rows (SPEC-01..07, BUILD-01, DASH-01..03) are stale Pending despite Phase 3 Complete — flip in a future bookkeeping pass (05-05 CONTEXT flags this for phase close).
 
 ### Blockers/Concerns
