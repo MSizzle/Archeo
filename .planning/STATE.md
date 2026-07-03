@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 plan 03-01 complete — ready for 03-02 (navigation capture + spec generator)
-last_updated: "2026-07-03T01:00:00.000Z"
+stopped_at: Phase 3 plan 03-02 complete — ready for 03-03 (SSE dashboard + GATE-03 evolution)
+last_updated: "2026-07-03T02:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 7
-  completed_plans: 8
-  percent: 27
+  completed_plans: 9
+  percent: 30
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 03 (spec-generator-buildability) — IN PROGRESS
-Plan: 1 of 4 — done (03-01 endpoint templater)
-Next: 03-02 — navigation capture + spec generator + `archeo spec` + auto-gen on close
-Status: 03-01 complete (2026-07-03); blocked on 03-01 → 03-02 (wave 2)
+Plan: 2 of 4 — done (03-02 navigation capture + spec generator + archeo spec + auto-gen)
+Next: 03-03 — localhost SSE dashboard + GATE-03 evolution (DASH-01/02/03)
+Status: 03-02 complete (2026-07-03); blocked on 03-02 → 03-03 (wave 3)
 Last activity: 2026-07-03
 
-Progress: [██░░░░░░░░] 25% of Phase 3
+Progress: [████░░░░░░] 50% of Phase 3
 
 ## Performance Metrics
 
@@ -60,6 +60,7 @@ Progress: [██░░░░░░░░] 25% of Phase 3
 | Phase 02-capture-layer-safety-floor P02 | 8min | 2 tasks | 6 files |
 | Phase 02-capture-layer-safety-floor P03 | 7min | 2 tasks | 4 files |
 | Phase 03-spec-generator-buildability P01 | 30min | 2 tasks | 4 files |
+| Phase 03-spec-generator-buildability P02 | 45min | 4 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -103,6 +104,20 @@ Phase 03-01 execution decisions:
   rather than adding 'navigation' to RECORD_TYPES — that constant is added in 03-02 per D3-03.
 - Purity guard comment in templater.ts rephrased to avoid the literal token strings that
   the acceptance-criteria grep would flag (grep is on raw source, not comment-stripped source).
+
+Phase 03-02 execution decisions:
+
+- store.close() returns Promise<void> resolving on 'finish' OR 'error'; closePromise field provides
+  idempotency. The previous WR-04 void-return guard (storeClosed bool) is retained in browser.ts
+  as closeStore() for the synchronous path, while store.close() provides the async idempotency.
+- GATE-03 test uses src.includes() (not grep), so generator.ts comment text must not contain the
+  literal import tokens ("node:http", "axios", "undici") — rephrased comments to avoid false positives.
+- Navigation URL percent-encoding: redactUrl uses the WHATWG URL class which encodes [ and ] in query
+  values; the nav test asserts rec.url.includes('REDACTED') (without brackets) to match both forms.
+- archeo spec command registered BEFORE the positional <url> command in cac so it parses as a named
+  subcommand; the <url> action's gate-first ordering is completely unchanged (GATE-01/T-01-09).
+- gracefulShutdown() uses closure-scoped shuttingDown boolean (not module-scoped) so each openAndWait
+  call gets its own idempotent guard — safe for multiple session lifetimes in the same process.
 
 Phase 02-04 execution decisions:
 

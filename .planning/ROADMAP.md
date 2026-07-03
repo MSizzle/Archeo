@@ -108,7 +108,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-02-PLAN.md — Navigation capture + deterministic spec generator + `archeo spec` subcommand + auto-gen on close (SPEC-03/04/05/06/07)
+- [x] 03-02-PLAN.md — Navigation capture + deterministic spec generator + `archeo spec` subcommand + auto-gen on close (SPEC-03/04/05/06/07)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -201,7 +201,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete   | 2026-06-29 |
 | 2. Capture Layer & Safety Floor | 4/4 | Complete   | 2026-07-03 |
-| 3. Spec Generator + Buildability Proof | 1/4 | In progress | - |
+| 3. Spec Generator + Buildability Proof | 2/4 | In progress | - |
 | 4. Authentication Handoff | 0/TBD | Not started | - |
 | 5. Autonomous Agent Loop + Full Dashboard | 0/TBD | Not started | - |
 | 6. Hardening | 0/TBD | Not started | - |
