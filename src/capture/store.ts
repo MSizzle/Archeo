@@ -72,6 +72,14 @@ export class CaptureStore {
   private readonly responseCorpus: Map<string, string> = new Map();
 
   /**
+   * D3-05 / DASH-01: Observer callbacks registered via onRecord().
+   * Invoked in append() AFTER the JSONL write + corpus update + manifest write.
+   * Multiple observers allowed. Each is invoked inside try/catch — a throwing
+   * observer must never crash the capture session (fail-safe).
+   */
+  private readonly observers: Array<(r: CaptureRecord) => void> = [];
+
+  /**
    * The id of the most recent held-write record. Used by FLOOR-07 dead-end detection.
    * WR-06: backing field is private; exposed via read-only getter + dedicated mutators
    * to prevent accidental corruption from outside this class.
@@ -97,6 +105,21 @@ export class CaptureStore {
    */
   public clearLastHeldWriteId(): void {
     this._lastHeldWriteId = null;
+  }
+
+  /**
+   * Register an observer callback to be invoked after every record is appended.
+   * D3-05 / DASH-01: the dashboard uses this hook to update live aggregates.
+   *
+   * Multiple observers can be registered; they are invoked in registration order.
+   * Each callback receives the fully seq-stamped record (same shape as on disk).
+   * Any exception thrown by a callback is caught and written to stderr — a
+   * throwing observer NEVER crashes the capture session (fail-safe).
+   *
+   * @param cb  Observer function called with each appended (seq-set) CaptureRecord.
+   */
+  public onRecord(cb: (record: CaptureRecord) => void): void {
+    this.observers.push(cb);
   }
 
   /** Read-only path to the session directory (for tests and diagnostics). */
@@ -192,6 +215,21 @@ export class CaptureStore {
     // Pitfall 6: writeFileSync is synchronous — atomic from the event-loop perspective.
     // Concurrent async handlers share the event loop but this call blocks no other code.
     this.writeManifest();
+
+    // D3-05 / DASH-01: notify observers AFTER the write + corpus update + manifest.
+    // The observed record carries the assigned seq (same shape as written to disk).
+    // Each observer is wrapped in try/catch — a throwing observer must never crash
+    // the capture session (fail-safe, matching the store's existing stream 'error' posture).
+    const seqRecord: CaptureRecord = { ...record, seq: this.seq };
+    for (const observer of this.observers) {
+      try {
+        observer(seqRecord);
+      } catch (e) {
+        process.stderr.write(
+          `[archeo] onRecord observer error: ${e instanceof Error ? e.message : String(e)}\n`,
+        );
+      }
+    }
   }
 
   /**
