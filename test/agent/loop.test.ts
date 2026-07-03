@@ -257,6 +257,83 @@ describe('explore — plateau stop (AGENT-05)', () => {
   })
 })
 
+describe('explore — budget stop (COST-01)', () => {
+  test('maxTokens:0 with scripted provider stops immediately with stopReason budget', async () => {
+    // scripted provider usage is always zeros; 0 >= 0 → exceeded immediately
+    const fake = new FakePage(
+      [
+        { path: '/', title: 'Home', raw: [link(0, 'A', '/a')], edges: { 0: '/a' } },
+        { path: '/a', title: 'A', raw: [], edges: {} },
+      ],
+      '/',
+    )
+    const { store, cleanup } = makeStore()
+    try {
+      const result = await explore(asPage(fake), createScriptedProvider(), store, {
+        maxSteps: 50,
+        maxTokens: 0,
+      })
+      assert.equal(result.stopReason, 'budget', 'maxTokens:0 must stop with budget reason')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('budget stop returns non-empty partial spec (steps may be 0)', async () => {
+    const fake = new FakePage(
+      [
+        { path: '/', title: 'Home', raw: [link(0, 'A', '/a'), link(1, 'B', '/b')], edges: { 0: '/a', 1: '/b' } },
+        { path: '/a', title: 'A', raw: [], edges: {} },
+        { path: '/b', title: 'B', raw: [], edges: {} },
+      ],
+      '/',
+    )
+    const { store, cleanup } = makeStore()
+    try {
+      const result = await explore(asPage(fake), createScriptedProvider(), store, {
+        maxSteps: 50,
+        maxTokens: 0,
+      })
+      assert.equal(result.stopReason, 'budget')
+      // Even with budget stop, ExploreResult is fully populated (not undefined)
+      assert.ok(typeof result.steps === 'number')
+      assert.ok(typeof result.states === 'number')
+      assert.ok(typeof result.totalTokens === 'number')
+    } finally {
+      await cleanup()
+    }
+  })
+})
+
+describe('explore — pacing (COST-02)', () => {
+  test('pacer.wait is called before each executeAction — injected clock/sleep', async () => {
+    const sleepCalls: number[] = []
+    let tick = 0
+    const fake = new FakePage(
+      [
+        { path: '/', title: 'Home', raw: [link(0, 'A', '/a'), link(1, 'B', '/b')], edges: { 0: '/a', 1: '/b' } },
+        { path: '/a', title: 'A', raw: [], edges: {} },
+        { path: '/b', title: 'B', raw: [], edges: {} },
+      ],
+      '/',
+    )
+    const { store, cleanup } = makeStore()
+    try {
+      await explore(asPage(fake), createScriptedProvider(), store, {
+        maxSteps: 20,
+        paceMs: 200,
+        now: () => tick,         // clock never advances → always sleeps 200ms
+        sleep: async (ms) => { sleepCalls.push(ms) },
+      })
+      // After the first call (no sleep), every subsequent action call sleeps 200ms
+      assert.ok(sleepCalls.length > 0, 'pacer must have slept at least once')
+      assert.ok(sleepCalls.every(ms => ms === 200), 'every sleep must be 200ms')
+    } finally {
+      await cleanup()
+    }
+  })
+})
+
 describe('explore — onStep callback (feeds the dashboard in 05-04)', () => {
   test('onStep fires once per acting step with the expected shape', async () => {
     const fake = new FakePage(

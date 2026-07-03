@@ -10,6 +10,12 @@ import { StopController, STOP_REASONS } from '../../src/agent/stop.ts'
 
 const live = { newState: false, newEndpoint: false, frontierSize: 5 }
 
+describe('STOP_REASONS.BUDGET', () => {
+  test('STOP_REASONS.BUDGET === "budget"', () => {
+    assert.equal(STOP_REASONS.BUDGET, 'budget')
+  })
+})
+
 describe('StopController', () => {
   test('before any stop condition → { stop:false }', () => {
     const s = new StopController({ maxSteps: 50 })
