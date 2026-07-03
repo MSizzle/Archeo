@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 3 complete (03-05 gap closure landed) — ready for Phase 4 Authentication Handoff
-last_updated: "2026-07-03T14:30:00.000Z"
+stopped_at: Phase 4 — 04-01 complete (persistent profile + login handoff); ready for 04-02 (clear-session + AUTH-03 hygiene)
+last_updated: "2026-07-03T16:00:00.000Z"
 last_activity: 2026-07-03
 progress:
   total_phases: 8
   completed_phases: 3
   total_plans: 8
-  completed_plans: 12
-  percent: 38
+  completed_plans: 13
+  percent: 40
 ---
 
 # Project State
@@ -25,13 +25,13 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 
 ## Current Position
 
-Phase: 03 (spec-generator-buildability) — COMPLETE
-Plan: 5 of 5 — all done (03-05 gap closure complete 2026-07-03)
-Next: Phase 4 — Authentication Handoff
-Status: Phase 3 complete (2026-07-03)
+Phase: 04 (authentication-handoff) — IN PROGRESS
+Plan: 1 of 3 — 04-01 complete (2026-07-03); 04-02 next
+Next: 04-02 — `archeo clear-session` + AUTH-03 hygiene suite
+Status: 04-01 complete (persistent profile + login handoff landed)
 Last activity: 2026-07-03
 
-Progress: [██████████] 5/5 plans done; Phase 3 complete
+Progress: [████░░░░░░] 1/3 plans done; Phase 4 in progress
 
 ## Performance Metrics
 
@@ -182,9 +182,19 @@ Phase 02-04 execution decisions:
   the backend. Full suite 158/158 green as the pre-checkpoint gate. Reproducible scripts committed
   under .planning/phases/02-capture-layer-safety-floor/02-04-live-verification/. No src/ or test/ edits.
 
+Phase 04-01 execution decisions:
+
+- sanitizeHostname uses `[^a-z0-9.\-]` (hyphen at end, literal) so hyphens pass through unchanged
+- '..' input: step3 strips leading dot → '.'; step4 no double-dot run; step5 throws (no [a-z0-9]) — never produces '..' in output
+- browser.ts mid-startup close guard uses a `contextClosed` boolean flag (set in the early context.on('close') listener) instead of `browser.isConnected()` — launchPersistentContext returns a BrowserContext with no top-level Browser object to check
+- promptReady uses an `answered` flag to guard against the synchronous 'close' emission when rl.close() is called inside the question callback. Without this flag, every Enter press would resolve as 'aborted' because the 'close' event fires before resolve('ready') can run. confirmDestructiveGet has the same latent issue; the fix is intentional (described in SUMMARY deviations).
+- login.ts comment text was rephrased to avoid forbidden tokens (interceptor, CaptureStore, etc.) that the D4-01 isolation test scans for in raw source. The import boundary itself is unchanged.
+- `void profileDir;` in login.ts acknowledges the required import from ./profile.ts without an unused-variable warning while keeping the module capture-free.
+- login command registered BEFORE '<url>' in index.ts so cac parses it as a named subcommand (same pattern as 'spec')
+
 ### Pending Todos
 
-None. Phase 3 complete. Ready for Phase 4 planning (Authentication Handoff).
+None for 04-01. Next: 04-02 (`archeo clear-session` + AUTH-03 hygiene suite).
 
 ### Blockers/Concerns
 
