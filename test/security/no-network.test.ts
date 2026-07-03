@@ -1,10 +1,34 @@
 /**
  * test/security/no-network.test.ts
  *
- * GATE-03: Static guard — asserts that no source file under src/ imports or uses
- * a network/HTTP client. This makes the "no phone-home" guarantee structural rather
- * than aspirational: if any src/ module ever pulls in fetch, http, https, axios,
- * undici, or got, this test fails the build before the code can ship.
+ * GATE-03 (evolved — plan 03-03): Static guard — asserts that no source file under
+ * src/ imports or uses an OUTBOUND network/HTTP client.
+ *
+ * Evolution from plan 03-03 (D3-05 / D13):
+ *   node:http is now ALLOWED under src/dashboard/ — that directory implements the
+ *   inbound-only loopback dashboard server (D13 decision). It is forbidden elsewhere.
+ *   The dashboard may SERVE but never make client calls: http.request and http.get
+ *   are added to a DASHBOARD_FORBIDDEN list applied only to src/dashboard/ files.
+ *   A structural assertion also confirms src/dashboard/server.ts calls listen() with
+ *   the '127.0.0.1' host literal, making the loopback-bind guarantee non-aspirational.
+ *
+ * Rationale:
+ *   GATE-03 forbids OUTBOUND calls — telemetry, fetch, HTTP client usage. An inbound
+ *   loopback server (node:http.createServer) is not an outbound call; it is the D13
+ *   dashboard decision. Allowing node:http only under src/dashboard/ keeps the spirit
+ *   of the guard (no phone-home) while enabling the loopback server. The scoped
+ *   DASHBOARD_FORBIDDEN list ensures the dashboard module can never be repurposed as
+ *   a client by adding http.request or http.get.
+ *
+ * Tokens forbidden for ALL src/ files (including src/dashboard/):
+ *   node:https, require('http, from 'http', from 'https', axios, undici, 'got',
+ *   and bare global fetch().
+ *
+ * Tokens forbidden for NON-dashboard src/ files only:
+ *   node:http (inbound-only dashboard exception applies to src/dashboard/ only).
+ *
+ * Tokens forbidden for src/dashboard/ files only:
+ *   http.request, http.get (outbound client calls — dashboard may serve, never call out).
  *
  * Comment lines (starting with // or *) are stripped before scanning so that
  * documentation prose cannot accidentally self-invalidate the guard.
@@ -82,6 +106,18 @@ function hasBareGlobalFetch(code: string): boolean {
   return /(?<!\.)fetch\(/.test(code);
 }
 
+/**
+ * Tokens forbidden for files under src/dashboard/ (dashboard may SERVE but never call out).
+ * http.request and http.get are outbound client APIs — forbidden in the dashboard module.
+ */
+const DASHBOARD_FORBIDDEN = ['http.request', 'http.get'];
+
+/**
+ * Path prefix identifying the dashboard module directory.
+ * node:http is allowed here (inbound loopback server); http.request/http.get are not.
+ */
+const DASHBOARD_SRC_PREFIX = join(srcDir, 'dashboard');
+
 describe('GATE-03: no outbound network surface in src/', () => {
   const tsFiles = collectTsFiles(srcDir);
 
@@ -91,6 +127,7 @@ describe('GATE-03: no outbound network surface in src/', () => {
 
   for (const filePath of tsFiles) {
     const label = filePath.slice(rootDir.length);
+    const isDashboard = filePath.startsWith(DASHBOARD_SRC_PREFIX);
 
     test(`${label} — no forbidden network tokens`, () => {
       const code = stripCommentLines(readFileSync(filePath, 'utf8'));
@@ -101,12 +138,38 @@ describe('GATE-03: no outbound network surface in src/', () => {
         `${label} must not contain bare global fetch() call (use route.fetch() for Playwright interceptors)`,
       );
 
+      // All FORBIDDEN_TOKENS apply to every src/ file (including src/dashboard/).
+      // node:http remains in this list for now (see RED-state note).
       for (const token of FORBIDDEN_TOKENS) {
         assert.ok(
           !code.includes(token),
           `${label} must not contain forbidden network token: ${JSON.stringify(token)}`
         );
       }
+
+      // DASHBOARD_FORBIDDEN: outbound-client tokens forbidden inside src/dashboard/.
+      // The dashboard may serve (node:http.createServer) but must never make client calls.
+      if (isDashboard) {
+        for (const token of DASHBOARD_FORBIDDEN) {
+          assert.ok(
+            !code.includes(token),
+            `${label} (dashboard) must not contain outbound client token: ${JSON.stringify(token)}`,
+          );
+        }
+      }
     });
   }
+});
+
+describe('GATE-03: structural assertion — dashboard binds 127.0.0.1', () => {
+  test('src/dashboard/server.ts calls listen() with host 127.0.0.1 (T-03-09)', () => {
+    const serverPath = join(srcDir, 'dashboard', 'server.ts');
+    const source = readFileSync(serverPath, 'utf8');
+    // Assert the listen( call includes the '127.0.0.1' host literal.
+    // Regex allows the port arg before the host arg and handles optional whitespace.
+    assert.ok(
+      /listen\([^)]*['"]127\.0\.0\.1['"]/.test(source),
+      `src/dashboard/server.ts must call server.listen() with host '127.0.0.1' (T-03-09 loopback-only bind)`,
+    );
+  });
 });
