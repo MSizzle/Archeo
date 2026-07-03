@@ -24,6 +24,7 @@ import { join, resolve } from 'node:path';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
 import { profileDir } from './profile.ts';
+import { openForLogin } from './login.ts';
 import { CaptureStore } from '../capture/store.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
@@ -85,6 +86,60 @@ cli
       // Call the deterministic spec generator — no LLM, no browsing, no gate.
       const specPath = writeSpec(targetDir);
       process.stdout.write(`[archeo] spec written: ${specPath}\n`);
+    } catch (err) {
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`);
+      }
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// `archeo login <url>` — manual login handoff (AUTH-01 / D4-01 / D4-04)
+//
+// CRITICAL D4-01: This action creates NO CaptureStore and calls NO startDashboard.
+// It calls openForLogin (which imports ONLY playwright + node:readline + profile.ts),
+// so nothing is recorded during login and credentials cannot reach the capture store.
+//
+// GATE-01: runAuthorizationGate is the FIRST statement — verifiable by source inspection.
+//   The login subcommand opens a browser at the target, so the gate applies (D-01).
+//   Unlike clear-session (04-02) which only deletes local state.
+// ---------------------------------------------------------------------------
+
+cli
+  .command('login <url>', 'Open the target in a persistent browser to log in by hand; nothing is captured (AUTH-01)')
+  .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
+  .action(async (url: string, opts: { iHaveAuthorization?: boolean }) => {
+    // WR-07: wrap the async body so rejections surface as clean error messages.
+    try {
+      // GATE-01: runAuthorizationGate is the FIRST statement in this action handler.
+      // The login command opens a browser at the target — the authorization gate applies.
+      await runAuthorizationGate(opts.iHaveAuthorization ?? false);
+
+      // V5 / T-01-07: validate URL before handing to Playwright.
+      if (!isValidUrl(url)) {
+        process.stderr.write(
+          `archeo: invalid URL — ${url}\n` +
+          `  URLs must be absolute (e.g. https://example.com).\n`
+        );
+        process.exit(1);
+      }
+
+      // AUTH-02/D4-02: per-hostname profile dir — same dir as capture mode so
+      // authentication persists into subsequent `archeo <url>` runs.
+      const hostname = new URL(url).hostname;
+      const dirPath = profileDir(hostname);
+
+      // AUTH-01/D4-01: openForLogin is capture-isolated — no session log, no UI server,
+      // no route-level request interception. Nothing is recorded during login.
+      await openForLogin(url, dirPath);
+
+      // Print where the profile was saved and how to use / clear it.
+      process.stdout.write(`[archeo] logged-in session saved to ${dirPath}\n`);
+      process.stdout.write(
+        `[archeo] run 'archeo ${url}' to explore authenticated; ` +
+        `'archeo clear-session ${hostname}' to delete it.\n`,
+      );
     } catch (err) {
       if (err instanceof Error) {
         process.stderr.write(`archeo: ${err.message}\n`);
