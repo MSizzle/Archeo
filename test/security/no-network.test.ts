@@ -83,8 +83,17 @@ function stripCommentLines(source: string): string {
  * 'fetch(' to NOT be preceded by '.' (property accessor), so route.fetch() is allowed
  * while bare fetch(url) Web Fetch API calls are still detected and rejected.
  */
+/**
+ * Tokens forbidden for ALL src/ files (including src/dashboard/).
+ *
+ * node:http is NOT in this list — it has a dashboard-scoped exception.
+ *   Files under src/dashboard/ may import node:http for the inbound loopback server (D13).
+ *   All other src/ files still have node:http forbidden (see NON_DASHBOARD_FORBIDDEN below).
+ *
+ * node:https, axios, undici, got, require('http, from 'http', from 'https', and bare
+ * fetch() remain forbidden EVERYWHERE including src/dashboard/ (outbound surfaces).
+ */
 const FORBIDDEN_TOKENS = [
-  'node:http',
   'node:https',
   "require('http",
   "from 'http'",
@@ -95,6 +104,13 @@ const FORBIDDEN_TOKENS = [
   // but NOT Playwright's page.goto() method. The quoted form only matches package name strings.
   "'got'",
 ];
+
+/**
+ * Tokens forbidden for NON-dashboard src/ files only.
+ * node:http is allowed under src/dashboard/ (inbound loopback server, D13/D3-05).
+ * It remains forbidden everywhere else to prevent accidental outbound HTTP client usage.
+ */
+const NON_DASHBOARD_FORBIDDEN = ['node:http'];
 
 /**
  * Check a source file for bare fetch( calls (not preceded by '.', meaning not a
@@ -139,12 +155,22 @@ describe('GATE-03: no outbound network surface in src/', () => {
       );
 
       // All FORBIDDEN_TOKENS apply to every src/ file (including src/dashboard/).
-      // node:http remains in this list for now (see RED-state note).
       for (const token of FORBIDDEN_TOKENS) {
         assert.ok(
           !code.includes(token),
           `${label} must not contain forbidden network token: ${JSON.stringify(token)}`
         );
+      }
+
+      // NON_DASHBOARD_FORBIDDEN: node:http is forbidden outside src/dashboard/.
+      // src/dashboard/ may import node:http for the inbound loopback server (D13 exception).
+      if (!isDashboard) {
+        for (const token of NON_DASHBOARD_FORBIDDEN) {
+          assert.ok(
+            !code.includes(token),
+            `${label} must not contain forbidden token (allowed only in src/dashboard/): ${JSON.stringify(token)}`,
+          );
+        }
       }
 
       // DASHBOARD_FORBIDDEN: outbound-client tokens forbidden inside src/dashboard/.
