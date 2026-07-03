@@ -38,6 +38,8 @@ import { syntheticValue } from './formfill.ts'
 import { templatePath } from '../spec/templater.ts'
 import { BudgetTracker } from './budget.ts'
 import { Pacer } from './pace.ts'
+import { changeInputFromObservation, isMeaningfulChange } from './changeDetect.ts'
+import type { ChangeInput } from './changeDetect.ts'
 
 export interface StepEvent {
   stepIndex: number
@@ -51,6 +53,19 @@ export interface StepEvent {
   title: string
   /** Signature of the previous state, if any (feeds dashboard sendTransition, DASH-05). */
   prevSignature?: string
+  /**
+   * D6-02: source of the step decision.
+   * 'model'  — a real decideWithRetry call was made.
+   * 'policy' — the change detector skipped the vision call; a deterministic frontier
+   *            policy step was taken instead.
+   */
+  source: 'model' | 'policy'
+  /**
+   * D6-02: true only when the change detector skipped the model call for this step.
+   * Deterministic backtrack/exhausted steps also carry source:'policy' but skipped:false
+   * (they were never model calls to begin with).
+   */
+  skipped: boolean
 }
 
 export interface ExploreResult {
@@ -61,6 +76,13 @@ export interface ExploreResult {
   stopReason: StopReason
   /** Total tokens consumed across all decideWithRetry calls in this run. */
   totalTokens: number
+  /**
+   * D6-02 / COST-02: number of vision-model calls skipped by the change detector.
+   * Counts only steps where the change detector found no meaningful change AND
+   * took a deterministic policy step instead of calling decideWithRetry.
+   * Deterministic backtrack/exhausted steps are NOT counted (they were never model calls).
+   */
+  modelCallsSkipped: number
 }
 
 // Frontier tier ranking for the per-state decision list (nav > form > click).
@@ -203,8 +225,17 @@ export async function explore(
   let stepsTaken = 0
   let stopReason: StopReason = STOP_REASONS.MAX_STEPS
 
+  // D6-02 / COST-02: change detector state.
+  // prevModelCallInput tracks the ChangeInput from the last step that triggered a REAL model
+  // call (decideWithRetry). It is NOT updated on policy steps — the detector stays
+  // anchored to the last meaningful structural observation.
+  let prevModelCallInput: ChangeInput | null = null
+  let modelCallsSkipped = 0
+
   for (let stepIndex = 0; stepIndex < maxSteps; stepIndex++) {
     const obs = await captureObservation(page)
+    // D6-02: extract structural signals for the change detector.
+    const currChangeInput = changeInputFromObservation(obs)
     const sig = computeStateSignature(signatureInput(obs))
     const { isNew } = graph.addState({
       signature: sig,
@@ -238,9 +269,13 @@ export async function explore(
     let action: AgentAction
     let targetRef: number | undefined
     let exercisedItem: FrontierItem | undefined
+    // D6-02: track whether this step's decision came from the model or a policy skip.
+    let stepSource: 'model' | 'policy' = 'model'
+    let stepSkipped = false
 
     if (loopDetect.isTrapped()) {
       // AGENT-07b: oscillation → backtrack to the frontier instead of repeating the pair.
+      // These are deterministic policy steps but NOT change-detector skips (skipped:false).
       loopDetect.reset()
       const target = graph.nextFrontier()
       if (target && target.url) {
@@ -254,10 +289,13 @@ export async function explore(
         if (target) graph.markExercised(target)
         action = { action: 'back', reasoning: 'backtrack: oscillation detected — going back' }
       }
+      stepSource = 'policy'
+      stepSkipped = false
     } else {
       const currentUnexercised = orderByPriority(items.filter((it) => !exercised.has(exKey(sig, it.ref))))
       if (currentUnexercised.length === 0) {
         // Current state exhausted — jump to the next global frontier target (directed, AGENT-04).
+        // Deterministic policy step, NOT a change-detector skip (skipped:false).
         const target = graph.nextFrontier()
         if (target && target.url) {
           graph.markExercised(target)
@@ -272,21 +310,57 @@ export async function explore(
         } else {
           action = { action: 'back', reasoning: 'frontier: nothing left to exercise here — going back' }
         }
+        stepSource = 'policy'
+        stepSkipped = false
       } else {
-        const frontier: FrontierSummary = {
-          refs: currentUnexercised.map((it) => it.ref),
-          urls: currentUnexercised.map((it) => it.url).filter((u): u is string => typeof u === 'string'),
-        }
-        const decision = await decideWithRetry(provider, obs, frontier)
-        budget.add(decision.usage)
-        if (budget.exceeded()) {
-          stopReason = STOP_REASONS.BUDGET
-          break
-        }
-        action = decision.action
-        targetRef = action.targetRef
-        if (targetRef !== undefined) {
-          exercisedItem = items.find((it) => it.ref === targetRef)
+        // D6-02: change-gating — only call the model when the page meaningfully changed.
+        if (!isMeaningfulChange(prevModelCallInput, currChangeInput)) {
+          // Cosmetic churn — no structural change since the last model call.
+          // Take a deterministic policy step: pick the next unexercised item from the current
+          // state's frontier (same selection logic as the model's unexercised list, so
+          // coverage still advances). Navigate if the item has a URL; click otherwise.
+          const policyItem = currentUnexercised[0]
+          if (policyItem.url) {
+            action = {
+              action: 'navigate',
+              value: policyItem.url,
+              reasoning: `policy: no meaningful change since last model call — exercising ref ${policyItem.ref}`,
+            }
+          } else {
+            action = {
+              action: 'click',
+              targetRef: policyItem.ref,
+              reasoning: `policy: no meaningful change since last model call — exercising ref ${policyItem.ref}`,
+            }
+            targetRef = policyItem.ref
+          }
+          exercisedItem = policyItem
+          stepSource = 'policy'
+          stepSkipped = true
+          modelCallsSkipped++
+          // prevModelCallInput stays unchanged — the detector remains anchored to the last
+          // real structural observation.
+        } else {
+          // Page meaningfully changed (or first observation) → call the vision model.
+          const frontier: FrontierSummary = {
+            refs: currentUnexercised.map((it) => it.ref),
+            urls: currentUnexercised.map((it) => it.url).filter((u): u is string => typeof u === 'string'),
+          }
+          const decision = await decideWithRetry(provider, obs, frontier)
+          budget.add(decision.usage)
+          if (budget.exceeded()) {
+            stopReason = STOP_REASONS.BUDGET
+            break
+          }
+          action = decision.action
+          targetRef = action.targetRef
+          if (targetRef !== undefined) {
+            exercisedItem = items.find((it) => it.ref === targetRef)
+          }
+          stepSource = 'model'
+          stepSkipped = false
+          // Advance the change detector anchor to the current structural snapshot.
+          prevModelCallInput = currChangeInput
         }
       }
     }
@@ -301,6 +375,7 @@ export async function explore(
       reasoning: action.reasoning,
       stateSignature: sig,
       stepIndex,
+      source: stepSource,
     })
     stepsTaken++
     onStep?.({
@@ -312,6 +387,8 @@ export async function explore(
       url: obs.url,
       title: obs.title,
       prevSignature: prevSig ?? undefined,
+      source: stepSource,
+      skipped: stepSkipped,
     })
 
     if (action.action === 'done') {
@@ -322,10 +399,16 @@ export async function explore(
     await pacer.wait()
     await executeAction(page, action, obs)
 
-    // Mark a model-chosen ref exercised so directed exploration never re-offers it.
+    // Mark the chosen ref exercised so directed exploration never re-offers it.
+    // Both model-chosen and policy-chosen refs are marked (D6-02: policy steps still
+    // advance coverage, just without a vision call).
     if (targetRef !== undefined) {
       exercised.add(exKey(sig, targetRef))
       graph.markExercised(exercisedItem ?? { fromSignature: sig, ref: targetRef, kind: 'click' })
+    } else if (exercisedItem !== undefined) {
+      // Policy navigate: no targetRef but exercisedItem was set (the nav frontier item).
+      exercised.add(exKey(sig, exercisedItem.ref))
+      graph.markExercised(exercisedItem)
     }
 
     prevSig = sig
@@ -339,5 +422,6 @@ export async function explore(
     endpointsSeen: endpointKeys.size,
     stopReason,
     totalTokens: budget.totalTokens,
+    modelCallsSkipped,
   }
 }
