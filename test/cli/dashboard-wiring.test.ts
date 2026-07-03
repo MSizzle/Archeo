@@ -46,22 +46,20 @@ describe('CLI dashboard wiring — source inspection (Task 4, plan 03-03)', () =
 
   test('src/cli/index.ts calls startDashboard only under the <url> command, NOT the spec subcommand', () => {
     // The spec subcommand must not start a dashboard (no browsing happens, D3-04).
-    // The simplest structural check: startDashboard appears in the file but NOT
-    // before the <url> command registration. Since the spec command is registered
-    // BEFORE <url>, we check that startDashboard does not appear in the spec action.
-    // We verify by checking that startDashboard appears in the file at all (presence)
-    // and that the spec command text does not contain it (absence in spec block).
+    // Check: the CALL to startDashboard() appears AFTER the <url> command registration,
+    // not in the spec command block. The import of startDashboard will be at the top
+    // (before both commands), so we look for the call site 'startDashboard(' (with paren).
     const specActionStart = indexSrc.indexOf("command('spec");
     const urlCommandStart = indexSrc.indexOf("command('<url>'");
     assert.ok(specActionStart !== -1, 'spec command must be present in index.ts');
     assert.ok(urlCommandStart !== -1, '<url> command must be present in index.ts');
-    // startDashboard must appear in index.ts (presence check)
-    assert.ok(indexSrc.includes('startDashboard'), 'startDashboard must appear in index.ts');
-    // startDashboard must appear AFTER the <url> command start (not in the spec block)
-    const startDashboardPos = indexSrc.indexOf('startDashboard');
+    // startDashboard must be called (not just imported) in index.ts
+    assert.ok(indexSrc.includes('startDashboard('), 'startDashboard() must be called in index.ts');
+    // The CALL startDashboard( must appear AFTER the <url> command registration
+    const startDashboardCallPos = indexSrc.indexOf('startDashboard(');
     assert.ok(
-      startDashboardPos > urlCommandStart,
-      'startDashboard must appear after the <url> command registration (not in spec command)',
+      startDashboardCallPos > urlCommandStart,
+      'startDashboard() call must appear after the <url> command registration (not in spec command)',
     );
   });
 

@@ -25,6 +25,7 @@ import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
 import { CaptureStore } from '../capture/store.ts';
 import { writeSpec } from '../spec/generator.ts';
+import { startDashboard } from '../dashboard/server.ts';
 
 // ---------------------------------------------------------------------------
 // latestSessionDir — resolve the most-recent session under .archeo/captures
@@ -94,7 +95,9 @@ cli
 cli
   .command('<url>', 'Analyze a running web application')
   .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
-  .action(async (url: string, opts: { iHaveAuthorization?: boolean }) => {
+  .option('--no-dashboard', 'Disable the localhost SSE discovery dashboard (D3-05)')
+  .option('--dashboard-port <port>', 'Port for the localhost dashboard (default: OS-assigned)', { default: 0 })
+  .action(async (url: string, opts: { iHaveAuthorization?: boolean; dashboard?: boolean; dashboardPort?: number }) => {
     // WR-07: cac.parse() does not await the action's returned Promise. Wrap the entire
     // async body in try/catch so any rejection that surfaces AFTER an await (e.g.
     // runAuthorizationGate or openAndWait throwing) produces a clean user-facing error
@@ -119,7 +122,16 @@ cli
       // Store lives under .archeo/captures/ (gitignored — T-02-05).
       const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
 
-      await openAndWait(url, store);
+      // D3-05: Start the localhost dashboard AFTER store creation and BEFORE openAndWait.
+      // cac maps --no-dashboard → opts.dashboard === false (boolean flag negation).
+      // --dashboard-port <n> overrides the OS-assigned port; default is 0 (OS-assigned).
+      let dashboardHandle: { port: number; close(): Promise<void> } | undefined;
+      if (opts.dashboard !== false) {
+        dashboardHandle = await startDashboard(store, { port: opts.dashboardPort ?? 0 });
+        process.stdout.write(`[archeo] dashboard: http://127.0.0.1:${dashboardHandle.port}\n`);
+      }
+
+      await openAndWait(url, store, dashboardHandle);
     } catch (err) {
       // Surface async action rejections as user-friendly error messages (WR-07).
       // Without this, Node.js emits an unhandledRejection warning and — in newer

@@ -20,6 +20,8 @@
  * D3-04:   gracefulShutdown() runs AFTER store.close() resolves (flush), then calls
  *          writeSpec() and prints the spec path before exiting. Failures warn but
  *          NEVER block or deadlock exit (T-03-06).
+ * D3-05:   If a dashboard handle is provided, gracefulShutdown() closes it after
+ *          writeSpec. A dashboard close failure cannot block or delay exit (T-03-12).
  *
  * Only `playwright` is imported here — no fetch/http/https/axios/undici/got.
  * This is the structural GATE-03 guarantee on the browser side.
@@ -79,11 +81,17 @@ export function isValidUrl(url: string): boolean {
  * Imports only `playwright` chromium — no HTTP client, no outbound calls to
  * non-target URLs (GATE-03 structural guarantee).
  *
- * @param url    Target URL to navigate to (must pass isValidUrl before calling)
- * @param store  Optional CaptureStore; if provided, attachInterceptor wires the
- *               capture layer and safety floor into the browser context (FLOOR-01).
+ * @param url        Target URL to navigate to (must pass isValidUrl before calling)
+ * @param store      Optional CaptureStore; if provided, attachInterceptor wires the
+ *                   capture layer and safety floor into the browser context (FLOOR-01).
+ * @param dashboard  Optional dashboard handle returned by startDashboard; if provided,
+ *                   gracefulShutdown closes it after writeSpec (D3-05/T-03-12).
  */
-export async function openAndWait(url: string, store?: CaptureStore): Promise<void> {
+export async function openAndWait(
+  url: string,
+  store?: CaptureStore,
+  dashboard?: { close(): Promise<void> },
+): Promise<void> {
   const browser = await chromium.launch({ headless: false });
 
   // ---------------------------------------------------------------------------
@@ -109,6 +117,18 @@ export async function openAndWait(url: string, store?: CaptureStore): Promise<vo
         // T-03-06: spec-gen failure must never block or deadlock exit (D3-04)
         process.stderr.write(
           `[archeo] spec generation failed: ${e instanceof Error ? e.message : String(e)}\n`,
+        );
+      }
+    }
+
+    // 3. Close the dashboard server (D3-05). Any failure is swallowed — a dashboard
+    //    close error must never block or delay exit (T-03-12).
+    if (dashboard) {
+      try {
+        await dashboard.close();
+      } catch (e) {
+        process.stderr.write(
+          `[archeo] dashboard close error: ${e instanceof Error ? e.message : String(e)}\n`,
         );
       }
     }
