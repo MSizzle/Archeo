@@ -649,7 +649,11 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   const rules = inferRules(templates, apiRecords);
 
   // Coverage (SPEC-07)
-  const coverage = buildCoverage(templates, dataModels, flows, records);
+  const coverage = buildCoverage(templates, dataModels, flows, records)
+  // Propagate stop reason from manifest into coverage (06-01 COST-01)
+  if (manifest.stopReason) {
+    coverage.stopReason = manifest.stopReason
+  };
 
   // Meta block
   const meta: SpecMeta = {

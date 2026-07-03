@@ -139,6 +139,8 @@ export interface Coverage {
   knownGaps: string[];
   /** Breakdown of sourceRecordCount by record type (SPEC-07). */
   recordBreakdown: RecordBreakdown;
+  /** Why the explorer loop stopped (e.g. 'budget', 'max-steps'). Absent on pre-06-01 sessions. */
+  stopReason?: string;
 }
 
 /**

@@ -137,4 +137,6 @@ export interface CaptureManifest {
   recordCount: number;
   heldWriteCount: number;
   logFile: string;          // filename only, relative to session dir
+  /** Reason the explorer loop stopped (set by CaptureStore.recordStopReason). */
+  stopReason?: string;
 }

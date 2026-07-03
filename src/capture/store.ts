@@ -54,6 +54,7 @@ export class CaptureStore {
   private readonly startedAt: string;
   private seq = 0;
   private heldWriteCount = 0;
+  private _stopReason: string | undefined = undefined;
 
   /**
    * WR-04 / D3-04: idempotent-close guard.
@@ -106,6 +107,17 @@ export class CaptureStore {
    */
   public clearLastHeldWriteId(): void {
     this._lastHeldWriteId = null;
+  }
+
+  /**
+   * Record the stop reason for this session (called at the end of explore()).
+   * Persists the reason into manifest.json immediately via writeManifest().
+   *
+   * @param reason  The stop reason string (e.g. 'budget', 'max-steps')
+   */
+  public recordStopReason(reason: string): void {
+    this._stopReason = reason;
+    this.writeManifest();
   }
 
   /**
@@ -336,6 +348,9 @@ export class CaptureStore {
       heldWriteCount: this.heldWriteCount,
       logFile: 'capture.jsonl',
     };
+    if (this._stopReason !== undefined) {
+      manifest.stopReason = this._stopReason;
+    }
     writeFileSync(this.manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   }
 }
