@@ -1,0 +1,336 @@
+
+========== LOGIN ==========
+[login] archeo — authorized use required
+[login] 
+[login]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[login]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[login] 
+[login] [login] [archeo] Log in in the browser (MFA included). Press Enter here when you are logged in, or Ctrl+C to abort.
+[login] [login] [archeo] Press Enter here when you are logged in, or Ctrl+C to abort. [login] [archeo] logged-in session saved to .archeo/profiles/127.0.0.1
+[login] [archeo] run 'archeo http://127.0.0.1:55508/login?auto=1' to explore authenticated; 'archeo clear-session 127.0.0.1' to delete it.
+[login] GREEN [LOGIN] Authenticated profile persisted (login+mfa completed, per-hostname profile) :: profileExists=true logins=1 mfa=1 authAppLoads=1
+
+========== STAGE A: BUDGET ==========
+[A-budget] archeo — authorized use required
+[A-budget] 
+[A-budget]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[A-budget]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[A-budget] 
+[A-budget] [A-budget] [archeo] exploration stopped: budget (0 steps, 0 tokens)
+[A-budget] [A-budget] [archeo] spec written: .archeo/captures/session-2026-07-04-d352f9c4/archeo-spec.json
+[A-budget] GREEN [A] Budget stop: printed stopReason budget AND coverage.stopReason==budget AND non-empty partial spec :: printed=true coverage.stopReason=budget endpoints=4 states=1
+
+========== STAGE B: CHANGE DETECTOR ==========
+[B-skip] archeo — authorized use required
+[B-skip] 
+[B-skip]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[B-skip]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[B-skip] 
+[B-skip] [B-skip] [archeo] dashboard: http://127.0.0.1:55542
+[B-skip] [B-skip] [archeo] exploration stopped: empty-frontier (17 steps, 0 tokens)
+[B-skip] [B-skip] [archeo] spec written: .archeo/captures/session-2026-07-04-e03fc62f/archeo-spec.json
+[B-skip] GREEN [B] Change detector: modelCallsSkipped>0 while coverage still completes (states>=5) + /events skip counter :: modelCallsSkipped=3 states=7 sseSkipEvents=3
+
+========== STAGE C: RECOVERY (real cross-document nav) ==========
+[C-recover] archeo — authorized use required
+[C-recover] 
+[C-recover]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[C-recover]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[C-recover] 
+[C-recover] [C-recover] [archeo] dashboard: http://127.0.0.1:55558
+[C-recover] [C-recover] [archeo] exploration stopped: empty-frontier (17 steps, 0 tokens)
+[C-recover] [C-recover] [archeo] spec written: .archeo/captures/session-2026-07-04-54f3f1ea/archeo-spec.json
+[C-recover] GREEN [C] Recovery: run completes, context-destroyed recovered (issues>0), NO loud halt, real cross-document nav observed :: contextDestroyedRecovered=11 halts=0 loudHalt=false pagesBeyondLanding=6 [/app/users, /app/users/11, /app/orders, /app/catalog, /app/settings, /app/ticker]
+GREEN [C2] Flaky endpoint tolerated: /api/flaky captured BOTH 500 (1st) and 200 (healed) :: flaky500=true flaky200=true
+
+========== STAGE D: AUTH EXPIRY / PAUSE-RESUME ==========
+[D-auth] archeo — authorized use required
+[D-auth] 
+[D-auth]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[D-auth]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[D-auth] 
+[D-auth] [D-auth] [archeo] dashboard: http://127.0.0.1:55573
+[D-auth] [harness] expiring session mid-run (ledger.sessionExpired=true)
+[D-auth] 
+[D-auth] [archeo] Session expired — log in in the browser, then press Enter to resume (or type "abort" to stop): [harness] pause detected; pauseStates=3; signalling browser re-login
+[harness] pressing Enter on stdin to resume
+[D-auth] [archeo] exploration stopped: auth-expired (4 steps, 0 tokens)
+[D-auth] [D-auth] [archeo] spec written: .archeo/captures/session-2026-07-04-0904b1a1/archeo-spec.json
+[D-auth] RED   [D] Auth expiry: pause detected → resume → run completes with MONOTONIC state count across the pause :: paused=true resumed=false stopReason=auth-expired pauseStates=3 finalStates=3
+GREEN [D2] Browser auto re-login ran during the pause (auto-submit login page) with interceptor pass-through-unrecorded (D4-01) :: reLogins=1 credCaptured=0 pwLeak=0 api401=3 fallback=false
+
+========== STAGE E: DRIFT + INCREMENTAL RESUME ==========
+[E-v1] archeo — authorized use required
+[E-v1] 
+[E-v1]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[E-v1]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[E-v1] 
+[E-v1] [E-v1] [archeo] exploration stopped: empty-frontier (17 steps, 0 tokens)
+[E-v1] [E-v1] [archeo] spec written: .archeo/captures/session-2026-07-04-a7da24ce/archeo-spec.json
+[E-v1] [E-v2] archeo — authorized use required
+[E-v2] 
+[E-v2]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[E-v2]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[E-v2] 
+[E-v2] [E-v2] [archeo] --resume: seeding from .archeo/captures/session-2026-07-04-zzzzzzzz (7 states, 0 frontier items)
+[E-v2] [E-v2] [archeo] exploration stopped: empty-frontier (15 steps, 0 tokens)
+[E-v2] [E-v2] [archeo] spec written: .archeo/captures/session-2026-07-04-db675574/archeo-spec.json
+[E-v2] [E-diff] Drift Report
+[E-diff] ============
+[E-diff] 
+[E-diff] New Endpoints:
+[E-diff]   + GET /api/reports
+[E-diff] 
+[E-diff] Removed Endpoints:
+[E-diff]   - GET /app/settings
+[E-diff] 
+[E-diff] Removed Pages:
+[E-diff]   - app-settings
+[E-diff] 
+[E-diff] Changed Shapes:
+[E-diff]   ~ GET /api/account [accountId] type changed: number → string
+[E-diff] GREEN [E] Drift: +endpoint, -page, changed field-type all caught; ZERO false positives on the unchanged /api/* surface :: +reports=true -settingsPage=true accountTypeChange=true newEpLines=1 changedShapeLines=1 removedEndpoints=[- GET /app/settings] falsePositiveApiRemoved=false
+GREEN [E2] Incremental --resume: seeded from the prior v1 session at its full state count (DRIFT-01) :: seededStates=7 priorV1States=7 v2States=6 (v2 has one fewer page by design — the removed settings page)
+
+========== STAGE F: ALLOW-WRITES / FLOOR RESTORATION ==========
+[F-refuse] archeo — authorized use required
+[F-refuse] 
+[F-refuse]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[F-refuse]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[F-refuse] 
+[F-refuse] [F-refuse!] archeo: --allow-writes requires explicit confirmation.
+  In non-TTY/scripted runs, BOTH --allow-writes AND --i-accept-writes must be present.
+  In interactive runs, type "y" at the prompt to confirm.
+[F-allow] archeo — authorized use required
+[F-allow] 
+[F-allow]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[F-allow]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[F-allow] 
+[F-allow] [F-allow] [archeo] exploration stopped: max-steps (5 steps, 0 tokens)
+[F-allow] [F-allow] [archeo] spec written: .archeo/captures/session-2026-07-04-000e0f4b/archeo-spec.json
+[F-allow] [F-default] archeo — authorized use required
+[F-default] 
+[F-default]   Intended use: rebuilding software you own or already pay for (vendor escape).
+[F-default]   Risk: automated analysis may violate the target's terms of service and carry legal exposure.
+[F-default] 
+[F-default] [F-default] [archeo] exploration stopped: max-steps (5 steps, 0 tokens)
+[F-default] [F-default] [archeo] spec written: .archeo/captures/session-2026-07-04-7b9e57d2/archeo-spec.json
+[F-default] GREEN [F] allow-writes: a write LANDS (ledger>=1) + spec allowWrites:true; companion-flag confirmation is mandatory (non-TTY refusal) :: refusedWithoutCompanion=true writeLedger=2 mutations=3 spec.allowWrites=true
+GREEN [F2] floor back ON by default: writes HELD (server ledger 0), held-write records exist, no allowWrites flag :: defaultWriteLedger=0 heldSaveRecords=2 spec.allowWrites=false
+GREEN [F3] Redaction present in BOTH modes: no live session cookie leaked into either capture store :: allowWritesCookieLeak=0 defaultCookieLeak=0
+
+========== STAGE G: REAL-KEY SMOKE ==========
+[harness] no ANTHROPIC_API_KEY -> real-key smoke DEFERRED-PENDING-KEY (phase still closes)
+GREEN [G] Real-key smoke: deferred-pending-key (no ANTHROPIC_API_KEY; NOT a failure — phase still closes) :: ANTHROPIC_API_KEY not present at execution time (expected in this environment)
+
+===== SUMMARY =====
+GREEN [LOGIN] Authenticated profile persisted (login+mfa completed, per-hostname profile)
+GREEN [A] Budget stop: printed stopReason budget AND coverage.stopReason==budget AND non-empty partial spec
+GREEN [B] Change detector: modelCallsSkipped>0 while coverage still completes (states>=5) + /events skip counter
+GREEN [C] Recovery: run completes, context-destroyed recovered (issues>0), NO loud halt, real cross-document nav observed
+GREEN [C2] Flaky endpoint tolerated: /api/flaky captured BOTH 500 (1st) and 200 (healed)
+RED   [D] Auth expiry: pause detected → resume → run completes with MONOTONIC state count across the pause
+GREEN [D2] Browser auto re-login ran during the pause (auto-submit login page) with interceptor pass-through-unrecorded (D4-01)
+GREEN [E] Drift: +endpoint, -page, changed field-type all caught; ZERO false positives on the unchanged /api/* surface
+GREEN [E2] Incremental --resume: seeded from the prior v1 session at its full state count (DRIFT-01)
+GREEN [F] allow-writes: a write LANDS (ledger>=1) + spec allowWrites:true; companion-flag confirmation is mandatory (non-TTY refusal)
+GREEN [F2] floor back ON by default: writes HELD (server ledger 0), held-write records exist, no allowWrites flag
+GREEN [F3] Redaction present in BOTH modes: no live session cookie leaked into either capture store
+GREEN [G] Real-key smoke: deferred-pending-key (no ANTHROPIC_API_KEY; NOT a failure — phase still closes)
+OVERALL: FAILURES PRESENT
+
+===JSON===
+{
+  "allPass": false,
+  "results": [
+    {
+      "id": "LOGIN",
+      "label": "Authenticated profile persisted (login+mfa completed, per-hostname profile)",
+      "pass": true,
+      "evidence": "profileExists=true logins=1 mfa=1 authAppLoads=1"
+    },
+    {
+      "id": "A",
+      "label": "Budget stop: printed stopReason budget AND coverage.stopReason==budget AND non-empty partial spec",
+      "pass": true,
+      "evidence": "printed=true coverage.stopReason=budget endpoints=4 states=1"
+    },
+    {
+      "id": "B",
+      "label": "Change detector: modelCallsSkipped>0 while coverage still completes (states>=5) + /events skip counter",
+      "pass": true,
+      "evidence": "modelCallsSkipped=3 states=7 sseSkipEvents=3"
+    },
+    {
+      "id": "C",
+      "label": "Recovery: run completes, context-destroyed recovered (issues>0), NO loud halt, real cross-document nav observed",
+      "pass": true,
+      "evidence": "contextDestroyedRecovered=11 halts=0 loudHalt=false pagesBeyondLanding=6 [/app/users, /app/users/11, /app/orders, /app/catalog, /app/settings, /app/ticker]"
+    },
+    {
+      "id": "C2",
+      "label": "Flaky endpoint tolerated: /api/flaky captured BOTH 500 (1st) and 200 (healed)",
+      "pass": true,
+      "evidence": "flaky500=true flaky200=true"
+    },
+    {
+      "id": "D",
+      "label": "Auth expiry: pause detected → resume → run completes with MONOTONIC state count across the pause",
+      "pass": false,
+      "evidence": "paused=true resumed=false stopReason=auth-expired pauseStates=3 finalStates=3"
+    },
+    {
+      "id": "D2",
+      "label": "Browser auto re-login ran during the pause (auto-submit login page) with interceptor pass-through-unrecorded (D4-01)",
+      "pass": true,
+      "evidence": "reLogins=1 credCaptured=0 pwLeak=0 api401=3 fallback=false"
+    },
+    {
+      "id": "E",
+      "label": "Drift: +endpoint, -page, changed field-type all caught; ZERO false positives on the unchanged /api/* surface",
+      "pass": true,
+      "evidence": "+reports=true -settingsPage=true accountTypeChange=true newEpLines=1 changedShapeLines=1 removedEndpoints=[- GET /app/settings] falsePositiveApiRemoved=false"
+    },
+    {
+      "id": "E2",
+      "label": "Incremental --resume: seeded from the prior v1 session at its full state count (DRIFT-01)",
+      "pass": true,
+      "evidence": "seededStates=7 priorV1States=7 v2States=6 (v2 has one fewer page by design — the removed settings page)"
+    },
+    {
+      "id": "F",
+      "label": "allow-writes: a write LANDS (ledger>=1) + spec allowWrites:true; companion-flag confirmation is mandatory (non-TTY refusal)",
+      "pass": true,
+      "evidence": "refusedWithoutCompanion=true writeLedger=2 mutations=3 spec.allowWrites=true"
+    },
+    {
+      "id": "F2",
+      "label": "floor back ON by default: writes HELD (server ledger 0), held-write records exist, no allowWrites flag",
+      "pass": true,
+      "evidence": "defaultWriteLedger=0 heldSaveRecords=2 spec.allowWrites=false"
+    },
+    {
+      "id": "F3",
+      "label": "Redaction present in BOTH modes: no live session cookie leaked into either capture store",
+      "pass": true,
+      "evidence": "allowWritesCookieLeak=0 defaultCookieLeak=0"
+    },
+    {
+      "id": "G",
+      "label": "Real-key smoke: deferred-pending-key (no ANTHROPIC_API_KEY; NOT a failure — phase still closes)",
+      "pass": true,
+      "evidence": "ANTHROPIC_API_KEY not present at execution time (expected in this environment)"
+    }
+  ],
+  "dump": {
+    "budget": {
+      "exit": {
+        "exited": true,
+        "code": 0,
+        "sig": null
+      },
+      "printedBudget": true,
+      "coverageBudget": true,
+      "endpoints": 4,
+      "states": 1,
+      "manifestStop": "budget"
+    },
+    "change": {
+      "exit": {
+        "exited": true,
+        "code": 0,
+        "sig": null
+      },
+      "modelCallsSkipped": 3,
+      "states": 7,
+      "sseSkip": 3,
+      "sseKinds": [
+        "snapshot",
+        "record",
+        "held",
+        "reasoning",
+        "state",
+        "error",
+        "transition",
+        "frame",
+        "skip"
+      ]
+    },
+    "recovery": {
+      "exit": {
+        "exited": true,
+        "code": 0,
+        "sig": null
+      },
+      "ctxDestroyedErrors": 11,
+      "halts": 0,
+      "loudHalt": false,
+      "flaky500": true,
+      "flaky200": true,
+      "pageHits": {
+        "/app": 5,
+        "/app/users": 2,
+        "/app/users/11": 1,
+        "/app/orders": 1,
+        "/app/catalog": 1,
+        "/app/settings": 1,
+        "/app/ticker": 1
+      },
+      "beyondLanding": [
+        "/app/users",
+        "/app/users/11",
+        "/app/orders",
+        "/app/catalog",
+        "/app/settings",
+        "/app/ticker"
+      ]
+    },
+    "auth": {
+      "exit": {
+        "exited": true,
+        "code": 0,
+        "sig": null
+      },
+      "paused": true,
+      "pauseStates": 3,
+      "finalStates": 3,
+      "reLogins": 1,
+      "logins": 1,
+      "mfa": 1,
+      "api401": 3,
+      "credCaptured": 0,
+      "pwLeak": 0,
+      "stopReason": "auth-expired",
+      "usedFallback": false
+    },
+    "drift": {
+      "states1": 7,
+      "states2": 6,
+      "seededStates": 7,
+      "hasNewReports": true,
+      "hasRemovedSettings": true,
+      "hasAccountTypeChange": true,
+      "removedEpLines": [
+        "- GET /app/settings"
+      ],
+      "changedShapeLines": 1,
+      "newEndpointLines": 1,
+      "diffOut": "Drift Report\n============\n\nNew Endpoints:\n  + GET /api/reports\n\nRemoved Endpoints:\n  - GET /app/settings\n\nRemoved Pages:\n  - app-settings\n\nChanged Shapes:\n  ~ GET /api/account [accountId] type changed: number → string\n"
+    },
+    "allowWrites": {
+      "refused": true,
+      "awWriteLedger": 2,
+      "awMutations": 3,
+      "awAllowFlag": true,
+      "awCookieLeak": 0,
+      "defWriteLedger": 0,
+      "defHeldSave": 2,
+      "defAllowFlag": false,
+      "defCookieLeak": 0
+    },
+    "realKey": {
+      "disposition": "deferred-pending-key",
+      "detail": "ANTHROPIC_API_KEY not present at execution time (expected in this environment)"
+    }
+  }
+}
