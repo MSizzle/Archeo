@@ -653,7 +653,11 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   // Propagate stop reason from manifest into coverage (06-01 COST-01)
   if (manifest.stopReason) {
     coverage.stopReason = manifest.stopReason
-  };
+  }
+  // Propagate skip count from manifest into coverage (06-02 COST-02)
+  if (typeof manifest.modelCallsSkipped === 'number') {
+    coverage.modelCallsSkipped = manifest.modelCallsSkipped
+  }
 
   // Meta block
   const meta: SpecMeta = {

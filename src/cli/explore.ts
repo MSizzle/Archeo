@@ -34,7 +34,7 @@ import { explore } from '../agent/loop.ts'
 import type { StepEvent } from '../agent/loop.ts'
 import { startScreencast } from '../agent/screencast.ts'
 
-/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07). */
+/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02). */
 interface DashboardHandle {
   port?: number
   close(): Promise<void>
@@ -43,6 +43,7 @@ interface DashboardHandle {
   sendTransition(t: { from: string; to: string; action: string }): void
   sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void
   sendHeldBeat(info: { path?: string; count: number }): void
+  sendSkip(info: { count: number }): void
 }
 
 /**
@@ -180,6 +181,9 @@ export async function runExplore(
     throw err
   }
 
+  // COST-02 (06-02): running total of change-detector skips for live dashboard updates.
+  let liveSkipCount = 0
+
   // Drive the autonomous loop to completion (bounded by maxSteps / plateau / empty-frontier).
   // onStep wires DASH-05/06 dashboard events: reasoning, state nodes, and transitions.
   const result = await explore(page, provider, store, {
@@ -199,11 +203,21 @@ export async function runExplore(
       if (s.prevSignature) {
         dashboard.sendTransition({ from: s.prevSignature, to: s.signature, action: s.action })
       }
+      // COST-02 (06-02): broadcast cumulative skip count on each skipped step
+      if (s.skipped) {
+        liveSkipCount++
+        dashboard.sendSkip({ count: liveSkipCount })
+      }
     } : undefined,
   })
 
   // Record the stop reason into the manifest (06-01 COST-01).
   store.recordStopReason(result.stopReason)
+
+  // Record the cumulative model-call skip count into the manifest (06-02 COST-02).
+  if (result.modelCallsSkipped > 0) {
+    store.recordModelCallsSkipped(result.modelCallsSkipped)
+  }
 
   // Print a summary line to stdout.
   process.stdout.write(

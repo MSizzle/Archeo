@@ -141,6 +141,8 @@ export interface Coverage {
   recordBreakdown: RecordBreakdown;
   /** Why the explorer loop stopped (e.g. 'budget', 'max-steps'). Absent on pre-06-01 sessions. */
   stopReason?: string;
+  /** Number of vision-model calls skipped by the change detector (COST-02). Absent on pre-06-02 sessions. */
+  modelCallsSkipped?: number;
 }
 
 /**

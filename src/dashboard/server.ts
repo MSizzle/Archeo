@@ -50,6 +50,8 @@ interface DashboardSnapshot {
   coverageTransitions: Array<{ from: string; to: string; action: string }>;
   /** DASH-04: last screencast frame for late-connecting clients (null if none yet). */
   lastFrame: string | null;
+  /** COST-02 (06-02): cumulative vision-model calls skipped by change detector. Absent until first skip. */
+  modelCallsSkipped?: number;
 }
 
 const MAX_RECENT_ENDPOINTS = 10;
@@ -74,7 +76,7 @@ const MAX_RECENT_ENDPOINTS = 10;
  * @param store  Running CaptureStore; its onRecord hook drives the aggregates.
  * @param opts   Optional { port } — default is 0 (OS-assigned free port).
  * @returns      Resolved with { port, close(), sendFrame, sendState, sendTransition,
- *               sendReasoning, sendHeldBeat } once the server is listening.
+ *               sendReasoning, sendHeldBeat, sendSkip } once the server is listening.
  */
 export function startDashboard(
   store: CaptureStore,
@@ -87,6 +89,7 @@ export function startDashboard(
   sendTransition(t: { from: string; to: string; action: string }): void;
   sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void;
   sendHeldBeat(info: { path?: string; count: number }): void;
+  sendSkip(info: { count: number }): void;
 }> {
   // ---------------------------------------------------------------------------
   // In-memory aggregates (DASH-02: counts climb as discovery progresses)
@@ -112,6 +115,8 @@ export function startDashboard(
   const coverageStates: Array<{ signature: string; url: string; title: string }> = [];
   const coverageTransitions: Array<{ from: string; to: string; action: string }> = [];
   let lastFrame: string | null = null;
+  // COST-02 (06-02): cumulative skipped model calls
+  let modelCallsSkipped: number | undefined = undefined;
 
   // ---------------------------------------------------------------------------
   // SSE client management
@@ -121,7 +126,7 @@ export function startDashboard(
   const clients = new Set<ServerResponse>();
 
   function buildSnapshot(): DashboardSnapshot {
-    return {
+    const snap: DashboardSnapshot = {
       records,
       endpoints: endpointKeys.size,
       dataModels: dataModelNames.size,
@@ -134,6 +139,11 @@ export function startDashboard(
       // DASH-04: last frame for late-connecting clients
       lastFrame,
     };
+    // COST-02 (06-02): only include modelCallsSkipped when sendSkip has been called
+    if (modelCallsSkipped !== undefined) {
+      snap.modelCallsSkipped = modelCallsSkipped;
+    }
+    return snap;
   }
 
   /** Write one SSE event to a single client response. Ignores write errors (client closed). */
@@ -187,6 +197,14 @@ export function startDashboard(
   function sendHeldBeat(info: { path?: string; count: number }): void {
     for (const client of clients) {
       writeEvent(client, 'held', info);
+    }
+  }
+
+  /** COST-02 (06-02): notify clients of a cumulative skip count update. */
+  function sendSkip(info: { count: number }): void {
+    modelCallsSkipped = info.count;
+    for (const client of clients) {
+      writeEvent(client, 'skip', info);
     }
   }
 
@@ -325,6 +343,7 @@ export function startDashboard(
         sendTransition,
         sendReasoning,
         sendHeldBeat,
+        sendSkip,
       });
     });
   });

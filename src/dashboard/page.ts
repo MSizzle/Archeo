@@ -240,6 +240,11 @@ export function renderPage(): string {
       <div class="val" id="heldWrites">0</div>
       <div class="sub">mutations</div>
     </div>
+    <div class="card">
+      <div class="lbl">Model Calls Skipped</div>
+      <div class="val" id="modelCallsSkipped">0</div>
+      <div class="sub">change detector</div>
+    </div>
   </div>
 
   <!-- v2 panels row -->
@@ -280,7 +285,7 @@ export function renderPage(): string {
   <script>
     // Discovery dashboard client — DASH-01/02/03/04/05/06/07.
     // One EventSource connection; snapshot on connect then typed events per action.
-    var FIELDS = ['records', 'endpoints', 'dataModels', 'states', 'heldWrites'];
+    var FIELDS = ['records', 'endpoints', 'dataModels', 'states', 'heldWrites', 'modelCallsSkipped'];
     var dot = document.getElementById('dot');
     var statusEl = document.getElementById('status');
     var epList = document.getElementById('epList');
@@ -507,6 +512,13 @@ export function renderPage(): string {
     // DASH-07: held-write beat
     es.addEventListener('held', function(e) {
       pulseBeat();
+    });
+
+    // COST-02 (06-02): model calls skipped by change detector
+    es.addEventListener('skip', function(e) {
+      var parsed = JSON.parse(e.data);
+      var el = document.getElementById('modelCallsSkipped');
+      if (el) el.textContent = parsed.count;
     });
 
     es.onerror = function() {
