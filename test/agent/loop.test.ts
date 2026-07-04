@@ -15,7 +15,7 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { randomUUID } from 'node:crypto'
 import { explore } from '../../src/agent/loop.ts'
-import type { StepEvent } from '../../src/agent/loop.ts'
+import type { StepEvent, ExploreResult } from '../../src/agent/loop.ts'
 import { CaptureStore } from '../../src/capture/store.ts'
 import { createScriptedProvider } from '../../src/model/providers/scripted.ts'
 import type { Provider, ChatMessage } from '../../src/model/types.ts'
@@ -703,6 +703,229 @@ describe('explore — change-gating and skip accounting (COST-02 / D6-02)', () =
       // step (deterministic anyway), skips specifically from the change detector may be 0 or
       // small depending on the path. Just verify it's a valid non-negative number.
       assert.ok(result.modelCallsSkipped >= 0, 'modelCallsSkipped must be non-negative')
+    } finally {
+      await cleanup()
+    }
+  })
+})
+
+// ===========================================================================
+// Task 2 (06-03): Recovery wiring — context-destroyed, model-error, action-failure,
+// nav-unreachable (COST-05)
+// ===========================================================================
+
+/**
+ * A FakePage variant that can be configured to:
+ *   - throw on evaluate N times (context-destroyed simulation)
+ *   - throw on goto (nav failure simulation)
+ *   - throw on mouse.click (action failure simulation)
+ */
+class RecoveryFakePage {
+  private evalFailCount: number
+  private evalCalls = 0
+  private gotoAlwaysThrows: boolean
+  private clickThrowsOnce: boolean
+  private clickThrows = 0
+
+  public waitLoadCalls = 0
+
+  constructor(opts: {
+    evalFailCount?: number
+    gotoAlwaysThrows?: boolean
+    clickThrowsOnce?: boolean
+  }) {
+    this.evalFailCount = opts.evalFailCount ?? 0
+    this.gotoAlwaysThrows = opts.gotoAlwaysThrows ?? false
+    this.clickThrowsOnce = opts.clickThrowsOnce ?? false
+  }
+
+  url(): string {
+    return 'http://app.test/'
+  }
+  async title(): Promise<string> {
+    return 'Test'
+  }
+  async evaluate(_fn: unknown): Promise<unknown> {
+    this.evalCalls++
+    if (this.evalCalls <= this.evalFailCount) {
+      throw new Error('Execution context was destroyed')
+    }
+    return [
+      { tag: 'a', text: 'Link', href: '/a', bbox: { x: 0, y: 0, w: 1, h: 1 }, visible: true },
+    ]
+  }
+  async screenshot(_opts?: unknown): Promise<Buffer> {
+    return Buffer.from('fake')
+  }
+  async waitForLoadState(_s: string): Promise<void> {
+    this.waitLoadCalls++
+  }
+  mouse = {
+    click: async (_cx: number, _cy: number): Promise<void> => {
+      this.clickThrows++
+      if (this.clickThrowsOnce && this.clickThrows === 1) {
+        throw new Error('Element not found in page')
+      }
+    },
+    wheel: async (_dx: number, _dy: number): Promise<void> => {},
+  }
+  keyboard = {
+    type: async (_text: string): Promise<void> => {},
+    press: async (_k: string): Promise<void> => {},
+  }
+  async goto(_url: string): Promise<void> {
+    if (this.gotoAlwaysThrows) {
+      throw new Error('page.goto: net::ERR_CONNECTION_REFUSED')
+    }
+    // no-op navigation (stays on same page)
+  }
+  async goBack(): Promise<void> {}
+}
+
+function asRecoveryPage(p: RecoveryFakePage): import('playwright').Page {
+  return p as unknown as import('playwright').Page
+}
+
+describe('explore — recovery wiring (06-03 / COST-05)', () => {
+  test('(a) context-destroyed on first evaluate: loop survives + issueCount reflects the issue', async () => {
+    // evaluate fails once (context-destroyed), then succeeds → loop continues
+    const page = new RecoveryFakePage({ evalFailCount: 1 })
+    const { store, cleanup } = makeStore()
+    const errors: unknown[] = []
+    try {
+      const result = await explore(asRecoveryPage(page), createScriptedProvider(), store, {
+        maxSteps: 5,
+        onError: (e) => errors.push(e),
+      }) as ExploreResult & { issueCount: number }
+      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+        'ExploreResult must have issueCount field')
+      assert.ok((result as Record<string, unknown>).issueCount >= 1,
+        'issueCount must be at least 1 (the context-destroyed recovery)')
+      assert.ok(errors.length >= 1, 'onError must fire for the recovered context-destroyed event')
+      assert.ok(result.steps <= 5, 'must never exceed maxSteps')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('(b) provider throws once: MODEL_ERROR backoff + policy step + loop continues', async () => {
+    const page = new RecoveryFakePage({})
+    const { store, cleanup } = makeStore()
+    const sleepCalls: number[] = []
+    let providerCallCount = 0
+    const flakeyProvider: import('../../src/model/types.ts').Provider = {
+      id: 'flakey',
+      async chat(_msgs: import('../../src/model/types.ts').ChatMessage[]) {
+        providerCallCount++
+        if (providerCallCount === 1) throw new Error('Provider unavailable')
+        return {
+          text: JSON.stringify({ action: 'click', targetRef: 0, reasoning: 'ok' }),
+          usage: { inputTokens: 0, outputTokens: 0 },
+        }
+      },
+    }
+    const halts: unknown[] = []
+    const errors: unknown[] = []
+    try {
+      const result = await explore(asRecoveryPage(page), flakeyProvider, store, {
+        maxSteps: 5,
+        sleep: async (ms) => { sleepCalls.push(ms) },
+        onError: (e) => errors.push(e),
+        onHalt: (info) => halts.push(info),
+      }) as ExploreResult & { issueCount: number }
+      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+        'ExploreResult must have issueCount')
+      assert.ok((result as Record<string, unknown>).issueCount >= 1,
+        'at least one MODEL_ERROR issue logged')
+      assert.ok(errors.length >= 1, 'onError must fire for the model error')
+      assert.ok(sleepCalls.length >= 1, 'backoff sleep must be called on model error')
+      assert.equal(halts.length, 0, 'model error is recoverable — onHalt must NOT fire')
+      assert.ok(result.steps <= 5, 'must never exceed maxSteps')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('(c) executeAction throws: logged as ACTION_FAILURE + loop continues without crash', async () => {
+    const page = new RecoveryFakePage({ clickThrowsOnce: true })
+    const { store, cleanup } = makeStore()
+    const errors: unknown[] = []
+    const halts: unknown[] = []
+    try {
+      const result = await explore(asRecoveryPage(page), createScriptedProvider(), store, {
+        maxSteps: 5,
+        onError: (e) => errors.push(e),
+        onHalt: (info) => halts.push(info),
+      }) as ExploreResult & { issueCount: number }
+      // The loop must NOT throw
+      assert.ok(typeof result.steps === 'number', 'explore must resolve (not throw) on action failure')
+      assert.ok(halts.length === 0, 'recoverable action failure must not trigger onHalt')
+      // issueCount should reflect the logged issue
+      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+        'ExploreResult must have issueCount')
+      assert.ok(result.steps <= 5, 'must never exceed maxSteps')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('(d) page.goto always throws → TARGET_UNREACHABLE halt after 3 consecutive nav failures', async () => {
+    const page = new RecoveryFakePage({ gotoAlwaysThrows: true })
+    const { store, cleanup } = makeStore()
+    const halts: Array<{ class: string; message: string }> = []
+    try {
+      const result = await explore(asRecoveryPage(page), createScriptedProvider(), store, {
+        maxSteps: 30,
+        onHalt: (info) => halts.push(info as { class: string; message: string }),
+      }) as ExploreResult & { issueCount: number }
+      // The loop must halt cleanly (not crash)
+      assert.ok(typeof result.steps === 'number', 'explore must resolve on TARGET_UNREACHABLE')
+      assert.ok(halts.length >= 1, 'onHalt must fire on TARGET_UNREACHABLE')
+      assert.equal(halts[0].class, 'target-unreachable', 'halt class must be target-unreachable')
+      assert.ok(result.steps <= 30, 'must never exceed maxSteps')
+    } finally {
+      await cleanup()
+    }
+  })
+
+  test('no stderr writes during recoverable error cases', async () => {
+    // Capture stderr during a run with a recoverable context-destroyed
+    const page = new RecoveryFakePage({ evalFailCount: 1 })
+    const { store, cleanup } = makeStore()
+    const stderrChunks: string[] = []
+    const origWrite = process.stderr.write.bind(process.stderr)
+    process.stderr.write = (chunk: unknown, ...args: unknown[]) => {
+      stderrChunks.push(String(chunk))
+      return (origWrite as (...a: unknown[]) => boolean)(chunk, ...args)
+    }
+    try {
+      await explore(asRecoveryPage(page), createScriptedProvider(), store, {
+        maxSteps: 5,
+        onError: () => {},  // silent
+      })
+      // No stderr writes from the loop itself during recoverable errors
+      const loopStderr = stderrChunks.filter(
+        (s) => s.includes('[archeo]') && !s.includes('dashboard'),
+      )
+      assert.equal(loopStderr.length, 0, 'loop must write nothing to stderr during recoverable errors')
+    } finally {
+      process.stderr.write = origWrite
+      await cleanup()
+    }
+  })
+
+  test('issueCount in ExploreResult increments with each logged issue', async () => {
+    const page = new RecoveryFakePage({ evalFailCount: 2 })  // 2 context-destroyed errors
+    const { store, cleanup } = makeStore()
+    try {
+      const result = await explore(asRecoveryPage(page), createScriptedProvider(), store, {
+        maxSteps: 10,
+        onError: () => {},
+      }) as ExploreResult & { issueCount: number }
+      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+        'issueCount must be present')
+      assert.ok((result as Record<string, unknown>).issueCount >= 2,
+        'issueCount must reflect at least 2 context-destroyed issues')
     } finally {
       await cleanup()
     }
