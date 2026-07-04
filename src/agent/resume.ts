@@ -105,8 +105,9 @@ export function seedGraph(graph: CoverageGraph, state: ResumeState): void {
  *
  * @param capturesRoot  Root of capture sessions (e.g. '.archeo/captures')
  * @param hostname      Target hostname to match against manifest.targetOrigin
+ * @param excludeDir    Optional: skip this directory (DRIFT-01: prevents --resume self-seeding)
  */
-export function latestSessionForHost(capturesRoot: string, hostname: string): string | null {
+export function latestSessionForHost(capturesRoot: string, hostname: string, excludeDir?: string): string | null {
   let entries: string[]
   try {
     entries = readdirSync(capturesRoot)
@@ -121,6 +122,7 @@ export function latestSessionForHost(capturesRoot: string, hostname: string): st
   // Walk in reverse (latest first) and return the first match
   for (let i = sessions.length - 1; i >= 0; i--) {
     const dir = join(capturesRoot, sessions[i])
+    if (excludeDir && dir === excludeDir) continue // DRIFT-01: skip the current session
     try {
       const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { targetOrigin?: string }
       if (manifest.targetOrigin === hostname) {

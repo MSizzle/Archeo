@@ -332,8 +332,8 @@ cli
       if (opts.resume) {
         const { latestSessionForHost, readResumeState } = await import('../agent/resume.ts')
         const hostname = new URL(url).hostname
-        const priorDir = latestSessionForHost('.archeo/captures', hostname)
-        if (priorDir && priorDir !== store.dir) {
+        const priorDir = latestSessionForHost('.archeo/captures', hostname, store.dir)
+        if (priorDir) {
           const loaded = readResumeState(priorDir)
           if (loaded) {
             seed = loaded
