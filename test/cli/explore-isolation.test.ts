@@ -91,3 +91,14 @@ describe('archeo explore — recordStopReason called (06-01)', () => {
     )
   })
 })
+
+// 06-04: pause flag wired into runExplore (source-inspection pin)
+describe('archeo explore — pause flag + resume wired (06-04)', () => {
+  test('explore.ts wires the pause flag controls to attachInterceptor', () => {
+    const src = readFileSync(EXPLORE_PATH, 'utf8')
+    assert.match(src, /isPaused/, 'pause flag variable present')
+    assert.match(src, /authControls/, 'authControls wired')
+    assert.match(src, /writeResumeState/, 'writeResumeState called for persistResume')
+    assert.match(src, /onAuthExpired/, 'onAuthExpired wired in runExplore')
+  })
+})

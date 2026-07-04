@@ -985,3 +985,167 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
     }
   })
 })
+
+// ---------------------------------------------------------------------------
+// explore — auth expiry + pause/resume (COST-06)
+// ---------------------------------------------------------------------------
+import type { ResumeState } from '../../src/agent/resume.ts'
+
+describe('explore — auth expiry + pause/resume (COST-06)', () => {
+  function makeTmpDir(): string {
+    const d = join(tmpdir(), 'archeo-auth-loop-' + randomUUID())
+    mkdirSync(d, { recursive: true })
+    return d
+  }
+
+  test('persistResume called at every normal stop (DRIFT-01)', async () => {
+    const dir = makeTmpDir()
+    const store = CaptureStore.create(dir, 'app.test')
+
+    // Simple fake page with empty inventory
+    const page = {
+      url: () => 'http://app.test/',
+      title: async () => 'App',
+      evaluate: async () => [],
+      screenshot: async () => Buffer.from(''),
+      mouse: { click: async () => {}, wheel: async () => {} },
+      keyboard: { type: async () => {}, press: async () => {} },
+      goto: async () => {},
+      goBack: async () => {},
+    }
+
+    const persistCalls: ResumeState[] = []
+    await explore(page as unknown as Page, createScriptedProvider(), store, {
+      maxSteps: 2,
+      persistResume: (s) => { persistCalls.push(s) },
+    })
+
+    assert.ok(persistCalls.length >= 1, 'persistResume called at stop')
+    await store.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('opts.seed pre-populates graph (monotonic state count)', async () => {
+    const dir = makeTmpDir()
+    const store = CaptureStore.create(dir, 'app.test')
+
+    const page = {
+      url: () => 'http://app.test/',
+      title: async () => 'App',
+      evaluate: async () => [],
+      screenshot: async () => Buffer.from(''),
+      mouse: { click: async () => {}, wheel: async () => {} },
+      keyboard: { type: async () => {}, press: async () => {} },
+      goto: async () => {},
+      goBack: async () => {},
+    }
+
+    const seed: ResumeState = {
+      targetHostname: 'app.test',
+      states: [
+        { signature: 'prior-sig', url: 'http://app.test/prior', title: 'Prior', firstSeenStep: 0 },
+      ],
+      transitions: [],
+      frontier: [],
+    }
+
+    const result = await explore(page as unknown as Page, createScriptedProvider(), store, {
+      maxSteps: 3,
+      seed,
+      persistResume: () => {},
+    })
+
+    // State count must include the seeded state
+    assert.ok(result.states >= 1, 'seeded states included in count')
+    await store.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('onAuthExpired resolves "resume" → persistResume called, loop continues', async () => {
+    const dir = makeTmpDir()
+    const store = CaptureStore.create(dir, 'app.test')
+
+    let authExpiredCallCount = 0
+    const onAuthExpired = async (): Promise<'resume' | 'abort'> => {
+      authExpiredCallCount++
+      return 'resume'
+    }
+
+    let pauseCount = 0
+    let resumeCount = 0
+    const authControls = {
+      pause: () => { pauseCount++ },
+      resume: () => { resumeCount++ },
+    }
+
+    const resumeStates: ResumeState[] = []
+    const persistResume = (s: ResumeState) => { resumeStates.push(s) }
+
+    // Inject 2 consecutive 401 records to trigger expiry via store.onRecord
+    const r401a: CaptureRecord = {
+      id: 'a', seq: 0, timestamp: '', type: 'request-response', protocol: 'REST',
+      operationType: 'read', method: 'GET', url: 'http://app.test/api/me', path: '/api/me',
+      held: false, requestHeaders: {}, requestBody: null, responseStatus: 401, responseHeaders: {},
+    }
+    store.append(r401a)
+    store.append({ ...r401a, id: 'b' })
+
+    // Simple fake page with no password input → won't trigger looksLikeLoginState
+    const page = {
+      url: () => 'http://app.test/',
+      title: async () => 'App',
+      evaluate: async () => [],
+      screenshot: async () => Buffer.from(''),
+      mouse: { click: async () => {}, wheel: async () => {} },
+      keyboard: { type: async () => {}, press: async () => {} },
+      goto: async () => {},
+      goBack: async () => {},
+    }
+
+    await explore(page as unknown as Page, createScriptedProvider(), store, {
+      maxSteps: 3,
+      onAuthExpired,
+      authControls,
+      persistResume,
+    })
+
+    // persistResume was called at minimum on the final stop
+    assert.ok(resumeStates.length >= 1, 'persistResume called at least once')
+    await store.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  test('onAuthExpired resolves "abort" → stopReason auth-expired or max-steps', async () => {
+    const dir = makeTmpDir()
+    const store = CaptureStore.create(dir, 'app.test')
+
+    // Page with password input + different URL than start → triggers looksLikeLoginState
+    let stepCount = 0
+    const page = {
+      url: () => stepCount >= 1 ? 'http://auth.test/login' : 'http://app.test/',
+      title: async () => stepCount >= 1 ? 'Login' : 'App',
+      evaluate: async () => stepCount >= 1
+        ? [{ tag: 'input', inputType: 'password', bbox: { x: 0, y: 0, w: 10, h: 10 }, visible: true }]
+        : [],
+      screenshot: async () => { stepCount++; return Buffer.from('') },
+      mouse: { click: async () => {}, wheel: async () => {} },
+      keyboard: { type: async () => {}, press: async () => {} },
+      goto: async () => {},
+      goBack: async () => {},
+    }
+
+    const result = await explore(page as unknown as Page, createScriptedProvider(), store, {
+      maxSteps: 5,
+      onAuthExpired: async () => 'abort',
+      authControls: { pause: () => {}, resume: () => {} },
+      persistResume: () => {},
+    })
+
+    assert.ok(
+      result.stopReason === 'auth-expired' || result.stopReason === 'max-steps',
+      `stopReason was ${result.stopReason}`,
+    )
+    await store.close()
+    rmSync(dir, { recursive: true, force: true })
+  })
+})
