@@ -7,3 +7,6 @@ dist/
 # Session dirs contain live account traffic even after redaction.
 # .archeo/ already covers this; archeo-captures/ is an alias guard.
 archeo-captures/
+
+# Stray build-prompt exports dropped into the repo root (browser downloads).
+archeo-build-prompt*.md
