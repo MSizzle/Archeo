@@ -364,7 +364,24 @@ dogfood on that pair (the genuine 08-02 finding, closed).
   4. `examples/` is regenerated from real autonomous runs against the drivable app, with provenance;
      BUILD-01 is re-proven on a vision-drivable app
 
-**Plans**: TBD (planned at Phase 10 kickoff)
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 10-01-PLAN.md — Build the canonical vision-drivable demo app at `examples/demo-app/` (real
+  `<a href>` multi-page nav + a form + REST/GraphQL/JSON-RPC + held writes + obviously-fake seed
+  data; node:http zero-dep) + a live drivability harness that runs the real `archeo explore` and
+  asserts steps>0 + multiple states + full protocol surface (the exact thing 03-04 failed), floor
+  clean (FIX-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 10-02-PLAN.md — Generate the real spec (autonomous `archeo explore` + manual `archeo <url>`);
+  re-prove BUILD-01 via a fresh spec-only builder → `examples/demo-app/rebuild/`; run the authentic
+  `archeo compare original rebuild` + a fully-empty self-compare control (floor ON both); regenerate
+  `examples/` (manual spec + autonomous spec + `examples/compare-demo-app/`) with provenance; CLOSE
+  Phase 10 (FIX-01)
 
 ### Phase 11: Spec-quality Enrichment
 
@@ -392,7 +409,7 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
-| 10. Vision-drivable Demo Fixtures | 0/TBD | Not started | — |
+| 10. Vision-drivable Demo Fixtures | 0/2 | Not started | — |
 | 11. Spec-quality Enrichment | 0/TBD | Not started | — |
 
 **Milestone v1.1 status: executing — current focus Phase 10 (Vision-drivable Demo Fixtures).**
