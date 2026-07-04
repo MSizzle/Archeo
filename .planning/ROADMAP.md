@@ -270,7 +270,16 @@ Plans:
   1. Pointing Archeo at both an original app and a rebuilt version produces a diff report identifying endpoints, flows, and shapes where behavior diverges
   2. The capture and exploration layers accept a second target URL and run the same exploration session against it, enabling side-by-side comparison without duplicating codepaths
 
-**Plans**: TBD
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 08-01-PLAN.md — `archeo compare <urlA> <urlB>` command (thin wrapper over the shipped runExplore→generateSpec path + reused diffSpecs) + formatDivergence + compare-report.json + VALID-02 no-duplication structural proof (VALID-01, VALID-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-02-PLAN.md — Live dogfood: `archeo compare` against the real 03-04 original+rebuild pair (MATCH on faithful surface + FLAG the documented differences) + self-compare control + floor proof + phase & PROJECT close (VALID-01 live)
 
 ## Progress
 
@@ -286,4 +295,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
 | 7. Open Source Readiness | 3/3 | Complete | 2026-07-04 |
-| 8. Differential Validation | 0/TBD | Not started | - |
+| 8. Differential Validation | 0/2 | Not started | - |
