@@ -32,9 +32,10 @@ import { attachNavigationTracker } from '../capture/navigation.ts'
 import { writeSpec } from '../spec/generator.ts'
 import { explore } from '../agent/loop.ts'
 import type { StepEvent } from '../agent/loop.ts'
+import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts'
 import { startScreencast } from '../agent/screencast.ts'
 
-/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02). */
+/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03). */
 interface DashboardHandle {
   port?: number
   close(): Promise<void>
@@ -44,6 +45,10 @@ interface DashboardHandle {
   sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void
   sendHeldBeat(info: { path?: string; count: number }): void
   sendSkip(info: { count: number }): void
+  /** DASH-08 (06-03): muted recoverable error event — no terminal write, aggregated in snapshot. */
+  sendError(entry: unknown): void
+  /** DASH-08 (06-03): loud run-halting event — dashboard shows prominent banner. */
+  sendHalt(info: { class: string; message: string }): void
 }
 
 /**
@@ -209,6 +214,18 @@ export async function runExplore(
         dashboard.sendSkip({ count: liveSkipCount })
       }
     } : undefined,
+    // DASH-08 (06-03): recoverable errors go silently to the dashboard issues log only.
+    onError: dashboard ? (entry: IssueLogEntry) => {
+      dashboard.sendError(entry)
+    } : undefined,
+    // DASH-08 (06-03): halting errors: dashboard prominent banner + one terminal line.
+    onHalt: dashboard ? (info: { class: ErrorClass; message: string }) => {
+      dashboard.sendHalt(info)
+      process.stdout.write(`[archeo] run halted: ${info.class} — ${info.message}\n`)
+    } : (info: { class: ErrorClass; message: string }) => {
+      // No dashboard: still print the terminal line so non-dashboard runs aren't silent.
+      process.stdout.write(`[archeo] run halted: ${info.class} — ${info.message}\n`)
+    },
   })
 
   // Record the stop reason into the manifest (06-01 COST-01).

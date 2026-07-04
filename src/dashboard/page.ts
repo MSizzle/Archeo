@@ -204,9 +204,66 @@ export function renderPage(): string {
       font-weight: 700;
       font-size: 0.85rem;
     }
+
+    /* DASH-08 (06-03): run-halt banner — prominent, hidden until halt fires */
+    #haltBanner {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      background: #450a0a;
+      border: 1px solid #dc2626;
+      border-radius: 8px;
+      padding: 12px 18px;
+      margin-bottom: 24px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+    }
+    #haltBanner.visible { display: flex; }
+    #haltBanner .halt-label {
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: #f87171;
+    }
+
+    /* DASH-08 (06-03): issues panel — muted, collapsed */
+    #issuesPanel {
+      margin-top: 12px;
+      border-top: 1px solid #27272a;
+      padding-top: 10px;
+    }
+    #issuesSummary {
+      cursor: pointer;
+      font-size: 0.75rem;
+      color: #71717a;
+      list-style: none;
+      user-select: none;
+    }
+    #issuesSummary:hover { color: #a1a1aa; }
+    #issuesList {
+      list-style: none;
+      max-height: 150px;
+      overflow-y: auto;
+      margin-top: 8px;
+    }
+    #issuesList li {
+      font-size: 0.72rem;
+      color: #71717a;
+      padding: 3px 0;
+      border-bottom: 1px solid #27272a;
+      line-height: 1.4;
+      font-family: 'Menlo', 'Consolas', monospace;
+    }
+    #issuesList li:last-child { border-bottom: none; }
   </style>
 </head>
 <body>
+  <!-- DASH-08 (06-03): run-halt banner — shown prominently when a halting error fires -->
+  <div id="haltBanner" role="alert">
+    <span class="halt-label">Run Halted</span>
+    <span id="haltMessage">unknown error</span>
+  </div>
+
   <header>
     <span class="dot" id="dot"></span>
     <h1>Archeo — Live Discovery</h1>
@@ -245,6 +302,11 @@ export function renderPage(): string {
       <div class="val" id="modelCallsSkipped">0</div>
       <div class="sub">change detector</div>
     </div>
+    <div class="card">
+      <div class="lbl">Issues</div>
+      <div class="val" id="issuesCount">0</div>
+      <div class="sub">recovered errors</div>
+    </div>
   </div>
 
   <!-- v2 panels row -->
@@ -279,6 +341,14 @@ export function renderPage(): string {
       <span id="beat">
         &#9888; <span id="heldCount">0</span> write held — nothing reached the server
       </span>
+
+      <!-- DASH-08 (06-03): muted collapsed issues log -->
+      <div id="issuesPanel">
+        <details>
+          <summary id="issuesSummary">issues (<span id="issuesPanelCount">0</span>)</summary>
+          <ul id="issuesList"></ul>
+        </details>
+      </div>
     </div>
   </div>
 
@@ -294,6 +364,12 @@ export function renderPage(): string {
     var reasoningList = document.getElementById('reasoning');
     var beatEl = document.getElementById('beat');
     var heldCountEl = document.getElementById('heldCount');
+    // DASH-08 (06-03): halt banner + issues panel
+    var haltBanner = document.getElementById('haltBanner');
+    var haltMessageEl = document.getElementById('haltMessage');
+    var issuesCountEl = document.getElementById('issuesCount');
+    var issuesPanelCountEl = document.getElementById('issuesPanelCount');
+    var issuesList = document.getElementById('issuesList');
 
     // ---------------------------------------------------------------------------
     // DASH-02: discovery counters
@@ -303,6 +379,11 @@ export function renderPage(): string {
         var el = document.getElementById(f);
         if (el) el.textContent = s[f] != null ? s[f] : 0;
       });
+      // DASH-08 (06-03): apply accumulated issuesCount for late-connecting clients
+      if (s.issuesCount != null) {
+        if (issuesCountEl) issuesCountEl.textContent = s.issuesCount;
+        if (issuesPanelCountEl) issuesPanelCountEl.textContent = s.issuesCount;
+      }
       renderEndpoints(s.recentEndpoints || []);
 
       // DASH-04: apply last frame from snapshot (late-connect replay)
@@ -519,6 +600,30 @@ export function renderPage(): string {
       var parsed = JSON.parse(e.data);
       var el = document.getElementById('modelCallsSkipped');
       if (el) el.textContent = parsed.count;
+    });
+
+    // DASH-08 (06-03): muted recoverable error — increment issues count, log in collapsed panel
+    es.addEventListener('error', function(e) {
+      var parsed = JSON.parse(e.data);
+      // Increment displayed count
+      var cur = parseInt((issuesCountEl && issuesCountEl.textContent) || '0', 10) || 0;
+      cur++;
+      if (issuesCountEl) issuesCountEl.textContent = cur;
+      if (issuesPanelCountEl) issuesPanelCountEl.textContent = cur;
+      // Append entry to collapsed log — textContent only (error messages are target-derived)
+      if (issuesList) {
+        var li = document.createElement('li');
+        li.textContent = '[' + (parsed.class || 'error') + '] step ' + (parsed.step || 0) + ': ' + (parsed.message || '');
+        issuesList.appendChild(li);
+        issuesList.scrollTop = issuesList.scrollHeight;
+      }
+    });
+
+    // DASH-08 (06-03): loud run-halting event — show prominent banner
+    es.addEventListener('halt', function(e) {
+      var parsed = JSON.parse(e.data);
+      if (haltMessageEl) haltMessageEl.textContent = (parsed.class || 'halted') + ': ' + (parsed.message || '');
+      if (haltBanner) haltBanner.classList.add('visible');
     });
 
     es.onerror = function() {

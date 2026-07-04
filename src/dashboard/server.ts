@@ -30,6 +30,7 @@ import { templatePath } from '../spec/templater.ts';
 import { renderPage } from './page.ts';
 import type { CaptureStore } from '../capture/store.ts';
 import type { CaptureRecord } from '../types/index.ts';
+import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts';
 
 // ---------------------------------------------------------------------------
 // DashboardSnapshot — aggregate shape pushed to SSE clients
@@ -52,6 +53,8 @@ interface DashboardSnapshot {
   lastFrame: string | null;
   /** COST-02 (06-02): cumulative vision-model calls skipped by change detector. Absent until first skip. */
   modelCallsSkipped?: number;
+  /** DASH-08 (06-03): cumulative recoverable issues logged via sendError. 0 until first sendError. */
+  issuesCount: number;
 }
 
 const MAX_RECENT_ENDPOINTS = 10;
@@ -90,6 +93,10 @@ export function startDashboard(
   sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void;
   sendHeldBeat(info: { path?: string; count: number }): void;
   sendSkip(info: { count: number }): void;
+  /** DASH-08 (06-03): muted recoverable error event + aggregate (no terminal write). */
+  sendError(entry: IssueLogEntry): void;
+  /** DASH-08 (06-03): loud run-halting event (browser gone, target unreachable). */
+  sendHalt(info: { class: ErrorClass; message: string }): void;
 }> {
   // ---------------------------------------------------------------------------
   // In-memory aggregates (DASH-02: counts climb as discovery progresses)
@@ -117,6 +124,8 @@ export function startDashboard(
   let lastFrame: string | null = null;
   // COST-02 (06-02): cumulative skipped model calls
   let modelCallsSkipped: number | undefined = undefined;
+  // DASH-08 (06-03): cumulative recoverable issue count
+  let issuesCount = 0;
 
   // ---------------------------------------------------------------------------
   // SSE client management
@@ -138,6 +147,8 @@ export function startDashboard(
       coverageTransitions: coverageTransitions.slice(),
       // DASH-04: last frame for late-connecting clients
       lastFrame,
+      // DASH-08 (06-03): accumulated recoverable issue count (0 = no issues yet)
+      issuesCount,
     };
     // COST-02 (06-02): only include modelCallsSkipped when sendSkip has been called
     if (modelCallsSkipped !== undefined) {
@@ -205,6 +216,37 @@ export function startDashboard(
     modelCallsSkipped = info.count;
     for (const client of clients) {
       writeEvent(client, 'skip', info);
+    }
+  }
+
+  /**
+   * DASH-08 (06-03): emit a muted 'error' event for a recoverable issue.
+   * Increments the issues aggregate in the snapshot (late-connecting clients see it).
+   * Wrapped in try/catch so a dashboard failure never crashes the run (T-03-12).
+   */
+  function sendError(entry: IssueLogEntry): void {
+    try {
+      issuesCount++;
+      for (const client of clients) {
+        writeEvent(client, 'error', entry);
+      }
+    } catch {
+      // Dashboard failure must not propagate to the capture session (T-03-12).
+    }
+  }
+
+  /**
+   * DASH-08 (06-03): emit a loud 'halt' event for a run-halting condition.
+   * The dashboard renders a prominent banner + run-state change on this event.
+   * Wrapped in try/catch so a dashboard failure never crashes the run (T-03-12).
+   */
+  function sendHalt(info: { class: ErrorClass; message: string }): void {
+    try {
+      for (const client of clients) {
+        writeEvent(client, 'halt', info);
+      }
+    } catch {
+      // Dashboard failure must not propagate to the capture session (T-03-12).
     }
   }
 
@@ -344,6 +386,8 @@ export function startDashboard(
         sendReasoning,
         sendHeldBeat,
         sendSkip,
+        sendError,
+        sendHalt,
       });
     });
   });
