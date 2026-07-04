@@ -230,7 +230,7 @@ Plans:
 
 **Wave 7** *(closure — fixes from 06-06 live findings)*
 
-- [ ] 06-07-PLAN.md — Fix auth-resume readline race, zero-budget coercion, --resume self-seed (COST-06/01, DRIFT-01)
+- [x] 06-07-PLAN.md — Fix auth-resume readline race, zero-budget coercion, --resume self-seed (COST-06/01, DRIFT-01) (completed 2026-07-04: 3 bugs fixed TDD-first, 10 new tests, 858/858 suite green)
 
 ### Phase 7: Open Source Readiness
 

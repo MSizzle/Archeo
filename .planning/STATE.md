@@ -10,7 +10,7 @@ progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 26
-  completed_plans: 25
+  completed_plans: 26
   percent: 96
 ---
 
@@ -21,7 +21,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 06 (Hardening) IN PROGRESS — 5/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface, 06-04 auth pause/resume + incremental --resume + archeo diff drift, 06-05 --allow-writes + CAP-06 external-command redaction seam). Next: 06-06 (autonomous live verification + phase close).
+**Current focus:** Phase 06 (Hardening) IN PROGRESS — 06-07 complete (promptAuthResume race fix COST-06, parseFiniteFlag zero-budget COST-01, latestSessionForHost excludeDir DRIFT-01). NOTE: Phase 6 is NOT yet closed — 06-06 live verification stages (the autonomous live test against real cross-document navigation) still need to run. Next: 06-06 live stages.
 
 ## Current Position
 
@@ -332,6 +332,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-07-04T01:51:15.594Z
-Stopped at: Phase 2 context gathered
+Last session: 2026-07-04T00:00:00.000Z
+Stopped at: 06-07 complete — three bugs fixed TDD-first (COST-06/01, DRIFT-01); Phase 6 NOT yet closed (06-06 live stages pending)
 Resume file: None
