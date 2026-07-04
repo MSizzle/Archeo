@@ -77,20 +77,45 @@ export interface DataModel {
 /**
  * UI state inferred from a main-frame navigation record.
  * SPEC-05: state name derived from the templated page path (e.g. 'users-detail').
+ *
+ * SPEC-08 (11-01):
+ *   finding #4 — pathTemplate deduplicates parameterized pages: /app/users/1,2,3 → ONE
+ *   state with pathTemplate '/app/users/{id}', not three separate states.
+ *   finding #5 — kind distinguishes page destinations from API/redirect destinations.
  */
 export interface FlowState {
   name: string;
-  path: string; // the raw path that produced this state name
+  /**
+   * Templated path — the dedup key. E.g. '/app/users/{id}'.
+   * Multiple concrete paths sharing the same template map to ONE state (SPEC-08, finding #4).
+   */
+  pathTemplate: string;
+  /** A representative concrete example path (first observed). E.g. '/app/users/1'. */
+  path: string;
+  /**
+   * 'api' when the state destination matches a captured API endpoint path template or begins
+   * with a known API prefix (/api, /graphql, /rpc). 'page' otherwise. (SPEC-08, finding #5)
+   */
+  kind: 'page' | 'api';
 }
 
 /**
  * A page-to-page transition inferred from consecutive navigation records.
  * SPEC-05: from/to are state names; count = how many times this transition was observed.
+ * SPEC-08 (11-01): back:true marks observed back/return navigations (dual-signal detection).
  */
 export interface FlowTransition {
   from: string;
   to: string;
   count: number;
+  /**
+   * true when this transition is a detected back/return navigation (SPEC-08, 11-01).
+   * Present+true only for back-edges; absent for forward transitions (additive — no consumer breaks).
+   * Detected by either signal:
+   *   (a) a back agent-step (agentAction:'back') occurred from the 'from' state, or
+   *   (b) the transition reverses a previously-observed forward transition (A→B already seen → B→A is back).
+   */
+  back?: boolean;
 }
 
 /**

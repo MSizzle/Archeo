@@ -926,6 +926,282 @@ describe('generateSpec — allowWrites propagation (06-05)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// 11-01: SPEC-08 — flow enrichment: templated states + kind + back-edges
+// ---------------------------------------------------------------------------
+
+/** A minimal agent-step record for back-edge signal testing. */
+function makeAgentStepRecord(seq: number, agentAction: string): Record<string, unknown> {
+  return {
+    id: `step-${seq}`,
+    seq,
+    timestamp: '2026-07-03T10:02:00.000Z',
+    type: 'agent-step',
+    protocol: 'unknown',
+    operationType: 'read',
+    method: '',
+    url: '',
+    path: '',
+    held: false,
+    requestHeaders: {},
+    requestBody: null,
+    agentAction,
+  };
+}
+
+describe('11-01 SPEC-08 — flow enrichment: templated states + kind + back-edges', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir11(): string { const d = makeSessionDir(); dirs.push(d); return d; }
+
+  // -------------------------------------------------------------------------
+  // finding #4: parameterized nav pages collapse to ONE templated state
+  // -------------------------------------------------------------------------
+  test('11-01 finding #4: three navigations to /app/users/1,2,3 → ONE templated state', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    const records = [
+      makeNavRecord('/app/users/1', 1),
+      makeNavRecord('/app/users/2', 2),
+      makeNavRecord('/app/users/3', 3),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3 });
+
+    const spec = generateSpec(dir);
+
+    assert.strictEqual(spec.flows.states.length, 1,
+      'three navigations to parameterized paths must collapse to ONE state (finding #4)');
+
+    const state = spec.flows.states[0];
+    assert.strictEqual(state.pathTemplate, '/app/users/{id}',
+      'FlowState.pathTemplate must be the templated path, not the concrete path');
+    assert.strictEqual(state.path, '/app/users/1',
+      'FlowState.path must be the first concrete example path');
+    assert.ok(state.name.includes('detail') || state.name.includes('app'),
+      `FlowState.name must be derived from the templated path; got: ${state.name}`);
+  });
+
+  test('11-01 finding #4: coverage.statesDiscovered reflects de-inflated count', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    // Navigate to same parameterized template 3 times + one distinct route
+    const records = [
+      makeNavRecord('/app/users/1', 1),
+      makeNavRecord('/app/users/2', 2),
+      makeNavRecord('/app/users/3', 3),
+      makeNavRecord('/app/users', 4),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 4 });
+
+    const spec = generateSpec(dir);
+
+    assert.strictEqual(spec.coverage.statesDiscovered, 2,
+      'statesDiscovered must be 2 (one templated /app/users/{id} + one /app/users), not 4');
+  });
+
+  // -------------------------------------------------------------------------
+  // finding #5: state kind = 'page' | 'api'
+  // -------------------------------------------------------------------------
+  test('11-01 finding #5: FlowState.kind is page for page routes, api for /api/* routes', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    const records = [
+      makeNavRecord('/users', 1),
+      makeNavRecord('/api/settings', 2),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 2 });
+
+    const spec = generateSpec(dir);
+
+    const usersState = spec.flows.states.find(s => s.pathTemplate === '/users');
+    const apiState = spec.flows.states.find(s => s.pathTemplate === '/api/settings');
+
+    assert.ok(usersState, '/users state must be present');
+    assert.strictEqual(usersState!.kind, 'page', '/users must have kind: "page"');
+
+    assert.ok(apiState, '/api/settings state must be present');
+    assert.strictEqual(apiState!.kind, 'api', '/api/settings must have kind: "api" (API prefix)');
+  });
+
+  test('11-01 finding #5: FlowState.kind=api when path matches a captured endpoint template', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    // A captured endpoint at /data (no standard api prefix)
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1, path: '/data', url: 'https://app.example.com/data',
+        responseBody: { value: 'number' } }),
+      makeNavRecord('/data', 2),
+      makeNavRecord('/home', 3),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3 });
+
+    const spec = generateSpec(dir);
+
+    const dataState = spec.flows.states.find(s => s.pathTemplate === '/data');
+    const homeState = spec.flows.states.find(s => s.pathTemplate === '/home');
+
+    assert.ok(dataState, '/data state must be present');
+    assert.strictEqual(dataState!.kind, 'api',
+      '/data must have kind: "api" because it matches a captured endpoint template');
+
+    assert.ok(homeState, '/home state must be present');
+    assert.strictEqual(homeState!.kind, 'page', '/home must have kind: "page"');
+  });
+
+  // -------------------------------------------------------------------------
+  // SPEC-08: back-edge detection — forward-only fixture (no false positives)
+  // -------------------------------------------------------------------------
+  test('11-01 SPEC-08: forward-only fixture produces zero back-edges (no false positives)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    const records = [
+      makeNavRecord('/pageA', 1),
+      makeNavRecord('/pageB', 2),
+      makeNavRecord('/pageC', 3),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3 });
+
+    const spec = generateSpec(dir);
+
+    const backEdges = spec.flows.transitions.filter(t => t.back === true);
+    assert.strictEqual(backEdges.length, 0,
+      'forward-only A→B→C navigation must produce ZERO back-edges');
+  });
+
+  // -------------------------------------------------------------------------
+  // SPEC-08: back-edge detection — signal (b): A→B→A pattern
+  // -------------------------------------------------------------------------
+  test('11-01 SPEC-08 signal (b): A→B→A pattern → B→A transition has back:true', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    const records = [
+      makeNavRecord('/pageA', 1),
+      makeNavRecord('/pageB', 2),
+      makeNavRecord('/pageA', 3),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 3 });
+
+    const spec = generateSpec(dir);
+
+    const pageAName = spec.flows.states.find(s => s.pathTemplate === '/pageA')?.name;
+    const pageBName = spec.flows.states.find(s => s.pathTemplate === '/pageB')?.name;
+    assert.ok(pageAName, '/pageA state must exist');
+    assert.ok(pageBName, '/pageB state must exist');
+
+    // A→B must be a forward transition
+    const forwardAB = spec.flows.transitions.find(t => t.from === pageAName && t.to === pageBName);
+    assert.ok(forwardAB, 'A→B transition must exist');
+    assert.ok(!forwardAB!.back, 'A→B must NOT be a back-edge (it is the forward direction)');
+
+    // B→A must be a back-edge (reverses the observed A→B forward transition — signal b)
+    const backBA = spec.flows.transitions.find(t => t.from === pageBName && t.to === pageAName);
+    assert.ok(backBA, 'B→A transition must exist (A→B→A was navigated)');
+    assert.strictEqual(backBA!.back, true,
+      'B→A must be flagged back:true — reverses a previously-observed forward A→B (signal b)');
+  });
+
+  // -------------------------------------------------------------------------
+  // SPEC-08: back-edge detection — signal (a): back agent-step
+  // -------------------------------------------------------------------------
+  test('11-01 SPEC-08 signal (a): back agent-step between two nav records → back:true on that transition', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    // Sequence: nav to A (seq 1) → nav to B (seq 3) → back agent-step (seq 5) → nav to A (seq 7)
+    const records = [
+      makeNavRecord('/pageA', 1),
+      makeNavRecord('/pageB', 3),
+      makeAgentStepRecord(5, 'back'),   // back action fires between seq 3 and seq 7
+      makeNavRecord('/pageA', 7),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 4 });
+
+    const spec = generateSpec(dir);
+
+    const pageAName = spec.flows.states.find(s => s.pathTemplate === '/pageA')?.name;
+    const pageBName = spec.flows.states.find(s => s.pathTemplate === '/pageB')?.name;
+    assert.ok(pageAName, '/pageA state must exist');
+    assert.ok(pageBName, '/pageB state must exist');
+
+    // The A→B transition (no back action between seq 1 and seq 3) must be forward
+    const forwardAB = spec.flows.transitions.find(t => t.from === pageAName && t.to === pageBName);
+    assert.ok(forwardAB, 'A→B transition must exist');
+    assert.ok(!forwardAB!.back, 'A→B must NOT be a back-edge');
+
+    // The B→A transition (back agent-step at seq 5 is between nav seq 3 and nav seq 7) must be back:true
+    const backBA = spec.flows.transitions.find(t => t.from === pageBName && t.to === pageAName);
+    assert.ok(backBA, 'B→A transition must exist');
+    assert.strictEqual(backBA!.back, true,
+      'B→A must be back:true — back agent-step (seq 5) is between the nav records (seq 3 and seq 7) (signal a)');
+  });
+
+  // -------------------------------------------------------------------------
+  // SPEC-08: flows block recursive no-raw-value assertion
+  // -------------------------------------------------------------------------
+  test('11-01 SPEC-08: flows block is recursively secret-clean (no [REDACTED] or raw values)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir11();
+
+    const SECRET = 'SUPERSECRET_TOKEN_abc123';
+    const records = [
+      makeNavRecord('/pageA', 1),
+      makeNavRecord('/pageB', 2),
+      // Agent-step with a secret in reasoning — must NOT leak into flows block
+      { ...makeAgentStepRecord(3, 'click'), agentReasoning: `clicked button — ${SECRET}` },
+      makeNavRecord('/pageA', 4),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 4 });
+
+    const spec = generateSpec(dir);
+    const flowsJson = JSON.stringify(spec.flows);
+
+    assert.ok(!flowsJson.includes(SECRET),
+      `flows block must not contain planted secret "${SECRET}"`);
+    assert.ok(!flowsJson.includes('[REDACTED]'),
+      'flows block must not contain [REDACTED] markers (only structural data allowed)');
+
+    // Flows block should only contain: state names, templated paths, example paths,
+    // kind strings ('page'|'api'), transition names, counts, and optional back:true.
+    // Verify each state field is one of the allowed structural types.
+    for (const state of spec.flows.states) {
+      assert.ok(typeof state.name === 'string', 'state.name must be a string');
+      assert.ok(typeof state.pathTemplate === 'string', 'state.pathTemplate must be a string');
+      assert.ok(typeof state.path === 'string', 'state.path must be a string');
+      assert.ok(state.kind === 'page' || state.kind === 'api', 'state.kind must be page or api');
+    }
+    for (const t of spec.flows.transitions) {
+      assert.ok(typeof t.from === 'string', 'transition.from must be a string');
+      assert.ok(typeof t.to === 'string', 'transition.to must be a string');
+      assert.ok(typeof t.count === 'number', 'transition.count must be a number');
+      if (t.back !== undefined) {
+        assert.strictEqual(t.back, true, 'transition.back must be true when present');
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GATE-03 guard: generator must not import HTTP client or Playwright
 // ---------------------------------------------------------------------------
 describe('GATE-03 guard — generator source', () => {

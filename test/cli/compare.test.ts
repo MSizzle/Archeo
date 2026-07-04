@@ -269,7 +269,7 @@ describe('runCompare — fake runner with fixture specs', () => {
       responseBodyShape: { name: 'string', email: 'string' },
       polling: false,
     }],
-    flows: { states: [{ name: 'root', path: '/' }], transitions: [] },
+    flows: { states: [{ name: 'root', pathTemplate: '/', path: '/', kind: 'page' as const }], transitions: [] },
   })
 
   // Fixture SpecB (rebuild): GET /api/users with {name: 'string'} (email dropped)
@@ -303,7 +303,7 @@ describe('runCompare — fake runner with fixture specs', () => {
         polling: false,
       },
     ],
-    flows: { states: [{ name: 'root', path: '/' }], transitions: [] },
+    flows: { states: [{ name: 'root', pathTemplate: '/', path: '/', kind: 'page' as const }], transitions: [] },
   })
 
   test('exploreTarget is called exactly twice', async () => {

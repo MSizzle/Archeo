@@ -48,7 +48,7 @@ function makeSpec(overrides: {
     dataModels: [],
     endpoints: overrides.endpoints ?? [makeEndpoint()],
     flows: {
-      states: overrides.states ?? [{ name: 'home', path: '/' }],
+      states: overrides.states ?? [{ name: 'home', pathTemplate: '/', path: '/', kind: 'page' as const }],
       transitions: [],
     },
     rules: [],
@@ -135,15 +135,15 @@ describe('diffSpecs — endpoint additions and removals', () => {
 
 describe('diffSpecs — removed pages', () => {
   test('flow state in A absent from B → removedPages', () => {
-    const a = makeSpec({ states: [{ name: 'home', path: '/' }, { name: 'users', path: '/users' }] })
-    const b = makeSpec({ states: [{ name: 'home', path: '/' }] })
+    const a = makeSpec({ states: [{ name: 'home', pathTemplate: '/', path: '/', kind: 'page' as const }, { name: 'users', pathTemplate: '/users', path: '/users', kind: 'page' as const }] })
+    const b = makeSpec({ states: [{ name: 'home', pathTemplate: '/', path: '/', kind: 'page' as const }] })
     const report = diffSpecs(a, b)
     assert.deepEqual(report.removedPages, ['users'])
   })
 
   test('new page in B only → not in removedPages', () => {
-    const a = makeSpec({ states: [{ name: 'home', path: '/' }] })
-    const b = makeSpec({ states: [{ name: 'home', path: '/' }, { name: 'new-page', path: '/new' }] })
+    const a = makeSpec({ states: [{ name: 'home', pathTemplate: '/', path: '/', kind: 'page' as const }] })
+    const b = makeSpec({ states: [{ name: 'home', pathTemplate: '/', path: '/', kind: 'page' as const }, { name: 'new-page', pathTemplate: '/new', path: '/new', kind: 'page' as const }] })
     const report = diffSpecs(a, b)
     assert.deepEqual(report.removedPages, [])
   })
