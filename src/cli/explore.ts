@@ -61,11 +61,20 @@ export function promptAuthResume(
 ): Promise<'resume' | 'abort'> {
   const rl = createInterface({ input, output })
   return new Promise<'resume' | 'abort'>((resolve) => {
-    rl.once('line', (line) => {
-      rl.close() // BUG (COST-06): fires 'close' synchronously — close handler resolves 'abort' first
-      resolve(line.trim().toLowerCase() === 'abort' ? 'abort' : 'resume')
+    // answered guard (04-01 pattern): rl.close() emits 'close' synchronously;
+    // without this flag, the close handler would resolve 'abort' before the
+    // line handler can resolve the real answer.
+    let answered = false
+    rl.once('close', () => {
+      if (!answered) {
+        resolve('abort') // EOF without a line → fail safe to 'abort'
+      }
     })
-    rl.once('close', () => resolve('abort'))
+    rl.once('line', (line) => {
+      answered = true
+      resolve(line.trim().toLowerCase() === 'abort' ? 'abort' : 'resume')
+      rl.close() // safe: 'close' fires after resolve; answered=true blocks double-resolve
+    })
   })
 }
 
@@ -310,17 +319,12 @@ export async function runExplore(
         process.stderr.write(`[archeo] resume persist error: ${e instanceof Error ? e.message : String(e)}\n`)
       }
     },
-    onAuthExpired: () => new Promise<'resume' | 'abort'>((resolve) => {
+    onAuthExpired: () => {
       process.stdout.write(
         '\n[archeo] Session expired — log in in the browser, then press Enter to resume (or type "abort" to stop): '
       )
-      const rl = createInterface({ input: process.stdin, output: process.stdout })
-      rl.once('line', (line) => {
-        rl.close()
-        resolve(line.trim().toLowerCase() === 'abort' ? 'abort' : 'resume')
-      })
-      rl.once('close', () => resolve('abort'))
-    }),
+      return promptAuthResume(process.stdin, process.stdout)
+    },
     onStep: dashboard ? (s: StepEvent) => {
       // DASH-06: verbatim agent reasoning
       dashboard.sendReasoning({ stepIndex: s.stepIndex, action: s.action, reasoning: s.reasoning })
