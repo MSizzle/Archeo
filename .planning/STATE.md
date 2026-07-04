@@ -11,7 +11,7 @@ progress:
   completed_phases: 5
   total_plans: 26
   completed_plans: 24
-  percent: 63
+  percent: 92
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 06 (Hardening) IN PROGRESS — 3/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface). Next: 06-04 (session-expiry pause/resume, incremental --resume seeding, archeo diff drift).
+**Current focus:** Phase 06 (Hardening) IN PROGRESS — 4/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface, 06-04 auth pause/resume + incremental --resume + archeo diff drift). Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam).
 
 ## Current Position
 
-Phase: 06 (hardening) — IN PROGRESS (3/6)
-Plan: 4 of 6 — 06-03 complete
-Next: 06-04 (session-expiry pause/resume + incremental --resume seeding + archeo diff drift)
+Phase: 06 (hardening) — IN PROGRESS (4/6)
+Plan: 5 of 6 — 06-04 complete
+Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam)
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -301,7 +301,7 @@ Phase 05-01 execution decisions:
 
 ### Pending Todos
 
-None for 06-03. Next: 06-04 (session-expiry pause/resume + incremental --resume seeding + archeo diff drift).
+None for 06-04. Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam).
 
 ### Blockers/Concerns
 
