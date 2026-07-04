@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "09-02 COMPLETE — DOC-01 met: CONTRIBUTING.md test-layout diagram now matches the real test/ tree (added oss/, re-described types/ as the QUAL-02 guard, updated baseline sentence to 894). Bidirectional diagram↔tree diff empty. tsc exits 0, suite 894 (893 pass + 1 skip, 0 fail). Phase 9 COMPLETE (2/2). Next: Phase 10 (Vision-drivable Demo Fixtures)."
-last_updated: "2026-07-04T15:00:00.000Z"
+stopped_at: "10-01 COMPLETE — FIX-01 drivability closed: canonical vision-drivable demo app at examples/demo-app/ (real <a href> absolute-URL nav, 4 routes, settings form, REST+GraphQL+JSON-RPC, obviously-fake seed data, node:http zero-dep). Live harness: 22 steps, 7 states, 15 endpoints, empty-frontier stop, floor clean (mutations=0, destructiveHits=0). Post-gate: 894 (893 pass + 1 skip, 0 fail), tsc exit 0. Next: 10-02."
+last_updated: "2026-07-04T16:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 10 (Vision-drivable Demo Fixtures).** Phase 9 COMPLETE (2026-07-04): tsc 18 diagnostics → 0 (QUAL-01); QUAL-02 guard at test/types/typecheck.guard.ts; CONTRIBUTING diagram matches real test/ tree (DOC-01). All three Phase 9 requirements Complete. Start Phase 10 via `/gsd-plan-phase` or `/gsd-execute-phase`.
+**Current focus:** **MILESTONE v1.1 — Phase 10 Wave 1 DONE; advancing to 10-02.** 10-01 COMPLETE (2026-07-04): canonical vision-drivable demo app at examples/demo-app/ — 22 steps, 7 states, 15 endpoints, floor clean. FIX-01 drivability closed. Next: 10-02 (spec gen + BUILD-01 re-proof + compare + examples regeneration).
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **09 COMPLETE (2/2)** — moving to Phase 10 (Vision-drivable Demo Fixtures)
-Plan: Phase 10 planning pending
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 closed
+Phase: **10 executing (1/2 plans complete)**
+Plan: 10-02 (spec gen + BUILD-01 + compare + examples regeneration)
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9, Phase 10 Wave 1 closed
 Last activity: 2026-07-04
 
 Progress (v1.1): [███░░░░░░░] ~33% (1/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
@@ -468,6 +468,24 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   Phase 8 work). Suite count is unchanged by 09-01.
 - **test/types/ directory created** — satisfies D9-04: the `types/` row in the CONTRIBUTING diagram
   (previously stale, listed an absent dir) now refers to a real directory with the guard file.
+
+### Phase 10-01 execution decisions (FIX-01 — canonical vision-drivable demo app):
+
+- **Absolute URLs in `<a href>` required (D10-02 execution detail):** The autonomous loop's POLICY
+  navigate path calls `page.goto(href)` where `href = el.getAttribute('href')`. Playwright rejects
+  relative URLs in `page.goto` ("Protocol error (Page.navigate): Cannot navigate to invalid URL").
+  Fix: nav hrefs built from the HTTP `Host` request header (`origin = 'http://' + req.headers.host`).
+  This is the implementation detail that makes cross-document `<a href>` nav drivable by the policy
+  path. The scripted provider always returns `click` actions; the policy path uses `navigate` with
+  absolute hrefs after the change-detector skips the model call on revisiting the same route.
+- **Real cross-document `<a href>` navigation used (not SPA fallback, D10-06 primary path):**
+  The stop reason was `empty-frontier` (not `target-unreachable`), proving full cross-document nav
+  worked. `observeWithRecovery` handled context-destroyed errors silently.
+- **Drivability numbers:** 22 steps, 7 states discovered, 15 endpoints captured (including
+  POST /graphql, POST /rpc, 5 held writes), stop reason `empty-frontier`, floor clean
+  (mutations=0, destructiveHits=0). FIX-01 closed.
+- **app at examples/demo-app/ (D10-03):** canonical shippable location; harness in .planning/
+  references it by path. No ledger/monkeypatch coupling in the shipped app.
 
 ### Blockers/Concerns
 

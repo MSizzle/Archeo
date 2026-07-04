@@ -369,11 +369,11 @@ dogfood on that pair (the genuine 08-02 finding, closed).
 Plans:
 **Wave 1**
 
-- [ ] 10-01-PLAN.md — Build the canonical vision-drivable demo app at `examples/demo-app/` (real
+- [x] 10-01-PLAN.md — Build the canonical vision-drivable demo app at `examples/demo-app/` (real
   `<a href>` multi-page nav + a form + REST/GraphQL/JSON-RPC + held writes + obviously-fake seed
   data; node:http zero-dep) + a live drivability harness that runs the real `archeo explore` and
   asserts steps>0 + multiple states + full protocol surface (the exact thing 03-04 failed), floor
-  clean (FIX-01)
+  clean (FIX-01) — **DONE 2026-07-04: 22 steps, 7 states, 15 endpoints, floor clean, empty-frontier stop**
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
