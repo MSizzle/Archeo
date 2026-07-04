@@ -1,17 +1,17 @@
 ---
 gsd_state_version: 1.0
-milestone: v1.0
-milestone_name: milestone
-status: COMPLETE
-stopped_at: MILESTONE v1.0 COMPLETE — Phase 8 CLOSED (2/2). 08-02 live differential-validation dogfood PASS (real `archeo compare` in real headed Chromium, floor ON both; MATCH+FLAG with zero false positives; self-compare clean; both ledgers 0 mutations). All 8 phases + all 59 requirements Complete. 892 tests (891 pass + 1 skip, 0 fail).
-last_updated: "2026-07-04T00:00:00.000Z"
+milestone: v1.1
+milestone_name: enhancement-hygiene
+status: executing
+stopped_at: MILESTONE v1.1 OPENED (Phases 9–11, enhancement + hygiene). Phase 9 (type-safety & docs hygiene) planned — 09-CONTEXT + 09-01 (QUAL-01/QUAL-02) + 09-02 (DOC-01) written. Current focus Phase 9, 0/2 plans executed. Milestone v1.0 remains COMPLETE (all 8 phases + 59 requirements; 892 tests = 891 pass + 1 skip).
+last_updated: "2026-07-04T12:00:00.000Z"
 last_activity: 2026-07-04
 progress:
-  total_phases: 8
-  completed_phases: 8
-  total_plans: 32
-  completed_plans: 32
-  percent: 100
+  total_phases: 3
+  completed_phases: 0
+  total_plans: 2
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -21,16 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.0 COMPLETE.** All 8 phases + all 59 requirements Complete. The capture → spec → rebuild → differential-validation loop is closed and proven live. Next work is the non-blocking **v1.1 enhancement backlog** (see Accumulated Context) — GraphQL schema depth, flow back-edges, auth-semantics richness, the 18 pre-existing `tsc` diagnostics, the CONTRIBUTING test-layout diagram fix. No v1.0 gaps remain.
+**Current focus:** **MILESTONE v1.1 — Phase 9 (Type-safety & Docs Hygiene).** v1.0 is COMPLETE and stays complete; v1.1 clears the enhancement + hygiene backlog in three phases (9 → 10 → 11). Phase 9 first: drive `npx tsc --noEmit` to zero (18 diagnostics today: 1 in src/cli/index.ts + 17 in test/), add a typecheck regression guard, and fix the CONTRIBUTING test-layout diagram. Plans 09-01 (QUAL-01/QUAL-02) and 09-02 (DOC-01) are written and ready to execute.
 
 ## Current Position
 
-Phase: 08 (differential-validation) — **COMPLETE (2/2)** — final phase
-Plan: 08-02 COMPLETE (2026-07-04) — live differential-validation dogfood PASS; Phase 8 + milestone v1.0 CLOSED
-Status: **MILESTONE v1.0 COMPLETE** — all 8 phases done
+**Milestone:** v1.1 (enhancement + hygiene) — executing
+Phase: 09 (type-safety & docs hygiene) — **NOT STARTED (0/2)** — first v1.1 phase
+Plan: 09-01 and 09-02 planned (2026-07-04); execution pending
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved
 Last activity: 2026-07-04
 
-Progress: [██████████] 100% (8/8 phases complete — milestone v1.0 COMPLETE)
+Progress (v1.1): [░░░░░░░░░░] 0% (0/3 phases) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 

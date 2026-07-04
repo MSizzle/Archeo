@@ -300,3 +300,99 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 8. Differential Validation | 2/2 | Complete | 2026-07-04 |
 
 **All 8 phases Complete — milestone v1.0 COMPLETE (2026-07-04).**
+
+---
+
+# Milestone v1.1 — Enhancement + Hygiene
+
+**Opened 2026-07-04.** Clears the standing enhancement + hygiene backlog on top of a complete,
+live-verified v1.0. Three sequential phases; no breaking changes; every phase keeps the full suite
+green (baseline 892 = 891 pass + 1 documented skip) and every v1.0 safety guarantee intact (floor
+ON, CAP-05 fail-closed redaction, GATE-01/GATE-03). Sequencing: **9 → 10 → 11** (Phase 9 first — a
+green typecheck unblocks everything after it).
+
+## Phase Details (v1.1)
+
+### Phase 9: Type-safety & Docs Hygiene
+
+**Goal**: `npx tsc --noEmit` exits clean (0 diagnostics), a regression guard prevents it from
+silently drifting back, and the CONTRIBUTING test-layout diagram matches the real `test/` tree.
+**Mode:** mvp
+**Depends on**: Milestone v1.0 (complete)
+**Requirements**: QUAL-01, QUAL-02, DOC-01
+**Success Criteria** (what must be TRUE):
+
+  1. `npx tsc --noEmit` reports zero diagnostics (down from the 18 pre-existing today)
+  2. A dedicated `test:types` guard fails if any `tsc --noEmit` diagnostic reappears, kept off the
+     fast default `npm test` path so the 892-suite runtime is unchanged
+  3. The CONTRIBUTING.md test-layout diagram names exactly the directories that exist under `test/`
+     — none invented, none omitted
+  4. The full suite stays green at its 892 baseline and no production type is weakened to satisfy a
+     test cast
+
+**Plans**: 2 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — Fix all 18 `tsc` diagnostics → 0 (unify DashboardHandle for the one src/ error;
+  narrowest-correct test-side fixes for the rest) + QUAL-02 typecheck regression guard (`test:types`
+  script + guard test spawning `tsc --noEmit`, off the fast path) (QUAL-01, QUAL-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md — Correct the CONTRIBUTING.md test-layout diagram to match the real `test/` tree
+  (add `oss/`, reconcile `types/` with the guard dir created in 09-01) + acceptance check that every
+  diagrammed directory exists and none are omitted (DOC-01)
+
+### Phase 10: Vision-drivable Demo Fixtures + Authentic Differential Dogfood
+
+**Goal**: A canonical demo target + rebuild pair that BOTH the manual and autonomous paths can
+drive, with `examples/` regenerated from real autonomous runs and an authentic `archeo compare`
+dogfood on that pair (the genuine 08-02 finding, closed).
+**Mode:** mvp
+**Depends on**: Phase 9
+**Requirements**: FIX-01
+**Success Criteria** (what must be TRUE):
+
+  1. `archeo explore` against the new demo app yields >0 steps and multiple states (the 03-04
+     fixture yielded 0 — it navigated only via JS `location.href` with no clickable affordances)
+  2. The demo app exposes real `<a href>` navigation, forms, and a REST/GraphQL/JSON-RPC surface
+     drivable by both the manual capture driver and the autonomous agent
+  3. `archeo compare original rebuild` produces a divergence report on the REAL pair with a clean
+     self-compare control
+  4. `examples/` is regenerated from real autonomous runs against the drivable app, with provenance;
+     BUILD-01 is re-proven on a vision-drivable app
+
+**Plans**: TBD (planned at Phase 10 kickoff)
+
+### Phase 11: Spec-quality Enrichment
+
+**Goal**: The three builder-flagged spec gaps closed — flow back-edges, GraphQL schema depth, and an
+auth-semantics block — all secret-clean (values still stripped). Closes milestone v1.1.
+**Mode:** mvp
+**Depends on**: Phase 10
+**Requirements**: SPEC-08, SPEC-09, SPEC-10
+**Success Criteria** (what must be TRUE):
+
+  1. A fixture capture with GraphQL + auth + back-nav generates a spec whose flows carry observed
+     back-edges (reverse/return transitions), not only forward transitions
+  2. GraphQL endpoints carry a per-operation schema fragment (argument names + selected field
+     shapes — schema identifiers only, never values; the CAP-05 boundary documented loudly)
+  3. The spec has a populated `auth` block: observed login/auth endpoints, auth header name, token
+     transport (header vs cookie), role/permission field names — all from already-redacted records
+  4. A recursive no-raw-value assertion confirms the enriched spec remains secret-clean
+
+**Plans**: TBD (planned at Phase 11 kickoff)
+
+## Progress (v1.1)
+
+**Execution Order:** 9 → 10 → 11
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 9. Type-safety & Docs Hygiene | 0/2 | Not started | — |
+| 10. Vision-drivable Demo Fixtures | 0/TBD | Not started | — |
+| 11. Spec-quality Enrichment | 0/TBD | Not started | — |
+
+**Milestone v1.1 status: executing — current focus Phase 9.**

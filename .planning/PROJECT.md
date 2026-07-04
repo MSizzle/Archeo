@@ -138,6 +138,30 @@ Suite 892 (891 pass + 1 documented skip, 0 fail). Full evidence:
 - **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — cosmetic (lists an absent `test/types/`,
   omits the present `test/oss/`).
 
+### Milestone v1.1 — OPEN (executing, opened 2026-07-04)
+
+**Goal: clear the enhancement + hygiene backlog above without breaking a complete, live-verified
+v1.0.** No breaking changes; every phase keeps the full suite green (baseline 892 = 891 pass + 1
+documented skip) and every v1.0 safety guarantee intact (floor ON, CAP-05 fail-closed redaction,
+GATE-01/GATE-03). Three sequential phases turn the standing backlog into shipped requirements:
+
+- **Phase 9 — Type-safety & docs hygiene** (LOW risk, do FIRST): drive `npx tsc --noEmit` to zero
+  diagnostics, add a typecheck regression guard so it never silently regresses, and correct the
+  CONTRIBUTING test-layout diagram. New requirements: **QUAL-01, QUAL-02, DOC-01**.
+- **Phase 10 — Vision-drivable demo fixtures**: ship a canonical demo target + rebuild pair that
+  BOTH the manual and autonomous paths can drive (real `<a href>` nav, forms, the REST/GraphQL/
+  JSON-RPC surface), regenerate `examples/` from real autonomous runs, and dogfood `archeo compare`
+  on that authentic pair. New requirement: **FIX-01** (the genuine 08-02 finding).
+- **Phase 11 — Spec-quality enrichment**: the three builder-flagged gaps — flow back-edges, GraphQL
+  schema depth, auth semantics — all from already-redacted records, values still stripped. New
+  requirements: **SPEC-08, SPEC-09, SPEC-10**. Closes the milestone.
+
+Conventions binding every v1.1 plan (identical to v1.0 Phases 3–8): zero new runtime deps, `.ts`
+import extensions, NO TS enums, `node:test`, TDD atomic commits `test(NN-MM)`/`feat(NN-MM)`,
+`docs(NN-MM)` for docs-only, SUMMARY/ROADMAP/STATE per plan, CAP-05 redaction fail-closed re-asserted
+wherever new pre-redaction fields are added, GATE-01/GATE-03 guards untouched, floor ON. Commit
+trailer: `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -156,4 +180,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-04 — Milestone v1.0 COMPLETE (all 8 phases; Phase 8 differential validation closed).*
+*Last updated: 2026-07-04 — Milestone v1.0 COMPLETE (all 8 phases); Milestone v1.1 OPEN (Phases 9–11, enhancement + hygiene backlog).*

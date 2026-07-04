@@ -105,6 +105,28 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [x] **OSS-03**: Contributor docs and a clear statement of what is in and out of scope
 - [x] **OSS-04**: OSI-approved license
 
+## v1.1 Requirements
+
+Enhancement + hygiene milestone on top of a complete, live-verified v1.0. Each maps to exactly one
+v1.1 phase (9, 10, or 11). Derived from the standing enhancement backlog recorded at v1.0 close
+(PROJECT.md) and the locked v1.1 milestone brief.
+
+### Type-safety & Docs Hygiene (Phase 9)
+
+- [ ] **QUAL-01**: `npx tsc --noEmit` reports zero diagnostics across `src/` and `test/` — Phase 9
+- [ ] **QUAL-02**: A typecheck regression guard fails when any `tsc --noEmit` diagnostic reappears (dedicated `test:types` path, kept off the fast default suite) — Phase 9
+- [ ] **DOC-01**: The CONTRIBUTING.md test-layout diagram matches the real `test/` tree — every listed directory exists and none are omitted — Phase 9
+
+### Vision-drivable Demo Fixtures (Phase 10)
+
+- [ ] **FIX-01**: A canonical demo target + rebuild pair drivable by BOTH the manual and autonomous paths (real `<a href>` nav, forms, REST/GraphQL/JSON-RPC surface); `archeo explore` yields >0 steps and multiple states; `examples/` regenerated from real autonomous runs with provenance — Phase 10
+
+### Spec-quality Enrichment (Phase 11)
+
+- [ ] **SPEC-08**: The generator's flows record observed back/return transitions (back-edges), not only forward transitions — Phase 11
+- [ ] **SPEC-09**: GraphQL endpoints carry a schema-fragment depth — argument names + selected field shapes (schema identifiers only, values stripped per the CAP-05 boundary) — Phase 11
+- [ ] **SPEC-10**: The spec surfaces an `auth` block with observed login/auth endpoints, auth header name, token transport (header vs cookie), and role/permission field names — all from already-redacted records, no secret values — Phase 11
+
 ## v2 Requirements
 
 Deferred beyond v1. Tracked but not in the current roadmap.
@@ -190,10 +212,18 @@ Each requirement maps to exactly one phase.
 | OSS-03 | Phase 7 | Complete (07-02; scope statement + cross-links verified 07-03) |
 | VALID-01 | Phase 8 | Complete (08-01 `archeo compare`; verified live 08-02 — MATCH+FLAG, self-compare clean, floor held) |
 | VALID-02 | Phase 8 | Complete (08-01 no-duplication structural proof; two-target run exercised live 08-02) |
+| QUAL-01 | Phase 9 | Pending |
+| QUAL-02 | Phase 9 | Pending |
+| DOC-01 | Phase 9 | Pending |
+| FIX-01 | Phase 10 | Pending |
+| SPEC-08 | Phase 11 | Pending |
+| SPEC-09 | Phase 11 | Pending |
+| SPEC-10 | Phase 11 | Pending |
 
 **Coverage:**
-- v1 requirements: 59 total (header previously stated 49; actual count is 59)
-- Mapped to phases: 59 ✓
+- v1 requirements: 59 total (header previously stated 49; actual count is 59) — all Complete
+- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — all Pending
+- Mapped to phases: 66 ✓ (59 v1 + 7 v1.1)
 - Unmapped: 0 ✓
 
 **Per-phase requirement counts:**
@@ -205,7 +235,10 @@ Each requirement maps to exactly one phase.
 - Phase 6 (Hardening): 11
 - Phase 7 (Open Source Readiness): 3
 - Phase 8 (Differential Validation): 2
+- Phase 9 (Type-safety & Docs Hygiene): 3 [v1.1]
+- Phase 10 (Vision-drivable Demo Fixtures): 1 [v1.1]
+- Phase 11 (Spec-quality Enrichment): 3 [v1.1]
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-06-29 after roadmap creation — traceability table populated, coverage corrected to 59*
+*Last updated: 2026-07-04 — v1.1 requirements added (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) mapped to Phases 9–11, all Pending.*
