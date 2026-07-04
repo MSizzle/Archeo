@@ -119,7 +119,7 @@ v1.1 phase (9, 10, or 11). Derived from the standing enhancement backlog recorde
 
 ### Vision-drivable Demo Fixtures (Phase 10)
 
-- [ ] **FIX-01**: A canonical demo target + rebuild pair drivable by BOTH the manual and autonomous paths (real `<a href>` nav, forms, REST/GraphQL/JSON-RPC surface); `archeo explore` yields >0 steps and multiple states; `examples/` regenerated from real autonomous runs with provenance — Phase 10
+- [x] **FIX-01**: A canonical demo target + rebuild pair drivable by BOTH the manual and autonomous paths (real `<a href>` nav, forms, REST/GraphQL/JSON-RPC surface); `archeo explore` yields >0 steps and multiple states; `examples/` regenerated from real autonomous runs with provenance — Phase 10 ✅ Complete 2026-07-04 (original 22 steps/7 states; BUILD-01 re-proven 19/19 capturable + 55/55 self-tests; authentic `archeo compare` + fully-empty self-compare control; floor clean; examples regenerated secret-clean)
 
 ### Spec-quality Enrichment (Phase 11)
 
@@ -215,14 +215,14 @@ Each requirement maps to exactly one phase.
 | QUAL-01 | Phase 9 | Complete (09-01) |
 | QUAL-02 | Phase 9 | Complete (09-01) |
 | DOC-01 | Phase 9 | Complete (09-02) |
-| FIX-01 | Phase 10 | Pending |
+| FIX-01 | Phase 10 | Complete (10-02) |
 | SPEC-08 | Phase 11 | Pending |
 | SPEC-09 | Phase 11 | Pending |
 | SPEC-10 | Phase 11 | Pending |
 
 **Coverage:**
 - v1 requirements: 59 total (header previously stated 49; actual count is 59) — all Complete
-- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — 3 Complete (QUAL-01/02, DOC-01), 4 Pending
+- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — 4 Complete (QUAL-01/02, DOC-01, FIX-01), 3 Pending (SPEC-08/09/10)
 - Mapped to phases: 66 ✓ (59 v1 + 7 v1.1)
 - Unmapped: 0 ✓
 

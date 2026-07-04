@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "10-01 COMPLETE — FIX-01 drivability closed: canonical vision-drivable demo app at examples/demo-app/ (real <a href> absolute-URL nav, 4 routes, settings form, REST+GraphQL+JSON-RPC, obviously-fake seed data, node:http zero-dep). Live harness: 22 steps, 7 states, 15 endpoints, empty-frontier stop, floor clean (mutations=0, destructiveHits=0). Post-gate: 894 (893 pass + 1 skip, 0 fail), tsc exit 0. Next: 10-02."
-last_updated: "2026-07-04T16:00:00.000Z"
+stopped_at: "PHASE 10 COMPLETE (2/2) — FIX-01 closed. 10-02: authentic differential dogfood on the vision-drivable demo app. Autonomous + manual specs regenerated from examples/demo-app (15 endpoints, 5 held, secret-clean). BUILD-01 re-proven: fresh spec-only builder → examples/demo-app/rebuild/ scored 19/19 capturable + 55/55 self-tests. Authentic archeo compare (original vs rebuild): original explores 22 steps/7 states (the 08-02 gap closed); rebuild stalls at 2 endpoints (relative hrefs + leaner batching → reachability divergence, contract faithful — changedShapes 0, heldStatusChanges 0). Self-compare control fully empty. Floor clean on every target/run. examples/ regenerated. Post-gate: suite green, tsc exit 0. Next: Phase 11 (Spec-quality Enrichment)."
+last_updated: "2026-07-04T17:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
-  completed_phases: 1
+  completed_phases: 2
   total_plans: 2
   completed_plans: 2
-  percent: 33
+  percent: 67
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 10 Wave 1 DONE; advancing to 10-02.** 10-01 COMPLETE (2026-07-04): canonical vision-drivable demo app at examples/demo-app/ — 22 steps, 7 states, 15 endpoints, floor clean. FIX-01 drivability closed. Next: 10-02 (spec gen + BUILD-01 re-proof + compare + examples regeneration).
+**Current focus:** **MILESTONE v1.1 — Phase 10 COMPLETE; advancing to Phase 11.** 10-02 CLOSED (2026-07-04): authentic capture→spec→rebuild→compare arc on the vision-drivable demo app. BUILD-01 re-proven (19/19 capturable + 55/55 self-tests); original explores 22 steps/7 states (the 08-02 fixture gap closed); authentic compare + fully-empty self-compare control; floor clean; examples/ regenerated secret-clean. FIX-01 closed. Next: Phase 11 (Spec-quality Enrichment — SPEC-08/09/10).
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **10 executing (1/2 plans complete)**
-Plan: 10-02 (spec gen + BUILD-01 + compare + examples regeneration)
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9, Phase 10 Wave 1 closed
+Phase: **10 COMPLETE (2/2 plans); Phase 11 next (not started)**
+Plan: — (Phase 11 planning is the next step)
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 closed
 Last activity: 2026-07-04
 
-Progress (v1.1): [███░░░░░░░] ~33% (1/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
+Progress (v1.1): [███████░░░] ~67% (2/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 
@@ -487,11 +487,52 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
 - **app at examples/demo-app/ (D10-03):** canonical shippable location; harness in .planning/
   references it by path. No ledger/monkeypatch coupling in the shipped app.
 
+### Phase 10-02 execution decisions (FIX-01 CLOSE — authentic differential dogfood):
+
+- **D10-04 shape realized:** ONE authored original (`examples/demo-app/`) + a SEPARATELY-built
+  spec-only rebuild (the injected-drift twin retired). A fresh builder received the autonomous
+  `archeo-spec.json` ALONE (no source/repo/network) and produced `examples/demo-app/rebuild/`
+  (node:http, zero-dep, CommonJS shim). **BUILD-01 re-proven: 19/19 capturable endpoint coverage,
+  55/55 self-tests, held mutations as real write→read-back, GraphQL/RPC dispatched distinctly.**
+  Logical-op fidelity 2/2 — better than 03-04's 15/17, because this spec captured GraphQL/RPC as
+  distinct operations (the 03-05 generator fix confirmed downstream).
+- **Manual-CLI CDP-pipe finding:** `openAndWait` launches Chromium with `--remote-debugging-pipe`
+  (verified — no TCP port), so an external Playwright/CDP driver CANNOT attach. The plan's "Playwright
+  click-driver" is architecturally impossible against the unmodified manual CLI. The harness instead
+  injects a link-clicker `<script>` into each HTML page response at the HTTP layer (server.mjs
+  byte-untouched; no `/api`/`/graphql`/`/rpc` response altered) — captured traffic is identical to a
+  human clicking. Both specs regenerated (autonomous 15ep/5held/7states; manual 15ep/5held/5states),
+  secret-clean.
+- **Authentic compare = the FIX-01 payoff (the 08-02 gap closed):** the ORIGINAL explores with
+  **22 steps / 7 states / empty-frontier** (08-02 could only get 0 steps → it fell back to an injected
+  twin). Real `archeo compare` original-vs-rebuild: `removedEndpoints:11, removedPages:6,
+  changedShapes:0, heldStatusChanges:0, newEndpoints:0`. The rebuild's autonomous exploration stalled
+  at 2 endpoints/1 state — a genuine, DISCOVERED **reachability** divergence from (1) the builder's
+  RELATIVE `<a href>` (agent's `page.goto` rejects relative URLs) and (2) leaner dashboard fetch
+  batching. **Backend contract is faithful** (0 changedShapes/heldStatusChanges on the shared surface;
+  19/19 direct probe) — the removedEndpoints are unreachable-by-walker, not absent. Stronger, more
+  honest than an injected twin.
+- **Self-compare control fully empty** (original vs original-clone → all backend-contract fields 0,
+  both 22 steps) → the comparison is trustworthy. **Floor clean on EVERY target across EVERY run**
+  (mutations=0, destructiveHits=0). Rebuild booted with a CommonJS `ledger-preload.cjs` (the
+  `ledger-wrap` equivalent).
+- **8 spec-quality findings carried to Phase 11** (verbatim in 10-02-DOGFOOD-VERIFICATION.md §5):
+  #7 GraphQL query text → core SPEC-09; #4 (concrete-vs-templated flow states) + #5 (state kind) →
+  generator flow-templating fix pairing with SPEC-08; #8/#1/#3/#6 → small clarity items; #2 (held
+  responses) stays a documented structural gap. PLUS the phase-10 compare finding: the spec cannot
+  encode affordance drivability (relative-vs-absolute hrefs, per-page batching) — consider affordance
+  hints or an unreachable-vs-absent distinction in compare.
+- **Bookkeeping:** ROADMAP Phase 10 → 2/2 Complete (2026-07-04) + 10-02 ticked + Progress row +
+  current focus → Phase 11; REQUIREMENTS FIX-01 → Complete (checklist + traceability, tally 4/7);
+  STATE → completed_phases 2, focus Phase 11. Reproducible harness in 10-02-live-verification/.
+  No `src/` or `test/` file touched (examples/ + .planning/ only).
+
 ### Blockers/Concerns
 
-None. **Milestone v1.0 COMPLETE — all 8 phases + all 59 requirements done.** The
-capture→spec→rebuild→differential-validation loop is closed and proven live. Next work is the
-non-blocking v1.1 enhancement backlog above (start via `/gsd-new-milestone` or `/gsd-review-backlog`).
+None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases).** v1.0 remains COMPLETE and
+preserved. The authentic capture→spec→rebuild→compare loop is proven on a vision-drivable app
+(FIX-01 closed). Next: Phase 11 (Spec-quality Enrichment — SPEC-08 flow back-edges, SPEC-09 GraphQL
+schema depth, SPEC-10 auth semantics), informed by the 8 builder-flagged findings above.
 
 ## Deferred Items
 
@@ -501,6 +542,6 @@ non-blocking v1.1 enhancement backlog above (start via `/gsd-new-milestone` or `
 
 ## Session Continuity
 
-Last session: 2026-07-04T00:00:00.000Z
-Stopped at: **MILESTONE v1.0 COMPLETE.** Phase 8 CLOSED (2/2) — 08-02 live differential-validation dogfood PASS (real `archeo compare` in real headed Chromium, floor ON both; MATCH+FLAG exactly the 3 injected drifts with zero false positives; self-compare control fully empty; both target ledgers 0 mutations/0 destructive; FALLBACK path taken + stated). All 8 phases + all 59 requirements Complete; 892 tests (891 pass + 1 skip, 0 fail). Next: v1.1 enhancement backlog (non-blocking).
+Last session: 2026-07-04T17:00:00.000Z
+Stopped at: **PHASE 10 COMPLETE (2/2) — FIX-01 closed.** 10-02 authentic differential dogfood on the vision-drivable demo app: autonomous + manual specs regenerated from examples/demo-app (secret-clean); BUILD-01 re-proven via a fresh spec-only builder → examples/demo-app/rebuild/ (19/19 capturable, 55/55 self-tests); authentic `archeo compare` original-vs-rebuild (original explores 22 steps/7 states — the 08-02 gap closed; rebuild reachability-diverges via relative hrefs, contract faithful); self-compare control fully empty; floor clean on every target; examples/ regenerated. Milestone v1.1 now 2/3 phases complete. Next: Phase 11 (Spec-quality Enrichment).
 Resume file: None

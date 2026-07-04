@@ -1,0 +1,62 @@
+{
+  "_note": "Ground truth for scoring the spec-only rebuild of examples/demo-app. Derived by reading examples/demo-app/server.mjs (10-01 fixture). PRIVATE to the scoring stage — the builder never sees this. Held-write response shapes here are what the ORIGINAL returns; the spec cannot know them (floor holds writes), so a faithful rebuild must GUESS them — divergences there are expected, not builder failures.",
+  "source": "examples/demo-app/server.mjs",
+  "entryUrl": "http://127.0.0.1:<PORT>/app",
+
+  "pages": [
+    { "path": "/app", "title": "Dashboard", "fires": ["GET /api/profile", "GET /api/users", "GET /api/teams"], "links": ["/app/users", "/app/settings", "/app (self nav)"] },
+    { "path": "/app/users", "title": "Users", "fires": ["GET /api/users", "GET /api/teams", "POST /api/users (held)", "DELETE /api/users/3 (held)"], "links": ["/app/users/{id} per user"] },
+    { "path": "/app/users/{id}", "title": "User detail", "fires": ["GET /api/users/{id}", "GET /api/teams"], "links": ["/app/users (back)"] },
+    { "path": "/app/settings", "title": "Settings", "fires": ["GET /api/profile", "POST /graphql (query me, pass)", "POST /graphql (mutation updateProfile, held)", "POST /rpc (getSettings, pass)", "POST /rpc (saveSettings, held)"], "form": "settings-form POST /api/settings (theme select + language input)" }
+  ],
+
+  "endpoints": [
+    { "method": "GET",    "path": "/",                  "kind": "html",    "behavior": "302 redirect -> /app" },
+    { "method": "GET",    "path": "/app",               "kind": "html",    "behavior": "Dashboard page" },
+    { "method": "GET",    "path": "/app/users",         "kind": "html",    "behavior": "Users list page" },
+    { "method": "GET",    "path": "/app/users/{id}",    "kind": "html",    "behavior": "User detail page (id numeric)" },
+    { "method": "GET",    "path": "/app/settings",      "kind": "html",    "behavior": "Settings page (has form)" },
+
+    { "method": "GET",    "path": "/api/profile",       "kind": "rest-read",  "status": 200, "shape": "Profile object" },
+    { "method": "GET",    "path": "/api/users",         "kind": "rest-read",  "status": 200, "shape": "{ total, items:[User] }  (list envelope)" },
+    { "method": "GET",    "path": "/api/users/{id}",    "kind": "rest-read",  "status": 200, "shape": "User object (404 {error,id} if missing)" },
+    { "method": "GET",    "path": "/api/teams",         "kind": "rest-read",  "status": 200, "shape": "{ total, items:[Team] }  (list envelope)" },
+    { "method": "GET",    "path": "/api/settings",      "kind": "rest-read",  "status": 200, "shape": "Settings object", "note": "NOT auto-fired by any page; only reachable via curl. Frontend never GETs it, so capture cannot see it. The 03-04 builder INVENTED this read." },
+
+    { "method": "POST",   "path": "/api/users",         "kind": "rest-write", "held": true, "status": 201, "trueShape": "{ ok:true, user:{ id, ...data, createdAt } }" },
+    { "method": "DELETE", "path": "/api/users/{id}",    "kind": "rest-write", "held": true, "status": 200, "trueShape": "{ ok:true, deleted:true, id }" },
+    { "method": "POST",   "path": "/api/settings",      "kind": "rest-write", "held": true, "status": 200, "trueShape": "{ ok:true, saved:true, settings:{...} }" },
+    { "method": "PUT",    "path": "/api/settings",      "kind": "rest-write", "held": true, "status": 200, "trueShape": "{ ok:true, saved:true, settings:{...} }", "note": "PUT alias of POST /api/settings; not separately auto-fired." },
+
+    { "method": "POST",   "path": "/graphql",           "kind": "graphql",    "held": false, "operation": "query me",             "trueShape": "{ data:{ me:{ id, email, name } } }" },
+    { "method": "POST",   "path": "/graphql",           "kind": "graphql",    "held": true,  "operation": "mutation updateProfile", "trueShape": "{ data:{ updateProfile:{ id, name, email } } }" },
+
+    { "method": "POST",   "path": "/rpc",               "kind": "jsonrpc",    "held": false, "operation": "getSettings (read: /^(get|list|read|fetch|search|query|describe)/)", "trueShape": "{ jsonrpc, id, result:{ theme, language, notifications } }" },
+    { "method": "POST",   "path": "/rpc",               "kind": "jsonrpc",    "held": true,  "operation": "saveSettings (write)", "trueShape": "{ jsonrpc, id, result:{ ok:true, saved:true } }" },
+
+    { "method": "GET",    "path": "/__done__",          "kind": "beacon",  "status": 200, "shape": "{ done:true }", "note": "optional end-of-run beacon; not part of the app surface a rebuild must serve." }
+  ],
+
+  "models": [
+    { "name": "Profile", "fields": ["id", "name", "email", "role", "token", "createdAt"], "seed": "id 1, admin, token demo-token-abc123" },
+    { "name": "User",    "fields": ["id", "name", "email", "role", "teamId", "createdAt"], "relationship": "teamId -> Team.id", "count": 3 },
+    { "name": "Team",    "fields": ["id", "name", "ownerId"], "relationship": "ownerId -> User.id", "count": 2 },
+    { "name": "Settings","fields": ["theme", "language", "notifications"] }
+  ],
+
+  "groundTruthCounts": {
+    "htmlPages": 4,
+    "restReadEndpoints": 5,
+    "restWriteEndpoints_held": 4,
+    "graphqlLogicalOps": 2,
+    "jsonrpcLogicalOps": 2,
+    "distinctModels": 4,
+    "note": "distinct method+path REST/HTML endpoints (collapsing {id}): / , /app, /app/users, /app/users/{id}, /app/settings, /api/profile, /api/users, /api/users/{id}, /api/teams, /api/settings, POST/DELETE /api/users*, POST/PUT /api/settings, /graphql, /rpc"
+  },
+
+  "notCapturable": [
+    "GET /api/settings (no frontend caller; only curl reaches it) — capture-driven specs cannot surface it",
+    "held-write response shapes/status codes (floor holds writes; responses never observed) — spec knownGaps flags all 5",
+    "PUT /api/settings (alias; frontend only POSTs)"
+  ]
+}

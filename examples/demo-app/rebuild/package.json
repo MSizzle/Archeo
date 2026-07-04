@@ -1,0 +1,7 @@
+{
+  "name": "archeo-demo-app-rebuild",
+  "version": "0.0.0",
+  "private": true,
+  "type": "commonjs",
+  "description": "Spec-only rebuild of examples/demo-app, built by a fresh builder agent from archeo-spec.json alone (BUILD-01 re-proof, plan 10-02). CommonJS shim so the module-type repo root runs server.js as CommonJS."
+}

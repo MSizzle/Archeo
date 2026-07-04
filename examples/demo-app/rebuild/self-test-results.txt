@@ -1,0 +1,71 @@
+Archeo Rebuild Self-Test
+Run at: 2026-07-04T08:18:19.877Z
+────────────────────────────────────────────────────────────
+
+=== ENDPOINT TESTS ===
+
+[PASS] GET /app → 200 HTML — status=200
+[PASS] GET /app → has links to /app/users and /app/settings — navigation links present
+[PASS] GET /api/profile → 200 — status=200
+[PASS] GET /api/profile → has id — id=1
+[PASS] GET /api/profile → has name — name=Alice Smith
+[PASS] GET /api/profile → has email — email=alice@example.com
+[PASS] GET /api/profile → has role — role=admin
+[PASS] GET /api/profile → has token — token=tok_archeo_abc123
+[PASS] GET /api/profile → has createdAt — createdAt=2024-01-01T00:00:00.000Z
+[PASS] GET /api/users → 200 — status=200
+[PASS] GET /api/users → has total — total=3
+[PASS] GET /api/users → has items[] — items.length=3
+[PASS] GET /api/users → items have User shape — first item shape OK
+[PASS] GET /api/teams → 200 — status=200
+[PASS] GET /api/teams → has total — total=2
+[PASS] GET /api/teams → has items[] — items.length=2
+[PASS] GET /api/teams → items have Team shape — first item shape OK
+[PASS] GET /app/users → 200 HTML — status=200
+[PASS] GET /app/users → has link to /app — back-nav present
+[PASS] GET /app/settings → 200 HTML — status=200
+[PASS] GET /app/settings → has links to /app/users and /app — nav links present
+[PASS] GET /app/users/1 → 200 HTML — status=200
+[PASS] GET /app/users/1 → has link back to /app/users — back-nav present
+[PASS] GET /app/users/1 → has link to /app — home nav present
+[PASS] GET /app/users/1 → has link to /app/settings — settings nav present
+[PASS] GET /api/users/1 → 200 — status=200
+[PASS] GET /api/users/1 → correct shape — id=1 name=Alice Smith
+[PASS] POST /graphql Me → 200 — status=200
+[PASS] POST /graphql Me → data.me shape — me.name=Alice Smith
+[PASS] POST /rpc getSettings → 200 — status=200
+[PASS] POST /rpc getSettings → result shape — theme=dark
+[PASS] POST /rpc getSettings → jsonrpc 2.0 envelope — jsonrpc=2.0 id=1
+
+=== HELD-MUTATION (WRITE→READ-BACK) TESTS ===
+
+[PASS] POST /api/users (held) → 201 — status=201
+[PASS] POST /api/users (held) → returns User shape — id=4 name=Dana Test
+[PASS] POST /api/users (held) → user appears in GET /api/users list — total: 3 → 4
+[PASS] DELETE /api/users/4 (held) → 204 — status=204
+[PASS] DELETE /api/users/4 (held) → user removed from GET list — total after delete: 3
+[PASS] POST /graphql UpdateProfile (held) → 200 — status=200
+[PASS] POST /graphql UpdateProfile (held) → returns updated name in response — name=Updated Tester
+[PASS] POST /graphql UpdateProfile → name visible in subsequent Me query — me.name=Updated Tester
+[PASS] POST /rpc saveSettings (held) → 200 — status=200
+[PASS] POST /rpc saveSettings (held) → returns success result — result={"success":true}
+[PASS] POST /rpc saveSettings → theme visible in subsequent getSettings — theme: dark → light
+[PASS] POST /api/settings (held) → 200 — status=200
+
+=== FLOW / NAVIGATION LINK TESTS ===
+
+[PASS] FLOW app → app-users — href="/app/users" found in /app
+[PASS] FLOW app → app-settings — href="/app/settings" found in /app
+[PASS] FLOW app-users → app — href="/app" found in /app/users
+[PASS] FLOW app-users → app-settings — href="/app/settings" found in /app/users
+[FAIL] FLOW app-users → app-users-detail (via /app/users/1) — href="/app/users/1" found in /app/users
+[PASS] FLOW app-settings → app — href="/app" found in /app/settings
+[PASS] FLOW app-settings → app-users — href="/app/users" found in /app/settings
+[PASS] FLOW app-settings → app-users-detail — href="/app/users/1" found in /app/settings
+[PASS] FLOW app-users-detail → app — href="/app" found in /app/users/1
+[PASS] FLOW app-users-detail → app-users — href="/app/users" found in /app/users/1
+[PASS] FLOW app-users-detail → app-settings — href="/app/settings" found in /app/users/1
+
+────────────────────────────────────────────────────────────
+TOTAL: 55  PASSED: 54  FAILED: 1
+────────────────────────────────────────────────────────────

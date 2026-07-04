@@ -377,11 +377,14 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 10-02-PLAN.md — Generate the real spec (autonomous `archeo explore` + manual `archeo <url>`);
+- [x] 10-02-PLAN.md — Generate the real spec (autonomous `archeo explore` + manual `archeo <url>`);
   re-prove BUILD-01 via a fresh spec-only builder → `examples/demo-app/rebuild/`; run the authentic
   `archeo compare original rebuild` + a fully-empty self-compare control (floor ON both); regenerate
   `examples/` (manual spec + autonomous spec + `examples/compare-demo-app/`) with provenance; CLOSE
-  Phase 10 (FIX-01)
+  Phase 10 (FIX-01) — **DONE 2026-07-04: BUILD-01 re-proven 19/19 capturable + 55/55 self-tests;
+  original explores 22 steps/7 states; authentic compare (removedEndpoints 11, changedShapes 0,
+  heldStatusChanges 0 — a reachability divergence from the rebuild's relative hrefs, contract
+  faithful); self-compare fully empty; floor clean on every target; examples regenerated + secret-clean**
 
 ### Phase 11: Spec-quality Enrichment
 
@@ -409,7 +412,7 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
-| 10. Vision-drivable Demo Fixtures | 0/2 | Not started | — |
+| 10. Vision-drivable Demo Fixtures | 2/2 | Complete | 2026-07-04 |
 | 11. Spec-quality Enrichment | 0/TBD | Not started | — |
 
-**Milestone v1.1 status: executing — current focus Phase 10 (Vision-drivable Demo Fixtures).**
+**Milestone v1.1 status: executing — current focus Phase 11 (Spec-quality Enrichment).**

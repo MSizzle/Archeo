@@ -1,0 +1,13 @@
+{
+  "original": "http://127.0.0.1:4820/app",
+  "rebuild": "http://127.0.0.1:4822/app",
+  "report": {
+    "newEndpoints": [],
+    "removedEndpoints": [],
+    "removedPages": [],
+    "changedShapes": [],
+    "heldStatusChanges": []
+  },
+  "caveat": "Backend-contract signal (endpoint set, data models, held behavior, response shapes on shared endpoints) is the reliable indicator of rebuild fidelity. Page/flow divergence may reflect exploration-path differences — a different DOM structure produces a different frontier — not behavioral differences. Treat page/flow divergence as a weak signal only and focus on the endpoint set, shapes, and held-behavior changes.",
+  "generatedAt": "2026-07-04T08:29:36.529Z"
+}

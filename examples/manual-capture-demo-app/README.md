@@ -1,38 +1,40 @@
-# Example: Manual Capture — Multi-Protocol Demo App
+# Example: Manual Capture — Vision-Drivable Demo App
 
 ## Source application
 
-Archeo's own Phase 03-04 buildability-verification target: a local Node.js SaaS-style demo app
-that exposes REST, GraphQL, and JSON-RPC endpoints behind a session cookie, serving a
-client-routed SPA front-end.
+Archeo's canonical, shippable demo app: [`examples/demo-app/`](../demo-app/) — the SAME app the
+autonomous example was generated from. A zero-dependency `node:http` app with real cross-document
+`<a href>` navigation, a settings form, and a full REST + GraphQL + JSON-RPC backend with held
+writes. Each route auto-fires its `/api` batch on load, so a manual capture that walks the pages
+records the whole surface.
 
-This is the verification fixture at
-`.planning/phases/03-spec-generator-buildability/03-04-buildability/target-app.mjs`.
+Run it yourself: `node examples/demo-app/launch.mjs` (see [`examples/demo-app/README.md`](../demo-app/README.md)).
 
 ## Exact command that produced this spec
 
 ```
-node src/cli/index.ts http://localhost:<PORT> --i-have-authorization
+node src/cli/index.ts http://127.0.0.1:<PORT>/app --i-have-authorization --no-dashboard
 ```
 
-A scripted capture driver navigated the app (user list, user detail, settings pages), then the
-window closed and the spec was auto-generated. The `archeo spec` subcommand was also run against
-the session directory deterministically:
+The manual capture path (`archeo <url>`) opens a headed browser, records everything behind the
+floor, and auto-generates the spec when the browser context closes. A small harness link-driver
+clicked the app's real `<a href>` nav links in turn (dashboard → users → user detail → settings)
+and submitted the settings form, so every route's auto-fired `/api` batch — including the held
+writes — was captured, then the context was closed for graceful spec generation.
 
-```
-node src/cli/index.ts spec <sessionDir>
-```
-
-Both invocations produced the same output. `<PORT>` is the dynamically assigned port the target
-app listens on; `node src/cli/index.ts` is the fresh-clone form (no build step required, Node
->=22.0.0 strips TypeScript natively).
+> **Why a harness link-driver, not an external Playwright driver:** the manual CLI launches
+> Chromium via `launchPersistentContext` with `--remote-debugging-pipe` (a fd pipe, not a TCP
+> port), so no external CDP/Playwright client can attach to it. The harness therefore injects a
+> tiny link-clicker `<script>` into each HTML page response at the HTTP layer (the shipped
+> `examples/demo-app/server.mjs` is byte-untouched). It clicks the app's real links — **no
+> `/api`, `/graphql`, or `/rpc` response is altered** — so the captured traffic is identical to a
+> human clicking, and the spec is faithful to the real demo app.
 
 ## Origin
 
-**Archeo's own verification fixture** — fallback path per D7-03. A public demo app was
-preferred but network access to a headless public app was unavailable at generation time.
-This spec was produced during Archeo's own plan 03-04 buildability verification (2026-07-03)
-against the real, unmodified CLI.
+Produced by a **real, unmodified `archeo <url>` manual run against `examples/demo-app/`** during
+plan 10-02 (2026-07-04). This retires the older 03-04 fixture provenance. The run's own
+ground-truth ledger recorded **mutations=0 / destructiveHits=0** — the floor held every write.
 
 ## Archeo version
 
@@ -40,16 +42,24 @@ against the real, unmodified CLI.
 
 ## Secret-clean status
 
-Redaction ran during capture (`src/capture/redactor.ts`, CAP-05: fail-closed). This spec is
-secret-clean — it contains only field types and structure, no raw values such as session
-cookies, bearer tokens, or passwords. Verified by grep gate (no authorization/bearer/cookie/
-sk-ant-/JWT hits).
+Redaction ran during capture (`src/capture/redactor.ts`, CAP-05: fail-closed). The spec carries
+only field types and structure — verified secret-clean by the strict grep gate (no authorization /
+bearer / cookie / sk-ant- / JWT hits; zero raw tokens or emails).
 
 ## What the spec shows
 
-- 6 data models (Profile, User, Team, Item, Rpc, Done) with fields, types, and relationships
-- 19 endpoints across REST, GraphQL (POST /graphql), and JSON-RPC (POST /rpc)
-- 8 held writes (mutations and destructive GETs intercepted by the safety floor, `held: true`)
-- 4 named UI states and 3 page transitions
-- 2 heuristic rules: `resource-crud: /api/users` (high confidence), `write-held-behavior` (high)
-- Coverage: 19 endpoints, 4 states, known gap "held mutation responses unobserved"
+- **3 data models**: `Profile` (6 fields), `User` (6 fields, `teamId → Team` relationship),
+  `Team` (3 fields)
+- **15 endpoints** across REST, GraphQL (`POST /graphql`), and JSON-RPC (`POST /rpc`), path params
+  templated (`GET`/`DELETE /api/users/{id}`)
+- **5 held writes** flagged `held: true`: `POST /api/users`, `DELETE /api/users/{id}`,
+  `POST /api/settings`, the GraphQL mutation, the JSON-RPC write
+- **5 named UI states** and **4 transitions** (a clean linear walk: dashboard → users → detail →
+  settings → the settings form POST)
+- **2 heuristic rules**: `resource-crud: /api/users`, `write-held-behavior`
+- **Coverage**: 15 endpoints, 3 models, 5 states, 4 transitions, 5 held writes, per-held-endpoint
+  `knownGaps`, and a `recordBreakdown`
+
+The manual and autonomous specs describe the **same app** and match on the backend surface
+(15 endpoints, same 5 held writes); they differ only in flow shape (a linear manual walk vs. the
+agent's frontier revisits) — the honest signature of the two capture paths.
