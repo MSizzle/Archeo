@@ -123,6 +123,171 @@ function extractGraphQLIdentifier(body: string | null): string | undefined {
   return undefined;
 }
 
+// ---------------------------------------------------------------------------
+// extractGraphQLSchemaFragment helpers (D11-02 / SPEC-09)
+// ---------------------------------------------------------------------------
+
+/**
+ * Strip # comment lines from a GraphQL query string.
+ * Reuses the CR-03 pattern from classifier.ts and extractGraphQLIdentifier.
+ */
+function stripGQLComments(query: string): string {
+  return query.replace(/^\s*#[^\n]*/gm, '');
+}
+
+/**
+ * Strip inline argument literal VALUES from a GraphQL query string.
+ * Replaces string literals, numbers, booleans, null, and enum (ALL_CAPS) literals
+ * after `:` with the `<redacted>` placeholder.
+ * $variable references (starting with $) are kept — they are schema-level identifiers.
+ * CAP-05 / D11-02: produces a value-stripped query safe for storage.
+ * Pure — no I/O.
+ */
+function stripGQLLiteralValues(query: string): string {
+  // String literals (double-quoted): `: "value"` → `: <redacted>`
+  let result = query.replace(/(:\s*)"(?:[^"\\]|\\.)*"/g, '$1<redacted>');
+  // String literals (single-quoted): `: 'value'` → `: <redacted>`
+  result = result.replace(/(:\s*)'(?:[^'\\]|\\.)*'/g, '$1<redacted>');
+  // Number literals after colon: `: 123` / `: 3.14` / `: -5` → `: <redacted>`
+  // Look-behind for `:` separator; do NOT strip $variable `: $n` references.
+  result = result.replace(/(:\s*)(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)\b/g, '$1<redacted>');
+  // Boolean / null literals after colon
+  result = result.replace(/(:\s*)\b(true|false|null)\b/g, '$1<redacted>');
+  // ALL_CAPS enum literals after colon (e.g. ACTIVE, INACTIVE, STATUS_FLAG)
+  // Only UPPERCASE identifiers after `:` — avoids stripping PascalCase type names
+  result = result.replace(/(:\s*)\b([A-Z][A-Z0-9_]{1,})\b/g, '$1<redacted>');
+  return result;
+}
+
+/**
+ * Extract top-level argument NAMES from a GraphQL query string.
+ * Finds all `(argName: ...)` argument list patterns and returns the identifiers.
+ * CAP-05 / D11-02: never reads values — only the name before `:`.
+ * Pure — no I/O.
+ */
+function extractGQLArgNames(query: string): string[] {
+  const argNames: string[] = [];
+  // Match argument lists. Handles one level of nesting (common in GraphQL).
+  const argListRe = /\(([^()]*)\)/g;
+  let m: RegExpExecArray | null;
+  while ((m = argListRe.exec(query)) !== null) {
+    const argList = m[1];
+    // Extract identifier: patterns (argument names before the colon)
+    const argNameRe = /\b(\w+)\s*:/g;
+    let n: RegExpExecArray | null;
+    while ((n = argNameRe.exec(argList)) !== null) {
+      const name = n[1];
+      if (!argNames.includes(name)) argNames.push(name);
+    }
+  }
+  return argNames;
+}
+
+/**
+ * GraphQL keywords that must not be misidentified as field names.
+ */
+const GQL_FIELD_KEYWORDS = new Set([
+  'on', 'fragment', 'true', 'false', 'null',
+  'query', 'mutation', 'subscription',
+  'schema', 'scalar', 'type', 'interface', 'union',
+  'enum', 'input', 'extend', 'directive', 'implements',
+]);
+
+/** Reasonable depth cap for nested selection field extraction. */
+const MAX_FIELD_DEPTH = 5;
+
+/**
+ * Extract selection-set field NAMES from a GraphQL query string.
+ * Returns a flat list with nested paths joined by dots (e.g. 'user', 'user.name', 'user.email').
+ * Depth-capped at MAX_FIELD_DEPTH. Pure — no I/O.
+ * CAP-05 / D11-02: reads field NAMES only, never values.
+ */
+function extractGQLFieldNames(query: string): string[] {
+  const fields: string[] = [];
+
+  // Remove argument lists (they contain arg names, not field names) to avoid confusion.
+  // Simple removal handles the common case; nested parens treated as one block.
+  const withoutArgs = query.replace(/\([^()]*\)/g, '');
+
+  // pathStack: each entry is { name: string, openDepth: number }.
+  // openDepth = the depth value AFTER the '{' following the field name was processed.
+  // We pop entries whose openDepth >= current depth when we see '}' (before decrement).
+  const pathStack: Array<{ name: string; openDepth: number }> = [];
+  let i = 0;
+  let depth = 0;
+  let inOpHeader = true; // true until first `{` encountered
+
+  while (i < withoutArgs.length) {
+    const ch = withoutArgs[i];
+
+    if (ch === '{') {
+      depth++;
+      inOpHeader = false;
+      i++;
+      continue;
+    }
+
+    if (ch === '}') {
+      // Pop path stack entries whose validity window closes at this depth.
+      while (pathStack.length > 0 && pathStack[pathStack.length - 1].openDepth >= depth) {
+        pathStack.pop();
+      }
+      depth--;
+      i++;
+      continue;
+    }
+
+    // Skip inline double-quoted strings (block strings / descriptions)
+    if (ch === '"') {
+      i++;
+      while (i < withoutArgs.length && withoutArgs[i] !== '"') {
+        if (withoutArgs[i] === '\\') i++;
+        i++;
+      }
+      i++;
+      continue;
+    }
+
+    // Skip $variable references — they are not field names
+    if (ch === '$') {
+      i++;
+      while (i < withoutArgs.length && /\w/.test(withoutArgs[i])) i++;
+      continue;
+    }
+
+    // Identifier in selection set
+    if (/[a-zA-Z_]/.test(ch) && !inOpHeader && depth > 0) {
+      const start = i;
+      while (i < withoutArgs.length && /\w/.test(withoutArgs[i])) i++;
+      const ident = withoutArgs.slice(start, i);
+
+      if (!GQL_FIELD_KEYWORDS.has(ident) && depth <= MAX_FIELD_DEPTH) {
+        const prefix = pathStack.map(e => e.name).join('.');
+        const currentPath = prefix ? `${prefix}.${ident}` : ident;
+        if (!fields.includes(currentPath)) {
+          fields.push(currentPath);
+        }
+
+        // Look ahead for `{` (sub-selection opens) — skip whitespace first
+        let j = i;
+        while (j < withoutArgs.length && /\s/.test(withoutArgs[j])) j++;
+        if (j < withoutArgs.length && withoutArgs[j] === '{') {
+          // When we process this `{`, depth will become depth+1.
+          // Push an entry valid at openDepth = depth+1.
+          if (pathStack.length < MAX_FIELD_DEPTH) {
+            pathStack.push({ name: ident, openDepth: depth + 1 });
+          }
+        }
+      }
+      continue;
+    }
+
+    i++;
+  }
+
+  return fields;
+}
+
 /**
  * Extract the GraphQL operation schema fragment from a raw request body.
  * PRE-REDACTION: reads the query STRING for SHAPE only — argument NAMES, selection field
@@ -131,14 +296,64 @@ function extractGraphQLIdentifier(body: string | null): string | undefined {
  * SPEC-09: captures per-operation query structure for the downstream coding agent.
  *
  * Mirrors extractGraphQLIdentifier's parse-before-redact discipline (03-05).
- * $variable references are preserved (they are identifiers, not values).
+ * $variable references are preserved (they are schema-level identifiers, not values).
  * Inline literal values (strings, numbers, enums, booleans) → <redacted> placeholder.
  *
  * @param body  Raw request body string (before redaction) or null.
  */
 export function extractGraphQLSchemaFragment(body: string | null): GraphQLSchemaFragment | undefined {
-  // STUB — returns undefined (RED phase). Implemented in feat(11-02).
-  return undefined;
+  if (!body) return undefined;
+  let parsed: unknown;
+  try { parsed = JSON.parse(body); } catch { return undefined; }
+  if (typeof parsed !== 'object' || parsed === null) return undefined;
+  const rec = parsed as Record<string, unknown>;
+  const query = rec['query'];
+  if (typeof query !== 'string') return undefined;
+
+  // Strip # comments (CR-03 pattern — reused from classifier.ts + extractGraphQLIdentifier)
+  const stripped = stripGQLComments(query);
+
+  // Determine operation type — reuse patterns from classifier + extractGraphQLIdentifier.
+  let operationType: 'query' | 'mutation' | 'subscription' | 'introspection';
+  if (/__schema\b|__type\b/.test(stripped)) {
+    operationType = 'introspection';
+  } else if (/^\s*mutation\b/i.test(stripped)) {
+    operationType = 'mutation';
+  } else if (/^\s*subscription\b/i.test(stripped)) {
+    operationType = 'subscription';
+  } else {
+    operationType = 'query';
+  }
+
+  // Extract operation name — reuse the two-step logic from extractGraphQLIdentifier.
+  // 1. Named operation: `query/mutation/subscription Identifier`
+  // 2. Anonymous: first selection field in the outermost `{`
+  let operationName: string | undefined;
+  const namedMatch = /^\s*(?:query|mutation|subscription)\s+(\w+)/i.exec(stripped);
+  if (namedMatch) {
+    operationName = namedMatch[1];
+  } else {
+    const bodyMatch = /\{[\s,]*(\w+)/.exec(stripped);
+    if (bodyMatch) operationName = bodyMatch[1];
+  }
+
+  // Extract top-level argument NAMES (never values) — CAP-05 safe
+  const argNames = extractGQLArgNames(stripped);
+
+  // Extract selection-set field NAMES (nested paths flattened) — CAP-05 safe
+  const fieldNames = extractGQLFieldNames(stripped);
+
+  // Strip inline literal values — replaces string/number/enum/boolean literals with <redacted>
+  // $variable references are kept (they are identifiers, not values)
+  const strippedQuery = stripGQLLiteralValues(stripped);
+
+  return {
+    operationType,
+    ...(operationName !== undefined ? { operationName } : {}),
+    arguments: argNames,
+    fields: fieldNames,
+    query: strippedQuery.replace(/\s+/g, ' ').trim(),
+  };
 }
 
 /**
@@ -404,6 +619,7 @@ export async function handleRoute(
       const awRawBody = tryParseJson(request.postData());
       const awRawPostData = request.postData();
       const awGqlId = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(awRawPostData) : undefined;
+      const awGqlSchema = cls.protocol === 'GraphQL' ? extractGraphQLSchemaFragment(awRawPostData) : undefined;
       const awRpcMethod = cls.protocol === 'JSON-RPC' ? extractRpcMethod(awRawPostData) : undefined;
 
       // route.fetch() — the REAL mutation reaches the server (FLOOR-08 sanctioned bypass)
@@ -439,6 +655,7 @@ export async function handleRoute(
         responseHeaders: redactHeaders(awRespHeaders), // CAP-05
         responseBody: awResponseBody,
         ...(awGqlId !== undefined ? { graphqlOperationName: awGqlId } : {}),
+        ...(awGqlSchema !== undefined ? { graphqlSchema: awGqlSchema } : {}),
         ...(awRpcMethod !== undefined ? { rpcMethod: awRpcMethod } : {}),
       };
 
@@ -471,6 +688,7 @@ export async function handleRoute(
     // Extract schema-level identifiers PRE-redaction (CAP-05: only schema keys, never values)
     const rawPostData = request.postData();
     const gqlIdentifierHeld = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(rawPostData) : undefined;
+    const gqlSchemaHeld = cls.protocol === 'GraphQL' ? extractGraphQLSchemaFragment(rawPostData) : undefined;
     const rpcMethodHeld = cls.protocol === 'JSON-RPC' ? extractRpcMethod(rawPostData) : undefined;
 
     // CAP-05: redact in-memory BEFORE store.append — never persist raw values
@@ -488,6 +706,7 @@ export async function handleRoute(
       requestHeaders: redactHeaders(headers),   // CAP-05: redact before append
       requestBody: redactBody(rawBody),          // CAP-05: redact before append
       ...(gqlIdentifierHeld !== undefined ? { graphqlOperationName: gqlIdentifierHeld } : {}),
+      ...(gqlSchemaHeld !== undefined ? { graphqlSchema: gqlSchemaHeld } : {}),
       ...(rpcMethodHeld !== undefined ? { rpcMethod: rpcMethodHeld } : {}),
     };
 
@@ -571,6 +790,7 @@ export async function handleRoute(
   // Extract schema-level identifiers PRE-redaction (CAP-05: only schema keys, never values)
   const rawPostDataAllowed = request.postData();
   const gqlIdentifierAllowed = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(rawPostDataAllowed) : undefined;
+  const gqlSchemaAllowed = cls.protocol === 'GraphQL' ? extractGraphQLSchemaFragment(rawPostDataAllowed) : undefined;
   const rpcMethodAllowed = cls.protocol === 'JSON-RPC' ? extractRpcMethod(rawPostDataAllowed) : undefined;
 
   const record: CaptureRecord = {
@@ -590,6 +810,7 @@ export async function handleRoute(
     responseHeaders: redactHeaders(responseHeaders),     // CAP-05
     responseBody: redactBody(responseBodyParsed),        // CAP-05
     ...(gqlIdentifierAllowed !== undefined ? { graphqlOperationName: gqlIdentifierAllowed } : {}),
+    ...(gqlSchemaAllowed !== undefined ? { graphqlSchema: gqlSchemaAllowed } : {}),
     ...(rpcMethodAllowed !== undefined ? { rpcMethod: rpcMethodAllowed } : {}),
   };
 

@@ -704,7 +704,12 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   // Endpoint templates (SPEC-01/02 via templater)
   const rawTemplates = groupRecords(apiRecords);
 
-  // Normalize responseBodyShape and requestBodyShape leaves (SPEC-03/04: no raw values as types)
+  // Normalize responseBodyShape and requestBodyShape leaves (SPEC-03/04: no raw values as types).
+  // graphqlSchema, bodyEncoding, pollingIntervalMs are NOT normalized — they are:
+  //   graphqlSchema: schema-level identifiers + value-stripped query (already safe by D11-02)
+  //   bodyEncoding: fixed enum keyword (never a payload value)
+  //   pollingIntervalMs: a numeric metric (never a secret)
+  // The spread `...t` carries these fields through unchanged (T-11-02b invariant).
   const templates = rawTemplates.map(t => ({
     ...t,
     responseBodyShape: t.responseBodyShape !== null ? normalizeShapeLeaves(t.responseBodyShape) : null,
