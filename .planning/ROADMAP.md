@@ -341,9 +341,9 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 09-02-PLAN.md — Correct the CONTRIBUTING.md test-layout diagram to match the real `test/` tree
+- [x] 09-02-PLAN.md — Correct the CONTRIBUTING.md test-layout diagram to match the real `test/` tree
   (add `oss/`, reconcile `types/` with the guard dir created in 09-01) + acceptance check that every
-  diagrammed directory exists and none are omitted (DOC-01)
+  diagrammed directory exists and none are omitted (DOC-01) (completed 2026-07-04)
 
 ### Phase 10: Vision-drivable Demo Fixtures + Authentic Differential Dogfood
 
@@ -391,8 +391,8 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 9. Type-safety & Docs Hygiene | 1/2 | In progress | — |
+| 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
 | 10. Vision-drivable Demo Fixtures | 0/TBD | Not started | — |
 | 11. Spec-quality Enrichment | 0/TBD | Not started | — |
 
-**Milestone v1.1 status: executing — current focus Phase 9.**
+**Milestone v1.1 status: executing — current focus Phase 10 (Vision-drivable Demo Fixtures).**

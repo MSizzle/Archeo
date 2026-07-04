@@ -197,9 +197,10 @@ test/
   cli/            — tests for src/cli/ (gate, login isolation, explore isolation, …)
   dashboard/      — tests for src/dashboard/ (server, page)
   model/          — tests for src/model/ (adapter, providers)
+  oss/            — tests for OSS packaging and example specs
   security/       — GATE-03 no-network guard (no-network.test.ts) + license test
   spec/           — tests for src/spec/ (templater, generator, drift)
-  types/          — (minimal) shared-type sanity checks
+  types/          — typecheck regression guard (QUAL-02, typecheck.guard.ts, npm run test:types)
 ```
 
 The layout mirrors `src/<layer>/`. Each test file imports only from `node:test` and
@@ -207,8 +208,8 @@ The layout mirrors `src/<layer>/`. Each test file imports only from `node:test` 
 request, no browser.
 
 **Documented skip:** `test/agent/observation.test.ts` contains one skipped test (the
-browser-dependent screenshot path). This is expected; the suite baseline is 858 total
-(857 pass + 1 skip).
+browser-dependent screenshot path). This is expected; the suite baseline is 894 total
+(893 pass + 1 skip).
 
 ---
 

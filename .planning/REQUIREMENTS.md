@@ -113,9 +113,9 @@ v1.1 phase (9, 10, or 11). Derived from the standing enhancement backlog recorde
 
 ### Type-safety & Docs Hygiene (Phase 9)
 
-- [ ] **QUAL-01**: `npx tsc --noEmit` reports zero diagnostics across `src/` and `test/` — Phase 9
-- [ ] **QUAL-02**: A typecheck regression guard fails when any `tsc --noEmit` diagnostic reappears (dedicated `test:types` path, kept off the fast default suite) — Phase 9
-- [ ] **DOC-01**: The CONTRIBUTING.md test-layout diagram matches the real `test/` tree — every listed directory exists and none are omitted — Phase 9
+- [x] **QUAL-01**: `npx tsc --noEmit` reports zero diagnostics across `src/` and `test/` — Phase 9
+- [x] **QUAL-02**: A typecheck regression guard fails when any `tsc --noEmit` diagnostic reappears (dedicated `test:types` path, kept off the fast default suite) — Phase 9
+- [x] **DOC-01**: The CONTRIBUTING.md test-layout diagram matches the real `test/` tree — every listed directory exists and none are omitted — Phase 9
 
 ### Vision-drivable Demo Fixtures (Phase 10)
 
@@ -212,9 +212,9 @@ Each requirement maps to exactly one phase.
 | OSS-03 | Phase 7 | Complete (07-02; scope statement + cross-links verified 07-03) |
 | VALID-01 | Phase 8 | Complete (08-01 `archeo compare`; verified live 08-02 — MATCH+FLAG, self-compare clean, floor held) |
 | VALID-02 | Phase 8 | Complete (08-01 no-duplication structural proof; two-target run exercised live 08-02) |
-| QUAL-01 | Phase 9 | Pending |
-| QUAL-02 | Phase 9 | Pending |
-| DOC-01 | Phase 9 | Pending |
+| QUAL-01 | Phase 9 | Complete (09-01) |
+| QUAL-02 | Phase 9 | Complete (09-01) |
+| DOC-01 | Phase 9 | Complete (09-02) |
 | FIX-01 | Phase 10 | Pending |
 | SPEC-08 | Phase 11 | Pending |
 | SPEC-09 | Phase 11 | Pending |
@@ -222,7 +222,7 @@ Each requirement maps to exactly one phase.
 
 **Coverage:**
 - v1 requirements: 59 total (header previously stated 49; actual count is 59) — all Complete
-- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — all Pending
+- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — 3 Complete (QUAL-01/02, DOC-01), 4 Pending
 - Mapped to phases: 66 ✓ (59 v1 + 7 v1.1)
 - Unmapped: 0 ✓
 
@@ -241,4 +241,4 @@ Each requirement maps to exactly one phase.
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-07-04 — v1.1 requirements added (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) mapped to Phases 9–11, all Pending.*
+*Last updated: 2026-07-04 — Phase 9 complete: QUAL-01/02 Complete (09-01), DOC-01 Complete (09-02).*

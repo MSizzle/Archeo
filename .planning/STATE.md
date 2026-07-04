@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "09-01 COMPLETE — 18 tsc diagnostics → 0 (QUAL-01); DashboardHandle unified in src/dashboard/types.ts; 17 test-side fixes (Categories B/C/D, no production type weakened); QUAL-02 typecheck guard at test/types/typecheck.guard.ts + test:types script. tsc exits 0, guard passes, suite 894 (893 pass + 1 skip, 0 fail). Next: 09-02 (DOC-01 — fix CONTRIBUTING test-layout diagram now that test/types/ exists)."
-last_updated: "2026-07-04T14:00:00.000Z"
+stopped_at: "09-02 COMPLETE — DOC-01 met: CONTRIBUTING.md test-layout diagram now matches the real test/ tree (added oss/, re-described types/ as the QUAL-02 guard, updated baseline sentence to 894). Bidirectional diagram↔tree diff empty. tsc exits 0, suite 894 (893 pass + 1 skip, 0 fail). Phase 9 COMPLETE (2/2). Next: Phase 10 (Vision-drivable Demo Fixtures)."
+last_updated: "2026-07-04T15:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 2
-  completed_plans: 1
+  completed_plans: 2
   percent: 33
 ---
 
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 9 (Type-safety & Docs Hygiene), plan 09-02 next.** 09-01 COMPLETE (2026-07-04): tsc diagnostic count 18 → 0; DashboardHandle unified; QUAL-01 and QUAL-02 met; test:types guard passes. 09-02 (DOC-01) is the next step — fix the CONTRIBUTING test-layout diagram now that `test/types/` exists.
+**Current focus:** **MILESTONE v1.1 — Phase 10 (Vision-drivable Demo Fixtures).** Phase 9 COMPLETE (2026-07-04): tsc 18 diagnostics → 0 (QUAL-01); QUAL-02 guard at test/types/typecheck.guard.ts; CONTRIBUTING diagram matches real test/ tree (DOC-01). All three Phase 9 requirements Complete. Start Phase 10 via `/gsd-plan-phase` or `/gsd-execute-phase`.
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: 09 (type-safety & docs hygiene) — **IN PROGRESS (1/2)** — plan 09-01 COMPLETE, 09-02 next
-Plan: 09-02 planned (2026-07-04); execution pending
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved
+Phase: **09 COMPLETE (2/2)** — moving to Phase 10 (Vision-drivable Demo Fixtures)
+Plan: Phase 10 planning pending
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 closed
 Last activity: 2026-07-04
 
-Progress (v1.1): [█░░░░░░░░░] ~17% (0/3 phases complete, but Phase 9 is 1/2) — v1.0: [██████████] 100% (8/8, COMPLETE)
+Progress (v1.1): [███░░░░░░░] ~33% (1/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 
