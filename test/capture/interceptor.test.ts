@@ -997,3 +997,192 @@ describe('attachInterceptor — error fallback calls route.abort (IN-03 / CR-01 
     store.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// FLOOR-08: --allow-writes pass-through-captured path (06-05 Task 3)
+// ---------------------------------------------------------------------------
+describe('handleRoute — allowWrites pass-through-captured (FLOOR-08)', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-allow-writes-test-'));
+
+  after(() => {
+    rmSync(tmpRoot, { recursive: true, force: true });
+  });
+
+  test('allowWrites=true + POST: route.fetch IS called + record captured held:false', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute(makeMockResponse({ status: 201, bodyJson: { id: '550e8400-e29b-41d4-a716-446655440000' } }));
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/users',
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    await handleRoute(route as never, request as never, store, undefined, {
+      allowWrites: true,
+    });
+
+    // route.fetch MUST be called (real mutation reaches the server)
+    assert.ok(
+      route._calls.some(c => c.method === 'fetch'),
+      'route.fetch must be called for a POST under allowWrites (real mutation)',
+    );
+    // route.fulfill must be called (real response forwarded to browser)
+    assert.ok(
+      route._calls.some(c => c.method === 'fulfill'),
+      'route.fulfill must be called to forward the real response to browser',
+    );
+
+    await store.close();
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    assert.equal(lines.length, 1, 'exactly one record written');
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.held, false, 'allowWrites POST must be captured held:false');
+    assert.equal(record.method, 'POST');
+    assert.equal(record.responseStatus, 201);
+  });
+
+  test('allowWrites=true + destructive GET: still prompts (tripwire UNCHANGED)', async () => {
+    // A GET to a path with a destructive token must still go through the destructive-GET prompt
+    // even when allowWrites is enabled.
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'GET',
+      url: 'https://example.com/api/delete-account',
+    });
+
+    let confirmCalled = false;
+    const confirmFn = async (_url: string): Promise<boolean> => {
+      confirmCalled = true;
+      return false; // deny
+    };
+
+    await handleRoute(route as never, request as never, store, confirmFn, {
+      allowWrites: true,
+    });
+
+    // Destructive-GET prompt must still fire under allowWrites
+    assert.ok(confirmCalled, 'destructive-GET confirmFn must still be called under allowWrites');
+    // Denied → route.abort called (server NOT contacted)
+    assert.ok(
+      route._calls.some(c => c.method === 'abort'),
+      'route.abort must be called when destructive-GET is denied',
+    );
+    assert.ok(
+      !route._calls.some(c => c.method === 'fetch'),
+      'route.fetch must NOT be called when destructive-GET is denied',
+    );
+  });
+
+  test('allowWrites=true: redaction still runs (CAP-05 intact)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute(makeMockResponse({
+      bodyJson: { token: 'super-secret-token-value', type: 'Bearer' },
+    }));
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/auth',
+      headers: { authorization: 'Bearer super-secret-req-token', 'content-type': 'application/json' },
+      body: JSON.stringify({ password: 'hunter2' }),
+    });
+
+    await handleRoute(route as never, request as never, store, undefined, {
+      allowWrites: true,
+    });
+
+    await store.close();
+    const content = readFileSync(getLogPath(store), 'utf8');
+    // Auth secrets must NOT appear in the captured record
+    assert.ok(!content.includes('super-secret-req-token'), 'request auth token must be redacted');
+    assert.ok(!content.includes('hunter2'), 'request password must be redacted');
+    assert.ok(!content.includes('super-secret-token-value'), 'response token must be redacted');
+  });
+
+  test('paused flag overrides allowWrites — pass-through unrecorded (D4-01)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/users',
+      body: JSON.stringify({ name: 'Alice' }),
+    });
+
+    await handleRoute(route as never, request as never, store, undefined, {
+      paused: () => true,
+      allowWrites: true,
+    });
+
+    // Paused → continue, not fetch (pass-through unrecorded)
+    assert.ok(
+      route._calls.some(c => c.method === 'continue'),
+      'paused mode must call route.continue (pass-through)',
+    );
+    assert.ok(
+      !route._calls.some(c => c.method === 'fetch'),
+      'paused mode must NOT call route.fetch (unrecorded)',
+    );
+
+    await store.close();
+    const content = readFileSync(getLogPath(store), 'utf8');
+    const lines = content.split('\n').filter(Boolean);
+    assert.equal(lines.length, 0, 'paused mode must write no records to store');
+  });
+
+  test('allowWrites=true: redactionHook adds extra field redaction before append', async () => {
+    const store = makeStore(tmpRoot);
+    // Response body has a "notes" field the hook will flag
+    const route = makeMockRoute(makeMockResponse({
+      bodyJson: { notes: 'some secret note', type: 'Item' },
+    }));
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/items',
+      body: JSON.stringify({ content: 'test' }),
+    });
+
+    // A hook that always flags responseBody.notes
+    const redactionHook = async (_candidate: unknown) => ['responseBody.notes'];
+
+    await handleRoute(route as never, request as never, store, undefined, {
+      allowWrites: true,
+      redactionHook,
+    });
+
+    await store.close();
+    const content = readFileSync(getLogPath(store), 'utf8');
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+    // responseBody.notes must be '[REDACTED]' because the hook flagged it
+    const respBody = record.responseBody as Record<string, unknown>;
+    assert.equal(respBody['notes'], '[REDACTED]', 'redactionHook extra field must be [REDACTED]');
+    // Other fields survive (type is a safe enum token)
+    assert.equal(respBody['type'], 'Item', 'non-hooked safe field must survive');
+  });
+
+  test('allowWrites=false (default): POST is still held (floor ON by default)', async () => {
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/api/users',
+      body: JSON.stringify({ name: 'Bob' }),
+    });
+
+    // No allowWrites flag — default floor ON
+    await handleRoute(route as never, request as never, store);
+
+    // Floor ON: fetch must NOT be called; fulfill IS called (synthetic 2xx)
+    assert.ok(
+      !route._calls.some(c => c.method === 'fetch'),
+      'floor ON (no allowWrites): route.fetch must NOT be called',
+    );
+    assert.ok(
+      route._calls.some(c => c.method === 'fulfill'),
+      'floor ON: route.fulfill must be called with synthetic response',
+    );
+
+    await store.close();
+    const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
+    const record = JSON.parse(lines[0]);
+    assert.equal(record.held, true, 'floor ON (no allowWrites): POST must be held:true');
+  });
+});

@@ -893,6 +893,39 @@ describe('generateSpec — modelCallsSkipped propagation (06-02)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task (06-05): allowWrites surfaced into coverage block
+// ---------------------------------------------------------------------------
+
+let newDirAW: () => string;
+{
+  let tmpDirAW: string | undefined;
+  newDirAW = () => {
+    if (!tmpDirAW) tmpDirAW = mkdtempSync(join(tmpdir(), 'archeo-gen-aw-'));
+    return mkdtempSync(join(tmpDirAW, 'session-'));
+  };
+}
+
+describe('generateSpec — allowWrites propagation (06-05)', () => {
+  test('manifest with allowWrites:true → coverage.allowWrites === true', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirAW();
+    writeFileSync(join(dir, 'capture.jsonl'), '');
+    writeManifest(dir, { recordCount: 0, allowWrites: true });
+    const spec = generateSpec(dir);
+    assert.equal(spec.coverage.allowWrites, true, 'allowWrites:true must propagate from manifest to coverage');
+  });
+
+  test('manifest without allowWrites → coverage.allowWrites field absent (normal floor-ON run)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirAW();
+    writeFileSync(join(dir, 'capture.jsonl'), '');
+    writeManifest(dir, { recordCount: 0 });
+    const spec = generateSpec(dir);
+    assert.ok(!('allowWrites' in spec.coverage), 'allowWrites must be absent for a normal floor-ON run');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GATE-03 guard: generator must not import HTTP client or Playwright
 // ---------------------------------------------------------------------------
 describe('GATE-03 guard — generator source', () => {

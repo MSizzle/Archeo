@@ -327,3 +327,40 @@ describe('archeo clear-session (04-02 — AUTH-03/D4-05)', () => {
     );
   });
 });
+
+// ---------------------------------------------------------------------------
+// FLOOR-08: --allow-writes non-TTY refusal (06-05 Task 4)
+// Non-TTY + --allow-writes WITHOUT --i-accept-writes must exit 1 (refuse).
+// Both `archeo <url>` and `archeo explore` must enforce this.
+// ---------------------------------------------------------------------------
+describe('archeo — --allow-writes non-TTY refusal (FLOOR-08)', () => {
+  test('(q) <url> --allow-writes without --i-accept-writes → exit 1 + refusal message (non-TTY)', async () => {
+    const { code, output } = await runCli([
+      'https://example.com',
+      '--i-have-authorization',
+      '--allow-writes',
+      // NOTE: --i-accept-writes is intentionally omitted
+    ]);
+    assert.equal(code, 1, `Expected exit code 1 (refusal), got ${code}\nOutput:\n${output}`);
+    // Must print some form of refusal — write mode requires --i-accept-writes in non-TTY
+    assert.ok(
+      /writes|allow.writes|i.accept.writes|refused|non.TTY|non-interactive/i.test(output),
+      `Expected a refusal message about --allow-writes in non-TTY. Got:\n${output}`,
+    );
+  });
+
+  test('(r) explore --allow-writes without --i-accept-writes → exit 1 + refusal message (non-TTY)', async () => {
+    const { code, output } = await runCli([
+      'explore',
+      'https://example.com',
+      '--i-have-authorization',
+      '--allow-writes',
+      // NOTE: --i-accept-writes is intentionally omitted
+    ]);
+    assert.equal(code, 1, `Expected exit code 1 (refusal), got ${code}\nOutput:\n${output}`);
+    assert.ok(
+      /writes|allow.writes|i.accept.writes|refused|non.TTY|non-interactive/i.test(output),
+      `Expected a refusal message about --allow-writes in non-TTY. Got:\n${output}`,
+    );
+  });
+});
