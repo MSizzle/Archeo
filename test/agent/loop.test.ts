@@ -666,7 +666,7 @@ describe('explore — change-gating and skip accounting (COST-02 / D6-02)', () =
       const result = await explore(asPage(twoButtonPage), clickRef0Provider, store, { maxSteps: 5 })
       // Find policy steps in the agent-step records
       const policySteps = agentSteps.filter(
-        (s) => (s as Record<string, unknown>).agentSource === 'policy',
+        (s) => (s as unknown as Record<string, unknown>).agentSource === 'policy',
       )
       // If modelCallsSkipped > 0, we must have policy agent-step records
       if (result.modelCallsSkipped > 0) {
@@ -803,9 +803,9 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
         maxSteps: 5,
         onError: (e) => errors.push(e),
       }) as ExploreResult & { issueCount: number }
-      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+      assert.ok(typeof (result as unknown as Record<string, unknown>).issueCount === 'number',
         'ExploreResult must have issueCount field')
-      assert.ok((result as Record<string, unknown>).issueCount >= 1,
+      assert.ok(result.issueCount >= 1,
         'issueCount must be at least 1 (the context-destroyed recovery)')
       assert.ok(errors.length >= 1, 'onError must fire for the recovered context-destroyed event')
       assert.ok(result.steps <= 5, 'must never exceed maxSteps')
@@ -839,9 +839,9 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
         onError: (e) => errors.push(e),
         onHalt: (info) => halts.push(info),
       }) as ExploreResult & { issueCount: number }
-      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+      assert.ok(typeof (result as unknown as Record<string, unknown>).issueCount === 'number',
         'ExploreResult must have issueCount')
-      assert.ok((result as Record<string, unknown>).issueCount >= 1,
+      assert.ok(result.issueCount >= 1,
         'at least one MODEL_ERROR issue logged')
       assert.ok(errors.length >= 1, 'onError must fire for the model error')
       assert.ok(sleepCalls.length >= 1, 'backoff sleep must be called on model error')
@@ -867,7 +867,7 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
       assert.ok(typeof result.steps === 'number', 'explore must resolve (not throw) on action failure')
       assert.ok(halts.length === 0, 'recoverable action failure must not trigger onHalt')
       // issueCount should reflect the logged issue
-      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+      assert.ok(typeof (result as unknown as Record<string, unknown>).issueCount === 'number',
         'ExploreResult must have issueCount')
       assert.ok(result.steps <= 5, 'must never exceed maxSteps')
     } finally {
@@ -976,9 +976,9 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
         maxSteps: 10,
         onError: () => {},
       }) as ExploreResult & { issueCount: number }
-      assert.ok(typeof (result as Record<string, unknown>).issueCount === 'number',
+      assert.ok(typeof (result as unknown as Record<string, unknown>).issueCount === 'number',
         'issueCount must be present')
-      assert.ok((result as Record<string, unknown>).issueCount >= 2,
+      assert.ok(result.issueCount >= 2,
         'issueCount must reflect at least 2 context-destroyed issues')
     } finally {
       await cleanup()

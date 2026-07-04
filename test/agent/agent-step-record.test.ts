@@ -244,7 +244,7 @@ describe('store.appendAgentStep — source field (06-02)', () => {
       assert.equal(records.length, 1)
       const r = records[0]
       assert.equal(r.type, RECORD_TYPES.AGENT_STEP)
-      assert.equal((r as Record<string, unknown>).agentSource, 'policy', 'agentSource must be "policy" when source is provided')
+      assert.equal((r as unknown as Record<string, unknown>).agentSource, 'policy', 'agentSource must be "policy" when source is provided')
       assert.equal(r.held, false, 'held must remain false')
       assert.equal(r.requestBody, null, 'no requestBody for agent-step')
       assert.equal(r.responseBody, undefined, 'no responseBody for agent-step')
@@ -267,7 +267,7 @@ describe('store.appendAgentStep — source field (06-02)', () => {
       await store.close()
       const records = readJsonl(store.dir)
       const r = records[0]
-      assert.equal((r as Record<string, unknown>).agentSource, 'model', 'agentSource must be "model"')
+      assert.equal((r as unknown as Record<string, unknown>).agentSource, 'model', 'agentSource must be "model"')
     } finally {
       rmSync(root, { recursive: true, force: true })
     }
@@ -288,7 +288,7 @@ describe('store.appendAgentStep — source field (06-02)', () => {
       const records = readJsonl(store.dir)
       const r = records[0]
       // agentSource should be absent (undefined) — not 'undefined' string, not null
-      assert.ok(!('agentSource' in r) || (r as Record<string, unknown>).agentSource === undefined,
+      assert.ok(!('agentSource' in r) || (r as unknown as Record<string, unknown>).agentSource === undefined,
         'agentSource must be absent when source is not provided')
     } finally {
       rmSync(root, { recursive: true, force: true })

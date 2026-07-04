@@ -119,7 +119,7 @@ describe('createAnthropicProvider — DI-fetch transport', () => {
     let capturedBody: Record<string, unknown> | undefined
 
     const fakeFetch = async (
-      input: RequestInfo | URL,
+      input: Parameters<typeof fetch>[0],
       init?: RequestInit,
     ): Promise<Response> => {
       capturedUrl = input.toString()
@@ -161,7 +161,7 @@ describe('createAnthropicProvider — DI-fetch transport', () => {
 
   test('uses ANTHROPIC_API_URL when no baseUrl supplied', async () => {
     let calledUrl: string | undefined
-    const fakeFetch = async (input: RequestInfo | URL): Promise<Response> => {
+    const fakeFetch = async (input: Parameters<typeof fetch>[0]): Promise<Response> => {
       calledUrl = input.toString()
       return new Response(JSON.stringify({ content: [{ type: 'text', text: 'ok' }] }))
     }

@@ -194,7 +194,7 @@ function makeFakePage(failCount: number): FakePageLike {
     async title(): Promise<string> {
       return 'Test Page'
     },
-    async waitForLoadState(_state: string): Promise<void> {
+    async waitForLoadState(_state?: 'load' | 'domcontentloaded' | 'networkidle', _options?: { timeout?: number }): Promise<void> {
       fake.waitForLoadStateCalls++
     },
   }
