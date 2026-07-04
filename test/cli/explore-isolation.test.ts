@@ -151,12 +151,15 @@ describe('archeo explore — --allow-writes non-TTY refusal (FLOOR-08)', () => {
     )
   })
 
-  test('destructive-GET prompt and blocklist still apply under --allow-writes (source-inspection)', () => {
-    // Verify explore.ts still calls confirmFn for destructive GETs (the tripwire is unchanged)
-    const code = stripCommentLines(readFileSync(EXPLORE_PATH, 'utf8'))
+  test('destructive-GET prompt still applies — interceptor.ts has the unchanged tripwire (source-inspection)', () => {
+    // The destructive-GET tripwire lives in src/capture/interceptor.ts (handleRoute).
+    // explore.ts delegates all route-level decisions to attachInterceptor → handleRoute.
+    // Verify that the interceptor source still contains the destructive-GET check.
+    const interceptorPath = resolve(__dirname, '../../src/capture/interceptor.ts')
+    const code = stripCommentLines(readFileSync(interceptorPath, 'utf8'))
     assert.ok(
-      code.includes('confirmDestructiveGet') || code.includes('confirmFn'),
-      'explore.ts must still wire the destructive-GET prompt under allow-writes',
+      code.includes('destructiveGet') && (code.includes('confirmDestructiveGet') || code.includes('confirmFn')),
+      'interceptor.ts must still have the destructive-GET tripwire (unchanged under allowWrites)',
     )
   })
 })

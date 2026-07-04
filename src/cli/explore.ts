@@ -40,6 +40,7 @@ import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts'
 import { startScreencast } from '../agent/screencast.ts'
 import { writeResumeState } from '../agent/resume.ts'
 import type { ResumeState } from '../agent/resume.ts'
+import type { RedactionModelHook } from '../capture/redactionModel.ts'
 
 /** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03) + sendDrift (06-04). */
 interface DashboardHandle {
@@ -83,6 +84,10 @@ export async function runExplore(
     model?: string
     paceMs?: number
     seed?: ResumeState
+    /** FLOOR-08 (06-05): when true, mutations pass through and are captured held:false */
+    allowWrites?: boolean
+    /** CAP-06 seam (06-05): optional external-command redaction hook */
+    redactionHook?: RedactionModelHook
   },
 ): Promise<void> {
   const { maxSteps, dashboard } = opts
@@ -222,11 +227,14 @@ export async function runExplore(
 
   let page
   try {
-    // FLOOR-01: attach the safety floor + capture layer BEFORE any navigation (floor ON).
-    // context.route() intercepts all pages + popups. Writes stay held — non-negotiable; no
-    // write-enabling flag exists in this phase.
+    // FLOOR-01: attach the safety floor + capture layer BEFORE any navigation (floor ON by default).
+    // context.route() intercepts all pages + popups. Writes stay held unless --allow-writes is set.
+    // FLOOR-08: opts.allowWrites enables the sanctioned bypass (mutations pass through, captured held:false).
     const targetHostname = new URL(url).hostname
-    await attachInterceptor(context, targetHostname, store, controls)
+    await attachInterceptor(context, targetHostname, store, controls, {
+      allowWrites: opts.allowWrites,
+      redactionHook: opts.redactionHook,
+    })
 
     // Reuse the initial about:blank page (no second page opened).
     page = context.pages()[0] ?? (await context.newPage())

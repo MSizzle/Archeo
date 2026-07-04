@@ -153,4 +153,10 @@ export interface CaptureManifest {
    * Absent on pre-06-02 sessions. Set by CaptureStore.recordModelCallsSkipped().
    */
   modelCallsSkipped?: number;
+  /**
+   * FLOOR-08 (06-05): true when the session was run with --allow-writes enabled.
+   * Absent (or false) on normal floor-ON sessions. Surfaced in spec coverage so a
+   * consumer can tell whether the captured writes were real or held.
+   */
+  allowWrites?: boolean;
 }

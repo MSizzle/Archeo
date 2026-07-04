@@ -30,6 +30,8 @@ import { isTargetScope, classifyRequest } from './classifier.ts';
 import { redactHeaders, redactBody, redactUrl } from './redactor.ts';
 import type { CaptureStore } from './store.ts';
 import type { CaptureRecord } from '../types/index.ts';
+import type { RedactionModelHook } from './redactionModel.ts';
+import { applyExtraRedactions } from './redactionModel.ts';
 
 // ---------------------------------------------------------------------------
 // Destructive-GET confirmation prompt (FLOOR-04, D-04)
@@ -189,18 +191,26 @@ function tryParseJson(raw: string | null): unknown {
  * @param store           The capture store to append redacted records to
  * @param controls        Optional pause flag — when paused() returns true, ALL requests
  *                        pass through unrecorded (D4-01 pass-through-unrecorded trust model)
+ * @param opts            Optional FLOOR-08/CAP-06 options:
+ *                          allowWrites — when true, mutations pass through and are captured held:false
+ *                          redactionHook — CAP-06 seam: adds extra field redactions after base redaction
  */
 export async function attachInterceptor(
   context: BrowserContext,
   targetHostname: string,
   store: CaptureStore,
-  controls?: { paused: () => boolean },
+  controls?: { paused?: () => boolean },
+  opts?: { allowWrites?: boolean; redactionHook?: RedactionModelHook },
 ): Promise<void> {
   await context.route(
     (url) => isTargetScope(url, targetHostname),
     async (route, request) => {
       try {
-        await handleRoute(route, request, store, confirmDestructiveGet, controls);
+        await handleRoute(route, request, store, confirmDestructiveGet, {
+          ...controls,
+          allowWrites: opts?.allowWrites,
+          redactionHook: opts?.redactionHook,
+        });
       } catch {
         // Pitfall 2: fail-safe wrapper — handler error must not leave request pending AND
         // must not allow an unclassified (possibly mutating) request through to the server.
@@ -229,15 +239,17 @@ export async function attachInterceptor(
  * @param store      CaptureStore — receives one redacted record per call
  * @param confirmFn  Async y/N prompt for destructive GETs — injectable for testing.
  *                   Defaults to the real terminal prompt (confirmDestructiveGet).
- * @param controls   Optional pause flag — when paused() returns true, the handler passes
- *                   through UNRECORDED (D4-01 pass-through-unrecorded trust model).
+ * @param controls   Optional pause flag + FLOOR-08/CAP-06 opts:
+ *                     paused()     — when true, the handler passes through UNRECORDED (D4-01)
+ *                     allowWrites  — FLOOR-08: mutations pass through + captured held:false
+ *                     redactionHook — CAP-06 seam: adds extra field redactions after base redaction
  */
 export async function handleRoute(
   route: Route,
   request: Request,
   store: CaptureStore,
   confirmFn: (url: string) => Promise<boolean> = confirmDestructiveGet,
-  controls?: { paused: () => boolean },
+  controls?: { paused?: () => boolean; allowWrites?: boolean; redactionHook?: RedactionModelHook },
 ): Promise<void> {
   // ---------------------------------------------------------------------------
   // D4-01 PASS-THROUGH-UNRECORDED — AUTH PAUSE MODE
@@ -258,10 +270,14 @@ export async function handleRoute(
   // verifying the session is restored. Until resume() is called, this guard
   // is the only active path for ALL requests in the browser context.
   // ---------------------------------------------------------------------------
+  // D4-01 PASS-THROUGH — paused flag wins over ALL other processing (incl. allowWrites)
   if (controls?.paused?.()) {
     await route.continue()
     return
   }
+
+  const allowWrites = controls?.allowWrites ?? false;
+  const redactionHook = controls?.redactionHook;
 
   // Pitfall 3: use allHeaders() (async) not headers() (sync, excludes cookies).
   const headers = await request.allHeaders();
@@ -351,6 +367,78 @@ export async function handleRoute(
         await route.fulfill({ response: dgResponse, body: dgBodyBuffer });
       } else {
         await route.fulfill({ response: dgResponse });
+      }
+      return;
+    }
+
+    // -----------------------------------------------------------------------
+    // FLOOR-08: allowWrites pass-through-captured path
+    // Activated ONLY when --allow-writes is set AND the request is a held mutation
+    // that is NOT a destructive GET (which always prompts regardless of allowWrites).
+    //
+    // Behaviour: real fetch → capture held:false (real response, redacted) → forward.
+    // The destructive-GET tripwire path above is BYTE-IDENTICAL (unchanged).
+    // CAP-05 base redaction runs exactly as for any other captured record.
+    // redactionHook (CAP-06 seam) adds extra field redactions before append.
+    // -----------------------------------------------------------------------
+    if (allowWrites) {
+      const awPath = new URL(request.url()).pathname;
+      const awRawBody = tryParseJson(request.postData());
+      const awRawPostData = request.postData();
+      const awGqlId = cls.protocol === 'GraphQL' ? extractGraphQLIdentifier(awRawPostData) : undefined;
+      const awRpcMethod = cls.protocol === 'JSON-RPC' ? extractRpcMethod(awRawPostData) : undefined;
+
+      // route.fetch() — the REAL mutation reaches the server (FLOOR-08 sanctioned bypass)
+      const awResponse = await route.fetch();
+      const awRespHeaders = awResponse.headers();
+      const awContentType = awRespHeaders['content-type'] ?? '';
+      const awContentLength = awRespHeaders['content-length'];
+
+      let awResponseBody: unknown | null = null;
+      let awBodyBuffer: Buffer | undefined;
+      if (!isBinaryResponse(awContentType, awContentLength)) {
+        awBodyBuffer = await awResponse.body();
+        const awBodyParsed = tryParseJson(
+          awContentType.includes('application/json') ? awBodyBuffer.toString('utf8') : null,
+        );
+        awResponseBody = redactBody(awBodyParsed); // CAP-05: redact before append
+      }
+
+      let awRecord: CaptureRecord = {
+        id: randomUUID(),
+        seq: 0,
+        timestamp: new Date().toISOString(),
+        type: 'request-response',             // real response captured — not 'held-write'
+        protocol: cls.protocol,
+        operationType: cls.operationType,
+        method: request.method().toUpperCase(),
+        url: redactUrl(request.url()),          // CR-02: mask auth query params
+        path: awPath,
+        held: false,                            // FLOOR-08: real write — not held
+        requestHeaders: redactHeaders(headers), // CAP-05
+        requestBody: redactBody(awRawBody),     // CAP-05
+        responseStatus: awResponse.status(),
+        responseHeaders: redactHeaders(awRespHeaders), // CAP-05
+        responseBody: awResponseBody,
+        ...(awGqlId !== undefined ? { graphqlOperationName: awGqlId } : {}),
+        ...(awRpcMethod !== undefined ? { rpcMethod: awRpcMethod } : {}),
+      };
+
+      // CAP-06: apply extra redactions from the hook AFTER base redaction (BEFORE append)
+      if (redactionHook) {
+        const extraPaths = await redactionHook(awRecord).catch(() => []);
+        if (extraPaths.length > 0) {
+          awRecord = applyExtraRedactions(awRecord, extraPaths);
+        }
+      }
+
+      store.append(awRecord); // fully redacted record (CAP-05 + optional CAP-06 hook)
+
+      // Forward the real response to the browser
+      if (awBodyBuffer !== undefined) {
+        await route.fulfill({ response: awResponse, body: awBodyBuffer });
+      } else {
+        await route.fulfill({ response: awResponse });
       }
       return;
     }
@@ -499,7 +587,17 @@ export async function handleRoute(
     store.clearLastHeldWriteId(); // WR-02: reset so subsequent unrelated errors are not mislinked
   }
 
-  store.append(record);  // always receives a fully-redacted record (CAP-05 invariant)
+  // CAP-06: apply extra redactions from the hook AFTER base redaction (BEFORE append).
+  // Dead-end records already have bodies nulled (T-02-10), so the hook is a no-op there.
+  let finalRecord = record;
+  if (redactionHook && record.type !== 'dead-end') {
+    const extraPaths = await redactionHook(record).catch(() => []);
+    if (extraPaths.length > 0) {
+      finalRecord = applyExtraRedactions(record, extraPaths);
+    }
+  }
+
+  store.append(finalRecord);  // always receives a fully-redacted record (CAP-05 invariant)
 
   // Forward the real response to the browser — pass body explicitly after reading it
   await route.fulfill({ response, body: bodyBuffer });

@@ -658,6 +658,11 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   if (typeof manifest.modelCallsSkipped === 'number') {
     coverage.modelCallsSkipped = manifest.modelCallsSkipped
   }
+  // Propagate allowWrites mode from manifest into coverage (06-05 FLOOR-08)
+  // Only set when true — absent means normal floor-ON run (T-06-18 provenance)
+  if (manifest.allowWrites === true) {
+    coverage.allowWrites = true
+  }
 
   // Meta block
   const meta: SpecMeta = {

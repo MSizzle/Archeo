@@ -49,6 +49,7 @@ import type { CaptureStore } from '../capture/store.ts';
 import { attachInterceptor } from '../capture/interceptor.ts';
 import { attachNavigationTracker } from '../capture/navigation.ts';
 import { writeSpec } from '../spec/generator.ts';
+import type { RedactionModelHook } from '../capture/redactionModel.ts';
 
 // ---------------------------------------------------------------------------
 // URL validation (V5 input validation, T-01-07)
@@ -108,12 +109,16 @@ export function isValidUrl(url: string): boolean {
  *                        capture layer and safety floor into the browser context (FLOOR-01).
  * @param dashboard       Optional dashboard handle returned by startDashboard; if provided,
  *                        gracefulShutdown closes it after writeSpec (D3-05/T-03-12).
+ * @param opts            Optional FLOOR-08/CAP-06 options:
+ *                          allowWrites — pass through to attachInterceptor (mutations reach server)
+ *                          redactionHook — CAP-06 seam: adds extra field redactions
  */
 export async function openAndWait(
   url: string,
   profileDirPath: string,
   store?: CaptureStore,
   dashboard?: { close(): Promise<void> },
+  opts?: { allowWrites?: boolean; redactionHook?: RedactionModelHook },
 ): Promise<void> {
   // D4-02/D4-03: Launch a persistent context that preserves cookies, localStorage,
   // IndexedDB, and service workers across runs into the per-hostname profile dir.
@@ -207,7 +212,10 @@ export async function openAndWait(
     // are intercepted (Pitfall 1 — same rationale as before the refactor).
     if (store) {
       const targetHostname = new URL(url).hostname;
-      await attachInterceptor(context, targetHostname, store);
+      await attachInterceptor(context, targetHostname, store, undefined, {
+        allowWrites: opts?.allowWrites,
+        redactionHook: opts?.redactionHook,
+      });
     }
 
     // D4-03: reuse the initial about:blank page; do NOT open a second page.

@@ -143,6 +143,12 @@ export interface Coverage {
   stopReason?: string;
   /** Number of vision-model calls skipped by the change detector (COST-02). Absent on pre-06-02 sessions. */
   modelCallsSkipped?: number;
+  /**
+   * FLOOR-08 (06-05): true when the session was run with --allow-writes enabled.
+   * Absent on normal floor-ON sessions. Lets a consumer know the captured writes were real.
+   * T-06-18: prevents a real-write run being mistaken for a held-floor run.
+   */
+  allowWrites?: boolean;
 }
 
 /**

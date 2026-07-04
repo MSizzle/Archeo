@@ -56,6 +56,7 @@ export class CaptureStore {
   private heldWriteCount = 0;
   private _stopReason: string | undefined = undefined;
   private _modelCallsSkipped: number | undefined = undefined;
+  private _allowWrites: boolean | undefined = undefined;
 
   /**
    * WR-04 / D3-04: idempotent-close guard.
@@ -177,8 +178,10 @@ export class CaptureStore {
    *
    * @param capturesRoot  Root directory for all capture sessions (e.g. '.archeo/captures')
    * @param targetOrigin  Target hostname used as the capture scope label in the manifest
+   * @param opts.allowWrites  FLOOR-08: when true, stamps manifest.allowWrites = true so consumers
+   *                          can tell that captured writes were real (not held). Default false (floor ON).
    */
-  static create(capturesRoot: string, targetOrigin: string): CaptureStore {
+  static create(capturesRoot: string, targetOrigin: string, opts?: { allowWrites?: boolean }): CaptureStore {
     const sessionId = randomUUID();
     const date = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
     const sessionDir = join(capturesRoot, `session-${date}-${sessionId.slice(0, 8)}`);
@@ -195,6 +198,11 @@ export class CaptureStore {
       targetOrigin,
       startedAt,
     });
+
+    // FLOOR-08: record allowWrites mode in the manifest if enabled
+    if (opts?.allowWrites) {
+      store._allowWrites = true;
+    }
 
     // Write the initial manifest synchronously so it is present from the first byte
     store.writeManifest();
@@ -380,6 +388,10 @@ export class CaptureStore {
     }
     if (this._modelCallsSkipped !== undefined) {
       manifest.modelCallsSkipped = this._modelCallsSkipped;
+    }
+    // FLOOR-08: stamp allowWrites only when explicitly enabled (absent = floor ON)
+    if (this._allowWrites) {
+      manifest.allowWrites = true;
     }
     writeFileSync(this.manifestPath, JSON.stringify(manifest, null, 2) + '\n');
   }

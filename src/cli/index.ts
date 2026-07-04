@@ -31,6 +31,9 @@ import { CaptureStore } from '../capture/store.ts';
 import { createProvider, parseModelSpec } from '../model/adapter.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
+import { confirmAllowWrites } from './allowWrites.ts';
+import { makeExternalRedactionHook } from '../capture/redactionModel.ts';
+import type { RedactionModelHook } from '../capture/redactionModel.ts';
 
 // ---------------------------------------------------------------------------
 // latestSessionDir — resolve the most-recent session under .archeo/captures
@@ -226,7 +229,7 @@ cli
 // ---------------------------------------------------------------------------
 
 cli
-  .command('explore <url>', 'Autonomously explore a running web app (vision-driven); floor ON, writes held (AGENT-*)')
+  .command('explore <url>', 'Autonomously explore a running web app (vision-driven); floor ON by default (AGENT-*)')
   .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
   .option('--no-dashboard', 'Disable the localhost SSE discovery dashboard (D3-05)')
   .option('--dashboard-port <port>', 'Port for the localhost dashboard (default: OS-assigned)', { default: 0 })
@@ -237,6 +240,9 @@ cli
   .option('--max-cost <usd>', 'Hard dollar ceiling; stop cleanly when reached (COST-03)')
   .option('--pace-ms <ms>', 'Minimum milliseconds between actions (default: 500)', { default: 500 })
   .option('--resume', 'Seed from the latest prior session for the same hostname (DRIFT-01)')
+  .option('--allow-writes', 'FLOOR-08: disable write-hold — mutations WILL reach the server (requires explicit confirmation + --i-accept-writes in non-TTY)')
+  .option('--i-accept-writes', 'Companion flag for --allow-writes in non-TTY/scripted runs (both must be present to proceed unattended)')
+  .option('--redaction-model <cmd>', 'CAP-06 seam: external command for extra field redaction (receives base-redacted JSON on stdin, returns string[] on stdout)')
   .action(async (url: string, opts: {
     iHaveAuthorization?: boolean;
     dashboard?: boolean;
@@ -248,6 +254,9 @@ cli
     maxCost?: number | string;
     paceMs?: number | string;
     resume?: boolean;
+    allowWrites?: boolean;
+    iAcceptWrites?: boolean;
+    redactionModel?: string;
   }) => {
     // WR-07: wrap the async body so any rejection surfaces as a clean error + exit 1.
     try {
@@ -263,8 +272,34 @@ cli
         process.exit(1);
       }
 
+      // FLOOR-08: --allow-writes confirmation gate (AFTER runAuthorizationGate, BEFORE store/browser).
+      // Non-TTY requires --i-accept-writes companion flag; TTY requires an explicit y/N.
+      let exploreAllowWrites = false;
+      if (opts.allowWrites) {
+        const confirmed = await confirmAllowWrites({
+          isTTY: process.stdin.isTTY ?? false,
+          iAcceptWrites: !!opts.iAcceptWrites,
+        });
+        if (!confirmed) {
+          process.stderr.write(
+            'archeo: --allow-writes requires explicit confirmation.\n' +
+            '  In non-TTY/scripted runs, BOTH --allow-writes AND --i-accept-writes must be present.\n' +
+            '  In interactive runs, type "y" at the prompt to confirm.\n',
+          );
+          process.exit(1);
+        }
+        exploreAllowWrites = true;
+      }
+
+      // CAP-06: build the optional external redaction hook
+      const exploreRedactionHook: RedactionModelHook | undefined =
+        opts.redactionModel ? makeExternalRedactionHook(opts.redactionModel) : undefined;
+
       // CAP-01: session-scoped capture store (under .archeo/captures/, gitignored).
-      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
+      // FLOOR-08: stamp allowWrites in the manifest when the bypass is active.
+      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname, {
+        allowWrites: exploreAllowWrites || undefined,
+      });
 
       // D3-05: start the localhost dashboard unless --no-dashboard.
       let dashboardHandle: { port: number; close(): Promise<void> } | undefined;
@@ -315,6 +350,8 @@ cli
         model: modelId,
         paceMs,
         seed,
+        allowWrites: exploreAllowWrites || undefined,
+        redactionHook: exploreRedactionHook,
       });
     } catch (err) {
       if (err instanceof Error) {
@@ -382,7 +419,17 @@ cli
   .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
   .option('--no-dashboard', 'Disable the localhost SSE discovery dashboard (D3-05)')
   .option('--dashboard-port <port>', 'Port for the localhost dashboard (default: OS-assigned)', { default: 0 })
-  .action(async (url: string, opts: { iHaveAuthorization?: boolean; dashboard?: boolean; dashboardPort?: number }) => {
+  .option('--allow-writes', 'FLOOR-08: disable write-hold — mutations WILL reach the server (requires explicit confirmation + --i-accept-writes in non-TTY)')
+  .option('--i-accept-writes', 'Companion flag for --allow-writes in non-TTY/scripted runs (both must be present to proceed unattended)')
+  .option('--redaction-model <cmd>', 'CAP-06 seam: external command for extra field redaction (receives base-redacted JSON on stdin, returns string[] on stdout)')
+  .action(async (url: string, opts: {
+    iHaveAuthorization?: boolean;
+    dashboard?: boolean;
+    dashboardPort?: number;
+    allowWrites?: boolean;
+    iAcceptWrites?: boolean;
+    redactionModel?: string;
+  }) => {
     // WR-07: cac.parse() does not await the action's returned Promise. Wrap the entire
     // async body in try/catch so any rejection that surfaces AFTER an await (e.g.
     // runAuthorizationGate or openAndWait throwing) produces a clean user-facing error
@@ -402,10 +449,36 @@ cli
         process.exit(1);
       }
 
+      // FLOOR-08: --allow-writes confirmation gate (AFTER runAuthorizationGate, BEFORE store/browser).
+      // Non-TTY requires --i-accept-writes companion flag; TTY requires an explicit y/N.
+      let urlAllowWrites = false;
+      if (opts.allowWrites) {
+        const confirmed = await confirmAllowWrites({
+          isTTY: process.stdin.isTTY ?? false,
+          iAcceptWrites: !!opts.iAcceptWrites,
+        });
+        if (!confirmed) {
+          process.stderr.write(
+            'archeo: --allow-writes requires explicit confirmation.\n' +
+            '  In non-TTY/scripted runs, BOTH --allow-writes AND --i-accept-writes must be present.\n' +
+            '  In interactive runs, type "y" at the prompt to confirm.\n',
+          );
+          process.exit(1);
+        }
+        urlAllowWrites = true;
+      }
+
+      // CAP-06: build the optional external redaction hook
+      const urlRedactionHook: RedactionModelHook | undefined =
+        opts.redactionModel ? makeExternalRedactionHook(opts.redactionModel) : undefined;
+
       // CAP-01: Create a session-scoped capture store before opening the browser.
       // The store is passed to openAndWait so the interceptor can append records.
       // Store lives under .archeo/captures/ (gitignored — T-02-05).
-      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname);
+      // FLOOR-08: stamp allowWrites in the manifest when the bypass is active.
+      const store = CaptureStore.create('.archeo/captures', new URL(url).hostname, {
+        allowWrites: urlAllowWrites || undefined,
+      });
 
       // D3-05: Start the localhost dashboard AFTER store creation and BEFORE openAndWait.
       // cac maps --no-dashboard → opts.dashboard === false (boolean flag negation).
@@ -420,7 +493,10 @@ cli
       // it to openAndWait so Playwright launches from (and persists to) the same dir
       // as `archeo login <url>` did. The profile dir is a pure string — no mkdir here.
       const profileDirPath = profileDir(new URL(url).hostname);
-      await openAndWait(url, profileDirPath, store, dashboardHandle);
+      await openAndWait(url, profileDirPath, store, dashboardHandle, {
+        allowWrites: urlAllowWrites || undefined,
+        redactionHook: urlRedactionHook,
+      });
     } catch (err) {
       // Surface async action rejections as user-friendly error messages (WR-07).
       // Without this, Node.js emits an unhandledRejection warning and — in newer
