@@ -1947,7 +1947,7 @@ describe('11-03 #3 + #2: dataModel overlap note + responseUnobserved flag', () =
 
     const readEndpoint = spec.endpoints.find(e => e.held === false);
     assert.ok(readEndpoint, 'read endpoint must be present');
-    assert.ok(readEndpoint!.responseUnobserved === undefined || readEndpoint!.responseUnobserved === false,
+    assert.ok(readEndpoint!.responseUnobserved === undefined,
       '#2: normal read endpoint must NOT have responseUnobserved set');
   });
 

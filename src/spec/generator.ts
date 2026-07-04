@@ -28,6 +28,7 @@ import { join } from 'node:path';
 import type { CaptureRecord, CaptureManifest } from '../types/index.ts';
 import type {
   ArcheoSpec,
+  AuthBlock,
   SpecMeta,
   DataModel,
   DataModelField,
@@ -42,6 +43,7 @@ import type {
 } from '../types/spec.ts';
 import type { EndpointTemplate } from '../types/spec.ts';
 import { groupRecords, templatePath } from './templater.ts';
+import { AUTH_HEADER_BLOCKLIST } from '../capture/redactor.ts';
 
 // ---------------------------------------------------------------------------
 // readRecords — tolerant JSONL reader (D3-04: partial trailing lines skipped)
@@ -346,6 +348,37 @@ export function inferDataModels(templates: EndpointTemplate[]): DataModel[] {
     const confidence: Confidence = obs >= 3 ? 'high' : obs === 2 ? 'medium' : 'low';
     models.push({ name, fields: raw.fields, relationships, confidence, observationCount: obs });
   }
+
+  // Overlap note pass (11-03, builder finding #3):
+  // For each pair of models, if the field-name overlap >= 80% of the smaller set,
+  // annotate both models with a note explaining the likely projection/session relationship.
+  // Threshold: >= 80% of the SMALLER field set is shared.
+  const OVERLAP_THRESHOLD = 0.8;
+  for (let i = 0; i < models.length; i++) {
+    for (let j = i + 1; j < models.length; j++) {
+      const a = models[i];
+      const b = models[j];
+      const aNames = new Set(a.fields.map(f => f.name));
+      const bNames = new Set(b.fields.map(f => f.name));
+      const smaller = aNames.size <= bNames.size ? aNames : bNames;
+      const larger = aNames.size <= bNames.size ? bNames : aNames;
+      const smallerModel = aNames.size <= bNames.size ? a : b;
+      const largerModel = aNames.size <= bNames.size ? b : a;
+      let sharedCount = 0;
+      for (const name of smaller) {
+        if (larger.has(name)) sharedCount++;
+      }
+      if (smaller.size > 0 && sharedCount / smaller.size >= OVERLAP_THRESHOLD) {
+        const note = `shares ${sharedCount}/${smaller.size} field names with ${largerModel.name}; likely a projection/session view`;
+        // Annotate the smaller (projection) model; also annotate the larger if not already noted
+        if (!smallerModel.note) smallerModel.note = note;
+        if (!largerModel.note) {
+          largerModel.note = `shares ${sharedCount}/${smaller.size} field names with ${smallerModel.name}; likely a projection/session view`;
+        }
+      }
+    }
+  }
+
   return models;
 }
 
@@ -496,6 +529,134 @@ export function inferFlows(records: CaptureRecord[], endpointPathTemplates: Set<
 }
 
 // ---------------------------------------------------------------------------
+// inferAuth — SPEC-10 (11-03): post-redaction auth semantics
+// ---------------------------------------------------------------------------
+
+/**
+ * Auth path pattern: paths whose last non-param segment matches a login/auth/token/session/oauth/mfa
+ * naming convention. Matched on the TEMPLATED path.
+ */
+const AUTH_PATH_RE = /\/(login|logout|auth|signin|signout|token|session|oauth|mfa)(\/|$)/i;
+
+/**
+ * Header names that indicate 'header' transport (authorization or x-*-token variants).
+ * All lowercase, matched against the already-lowercase AUTH_HEADER_BLOCKLIST entries.
+ */
+const HEADER_TRANSPORT_NAMES = new Set([
+  'authorization',
+  'x-auth-token',
+  'x-api-key',
+  'x-session-token',
+  'x-access-token',
+  'x-refresh-token',
+  'proxy-authorization',
+]);
+
+/**
+ * Header names that indicate 'cookie' transport.
+ */
+const COOKIE_TRANSPORT_NAMES = new Set([
+  'cookie',
+  'set-cookie',
+]);
+
+/**
+ * Response-shape field names that indicate role/permission semantics.
+ */
+const ROLE_FIELD_RE = /^(roles?|permissions?|scopes?|isAdmin|admin|grants?)$/;
+
+/**
+ * Infer auth semantics from ALREADY-REDACTED records (SPEC-10, D11-02).
+ *
+ * Reads only already-stored records — no pre-redaction read.
+ * CAP-04: auth header NAMES survive redaction; VALUES are '[REDACTED]' and are never emitted.
+ * The returned block contains ONLY: templated paths, header NAMES, transport enums, field NAMES.
+ *
+ * Returns undefined when no auth signal is observed (non-auth apps get no empty block).
+ *
+ * @param templates  Normalized endpoint templates (already shape-normalized by generateSpec)
+ * @param records    All already-redacted capture records
+ */
+export function inferAuth(templates: EndpointTemplate[], records: CaptureRecord[]): AuthBlock | undefined {
+  // 1. loginEndpoints: distinct templated paths matching the auth path pattern
+  const loginEndpointSet = new Set<string>();
+  for (const tmpl of templates) {
+    if (AUTH_PATH_RE.test(tmpl.pathTemplate)) {
+      loginEndpointSet.add(tmpl.pathTemplate);
+    }
+  }
+
+  // 2. authHeaderNames + tokenTransport: scan already-redacted requestHeaders and responseHeaders
+  //    across all records. Names on AUTH_HEADER_BLOCKLIST that appear in headers → auth signal.
+  const authHeaderNameSet = new Set<string>();
+  let seenHeaderTransport = false;
+  let seenCookieTransport = false;
+
+  for (const rec of records) {
+    // Scan requestHeaders (already redacted — values are '[REDACTED]', names survive)
+    if (rec.requestHeaders && typeof rec.requestHeaders === 'object') {
+      for (const rawName of Object.keys(rec.requestHeaders)) {
+        const lname = rawName.toLowerCase();
+        if (AUTH_HEADER_BLOCKLIST.has(lname)) {
+          authHeaderNameSet.add(lname); // store normalized lowercase name
+          if (HEADER_TRANSPORT_NAMES.has(lname)) seenHeaderTransport = true;
+          if (COOKIE_TRANSPORT_NAMES.has(lname)) seenCookieTransport = true;
+        }
+      }
+    }
+    // Scan responseHeaders (set-cookie appears here)
+    if (rec.responseHeaders && typeof rec.responseHeaders === 'object') {
+      const rhObj = rec.responseHeaders as Record<string, string>;
+      for (const rawName of Object.keys(rhObj)) {
+        const lname = rawName.toLowerCase();
+        if (AUTH_HEADER_BLOCKLIST.has(lname)) {
+          authHeaderNameSet.add(lname);
+          if (COOKIE_TRANSPORT_NAMES.has(lname)) seenCookieTransport = true;
+          if (HEADER_TRANSPORT_NAMES.has(lname)) seenHeaderTransport = true;
+        }
+      }
+    }
+  }
+
+  const authHeaderNames = Array.from(authHeaderNameSet).sort();
+
+  // Stable transport order: header before cookie
+  const tokenTransport: ('header' | 'cookie')[] = [];
+  if (seenHeaderTransport) tokenTransport.push('header');
+  if (seenCookieTransport) tokenTransport.push('cookie');
+
+  // 3. roleFieldNames: scan already-type-normalized response shapes for role/permission field NAMES.
+  //    Templates have already been through normalizeShapeLeaves — values are type keywords, not data.
+  const roleFieldNameSet = new Set<string>();
+  for (const tmpl of templates) {
+    if (tmpl.responseBodyShape !== null && typeof tmpl.responseBodyShape === 'object' && !Array.isArray(tmpl.responseBodyShape)) {
+      for (const key of Object.keys(tmpl.responseBodyShape as Record<string, unknown>)) {
+        if (ROLE_FIELD_RE.test(key)) {
+          roleFieldNameSet.add(key);
+        }
+      }
+    }
+  }
+  const roleFieldNames = Array.from(roleFieldNameSet).sort();
+
+  // Omit block entirely when no signal observed
+  const hasSignal =
+    loginEndpointSet.size > 0 ||
+    authHeaderNames.length > 0 ||
+    tokenTransport.length > 0 ||
+    roleFieldNames.length > 0;
+
+  if (!hasSignal) return undefined;
+
+  return {
+    loginEndpoints: Array.from(loginEndpointSet).sort(),
+    authHeaderNames,
+    tokenTransport,
+    roleFieldNames,
+  };
+}
+
+// ---------------------------------------------------------------------------
 // inferRules — SPEC-06
 // ---------------------------------------------------------------------------
 
@@ -520,19 +681,21 @@ export function inferRules(templates: EndpointTemplate[], records: CaptureRecord
     (r) => r.responseStatus === 401 || r.responseStatus === 403,
   );
   if (authRecords.length > 0) {
-    // Group by template path
-    const byTemplate = new Map<string, string[]>();
+    // Group by template path — build human-readable descriptors (builder finding #8)
+    const byTemplate = new Map<string, { method: string; status: number }[]>();
     for (const r of authRecords) {
       const tmpl = templatePath(r.path);
       const list = byTemplate.get(tmpl) ?? [];
-      list.push(r.id);
+      list.push({ method: r.method, status: r.responseStatus ?? 401 });
       byTemplate.set(tmpl, list);
     }
-    for (const [tmpl, ids] of byTemplate.entries()) {
+    for (const [tmpl, hits] of byTemplate.entries()) {
+      // Portable descriptor: "METHOD /template/path -> STATUS" — readable without the capture store
+      const evidence = hits.map(h => `${h.method} ${tmpl} -> ${h.status}`);
       rules.push({
         rule: `auth-required: ${tmpl}`,
-        evidence: ids,
-        confidence: evidenceConfidence(ids.length),
+        evidence,
+        confidence: evidenceConfidence(hits.length),
       });
     }
   }
@@ -543,9 +706,23 @@ export function inferRules(templates: EndpointTemplate[], records: CaptureRecord
     (r) => paginationParams.test(r.url),
   );
   if (paginationRecords.length > 0) {
+    // Human-readable descriptor: "METHOD /template?param1,param2" — builder finding #8
+    const evidence = paginationRecords.map((r) => {
+      const tmpl = templatePath(r.path);
+      // Extract the pagination param names from the URL query string
+      let params = '';
+      try {
+        const u = new URL(r.url);
+        const paginationParamNames = Array.from(u.searchParams.keys())
+          .filter(k => /^(page|limit|offset|cursor)$/.test(k))
+          .join(',');
+        if (paginationParamNames) params = `?${paginationParamNames}`;
+      } catch { /* malformed URL — omit params */ }
+      return `${r.method} ${tmpl}${params}`;
+    });
     rules.push({
       rule: 'pagination',
-      evidence: paginationRecords.map((r) => r.id),
+      evidence,
       confidence: evidenceConfidence(paginationRecords.length),
     });
   }
@@ -580,13 +757,9 @@ export function inferRules(templates: EndpointTemplate[], records: CaptureRecord
 
   for (const [base, groups] of resourceBases.entries()) {
     if (groups.getList.length > 0 && groups.getDetail.length > 0 && groups.mutations.length > 0) {
-      const allTemplates = [...groups.getList, ...groups.getDetail, ...groups.mutations];
-      // Gather representative record ids from the templates' example paths
-      const evidence = allTemplates
-        .flatMap((t) => t.examplePaths)
-        .slice(0, 3)
-        .map((p) => records.find((r) => r.path === p)?.id ?? p)
-        .filter(Boolean) as string[];
+      // Human-readable CRUD evidence: "GET+GET/{id}+held-VERB on /base" — builder finding #8
+      const mutVerbs = groups.mutations.map(t => `held-${t.method}`).join('+');
+      const evidence = [`GET+GET/{id}+${mutVerbs} on ${base}`];
       rules.push({
         rule: `resource-crud: ${base}`,
         evidence,
@@ -598,11 +771,10 @@ export function inferRules(templates: EndpointTemplate[], records: CaptureRecord
   // 4. write-held-behavior — always present when there are held mutations (D3-04 note rule)
   const heldTemplates = templates.filter((t) => t.held);
   if (heldTemplates.length > 0) {
+    // Human-readable descriptor: "VERB /template (held)" — builder finding #8
     const evidence = heldTemplates
-      .flatMap((t) => t.examplePaths)
       .slice(0, 3)
-      .map((p) => records.find((r) => r.path === p)?.id ?? p)
-      .filter(Boolean) as string[];
+      .map(t => `${t.method} ${t.pathTemplate} (held)`);
     rules.push({
       rule: 'write-held-behavior',
       evidence,
@@ -724,11 +896,21 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   const endpointPathTemplates = new Set(rawTemplates.map(t => t.pathTemplate));
   const flows = inferFlows(records, endpointPathTemplates);
 
+  // Mark held endpoints whose response was never observed (11-03, builder finding #2).
+  // This is a factual inline marker — responseBodyShape stays null, statusCodes stays empty.
+  // No response shape or status code is fabricated (D11-08).
+  const templatesWithUnobserved = templates.map(t => {
+    if (t.held && (t.responseBodyShape === null || t.responseBodyShape === undefined) && (!t.statusCodes || t.statusCodes.length === 0)) {
+      return { ...t, responseUnobserved: true as const };
+    }
+    return t;
+  });
+
   // Rules (SPEC-06)
-  const rules = inferRules(templates, apiRecords);
+  const rules = inferRules(templatesWithUnobserved, apiRecords);
 
   // Coverage (SPEC-07)
-  const coverage = buildCoverage(templates, dataModels, flows, records)
+  const coverage = buildCoverage(templatesWithUnobserved, dataModels, flows, records)
   // Propagate stop reason from manifest into coverage (06-01 COST-01)
   if (manifest.stopReason) {
     coverage.stopReason = manifest.stopReason
@@ -753,10 +935,15 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
     sourceRecordCount: records.length,
   };
 
+  // Auth block (SPEC-10, 11-03): infer from already-redacted records only (D11-02).
+  // Pass the already-normalized templates (shape leaves normalized; graphqlSchema intact).
+  const auth = inferAuth(templatesWithUnobserved, records);
+
   return {
     meta,
+    ...(auth !== undefined ? { auth } : {}),
     dataModels,
-    endpoints: templates,
+    endpoints: templatesWithUnobserved,
     flows,
     rules,
     coverage,

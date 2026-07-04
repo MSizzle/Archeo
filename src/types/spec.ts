@@ -75,6 +75,13 @@ export interface DataModel {
   relationships: DataModelRelationship[];
   confidence: Confidence;
   observationCount: number;
+  /**
+   * Human-readable annotation set when this model's field-name set overlaps
+   * another model's by >= 80% of the smaller set — indicating a likely
+   * projection or session view. Factual annotation, not a guess presented as fact.
+   * (11-03, builder finding #3)
+   */
+  note?: string;
 }
 
 /**
@@ -180,6 +187,41 @@ export interface Coverage {
 }
 
 /**
+ * Auth block inferred from already-redacted capture records (SPEC-10, 11-03).
+ * Contains ONLY structural identifiers — paths, header NAMES, transport enums,
+ * and role/permission field NAMES. Values are never emitted (CAP-04 / D11-02).
+ * Omitted (undefined) on ArcheoSpec when no auth signal is observed.
+ */
+export interface AuthBlock {
+  /**
+   * Distinct templated paths of observed login/auth/token/session endpoints.
+   * Matched by pattern: /login|/logout|/auth|/signin|/token|/session|/oauth|/mfa
+   * These are URL paths (structural identifiers), never values.
+   */
+  loginEndpoints: string[];
+  /**
+   * Observed auth header NAMES present in already-redacted requestHeaders/responseHeaders.
+   * Intersection of AUTH_HEADER_BLOCKLIST names with those seen in records.
+   * CAP-04: names survive redaction; values are already '[REDACTED]' before this point.
+   * This list contains only the NAMES — e.g. ['authorization', 'x-api-key'].
+   */
+  authHeaderNames: string[];
+  /**
+   * Token transport mechanism(s) observed.
+   * 'header' — an authorization/x-*-token header name was present.
+   * 'cookie' — a cookie/set-cookie header name was present.
+   * De-duplicated, stable order: header before cookie.
+   */
+  tokenTransport: ('header' | 'cookie')[];
+  /**
+   * Response-shape field NAMES that match the role/permission name set.
+   * Drawn from already-type-normalized response shapes (values are type keywords, not data).
+   * E.g. ['role', 'permissions', 'scope', 'isAdmin'].
+   */
+  roleFieldNames: string[];
+}
+
+/**
  * The complete Archeo build spec — the primary output artifact of the spec generator.
  * Written to <sessionDir>/archeo-spec.json by writeSpec().
  *
@@ -193,6 +235,11 @@ export interface Coverage {
  */
 export interface ArcheoSpec {
   meta: SpecMeta;
+  /**
+   * Auth semantics inferred from already-redacted records (SPEC-10, 11-03).
+   * Omitted (undefined) when no auth signal is observed, so non-auth apps get no empty block.
+   */
+  auth?: AuthBlock;
   dataModels: DataModel[];
   endpoints: EndpointTemplate[];
   flows: Flow;
@@ -255,4 +302,10 @@ export interface EndpointTemplate {
    * (11-02, builder finding #6).
    */
   pollingIntervalMs?: number;
+  /**
+   * true ONLY on held endpoints whose response was never observed (responseBodyShape is null
+   * and statusCodes is empty). A factual inline marker — never set on endpoints with observed
+   * responses, and no response shape or status code is ever fabricated. (11-03, builder finding #2)
+   */
+  responseUnobserved?: true;
 }
