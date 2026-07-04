@@ -100,9 +100,9 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Open Source Readiness
 
-- [ ] **OSS-01**: README with setup, BYO-key instructions, and the safety model explained plainly
-- [ ] **OSS-02**: Example specs generated against demo apps in `examples/`
-- [ ] **OSS-03**: Contributor docs and a clear statement of what is in and out of scope
+- [x] **OSS-01**: README with setup, BYO-key instructions, and the safety model explained plainly
+- [x] **OSS-02**: Example specs generated against demo apps in `examples/`
+- [x] **OSS-03**: Contributor docs and a clear statement of what is in and out of scope
 - [x] **OSS-04**: OSI-approved license
 
 ## v2 Requirements
@@ -185,9 +185,9 @@ Each requirement maps to exactly one phase.
 | DASH-08 | Phase 6 | Complete (06-03; verified live 06-06) |
 | DRIFT-01 | Phase 6 | Complete (06-04; self-seed fix 06-07; verified live 06-06) |
 | DRIFT-02 | Phase 6 | Complete (06-04; verified live 06-06) |
-| OSS-01 | Phase 7 | Pending |
-| OSS-02 | Phase 7 | Pending |
-| OSS-03 | Phase 7 | Pending |
+| OSS-01 | Phase 7 | Complete (07-01; verified live cold-start 07-03) |
+| OSS-02 | Phase 7 | Complete (07-02; secret-clean re-audited 07-03) |
+| OSS-03 | Phase 7 | Complete (07-02; scope statement + cross-links verified 07-03) |
 | VALID-01 | Phase 8 | Pending |
 | VALID-02 | Phase 8 | Pending |
 

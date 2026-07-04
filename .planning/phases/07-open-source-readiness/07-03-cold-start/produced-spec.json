@@ -1,0 +1,142 @@
+{
+  "meta": {
+    "specVersion": "1",
+    "tool": "archeo",
+    "target": "127.0.0.1",
+    "sessionId": "cef293d4-9257-4d7a-b9c9-f5e3f93d7a57",
+    "generatedAt": "2026-07-04T03:58:44.718Z",
+    "sourceRecordCount": 4
+  },
+  "dataModels": [
+    {
+      "name": "Item",
+      "fields": [
+        {
+          "name": "id",
+          "type": "number"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "createdAt",
+          "type": "string"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    },
+    {
+      "name": "Account",
+      "fields": [
+        {
+          "name": "accountId",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "pathTemplate": "/",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": null,
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/items",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/items"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": [
+        {
+          "id": "number",
+          "name": "string",
+          "createdAt": "string"
+        },
+        {
+          "id": "number",
+          "name": "string",
+          "createdAt": "string"
+        }
+      ],
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/account",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/account"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "accountId": "string",
+        "email": "string"
+      },
+      "polling": false
+    }
+  ],
+  "flows": {
+    "states": [
+      {
+        "name": "root",
+        "path": "/"
+      }
+    ],
+    "transitions": []
+  },
+  "rules": [],
+  "coverage": {
+    "endpointsDiscovered": 3,
+    "dataModelsDiscovered": 2,
+    "statesDiscovered": 1,
+    "transitionsDiscovered": 0,
+    "heldWrites": 0,
+    "knownGaps": [
+      "held mutation responses unobserved"
+    ],
+    "recordBreakdown": {
+      "requestResponse": 3,
+      "heldWrites": 0,
+      "navigations": 1,
+      "deadEnds": 0,
+      "destructiveGetHeld": 0
+    }
+  }
+}

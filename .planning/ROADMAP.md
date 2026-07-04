@@ -19,7 +19,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials (completed 2026-07-03)
 - [x] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard (completed 2026-07-04)
 - [x] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run (completed 2026-07-04)
-- [ ] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec
+- [x] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec (completed 2026-07-04)
 - [ ] **Phase 8: Differential Validation** - Diff original vs. rebuild observed behavior
 
 ## Phase Details
@@ -257,7 +257,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 07-03-PLAN.md — Fresh-eyes cold-start verification (a stranger subagent produces a spec from the README quickstart alone) + doc-vs-code audit + phase close (OSS-01/02/03)
+- [x] 07-03-PLAN.md — Fresh-eyes cold-start verification (a stranger subagent produces a spec from the README quickstart alone) + doc-vs-code audit + phase close (OSS-01/02/03) (verified autonomously 2026-07-04: clone→spec YES — a stranger subagent, forbidden from reading .planning/ or src/ for how-to, ran the key-free manual quickstart against a live local target in real headed Chromium and produced a valid archeo-spec.json with all 6 ArcheoSpec keys, no API key; doc-vs-code audit green — every README/CONTRIBUTING command+flag maps to src/cli, both examples secret-clean with provenance, scope statement present, LICENSE/NOTICE intact; one minor README gap fixed [Ctrl+C scripted-end note]; suite 858 = 857 pass + 1 skip)
 
 ### Phase 8: Differential Validation
 
@@ -285,5 +285,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
-| 7. Open Source Readiness | 2/3 | In progress | - |
+| 7. Open Source Readiness | 3/3 | Complete | 2026-07-04 |
 | 8. Differential Validation | 0/TBD | Not started | - |

@@ -45,6 +45,8 @@ Archeo asks for your authorization confirmation first (the authorization gate �
 
 Browse the app by hand — click around, navigate to the pages you want covered. When you close the browser window, archeo writes a JSON build spec and exits.
 
+Ending the run: closing the browser window is the normal way to finish. In a non-interactive or scripted shell where there is no window to click, press **Ctrl+C** in the terminal instead — the same graceful shutdown runs (the capture store is flushed, the spec is written, and archeo exits 0).
+
 The spec lands at `.archeo/captures/<session>/archeo-spec.json`. A localhost dashboard at `http://127.0.0.1:<port>` shows discovered endpoints climbing in real time as you browse.
 
 **Key flags for `archeo <url>` (manual capture):**

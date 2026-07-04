@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 — 07-02 examples + contributor docs COMPLETE (examples/ 2 real specs + secret-clean; CONTRIBUTING.md + SECURITY.md; .gitignore fold-in; 858/858 suite green)
+stopped_at: Phase 7 COMPLETE (3/3) — 07-03 fresh-eyes cold-start verification PASS (stranger produced a spec from the README quickstart alone, key-free) + doc-vs-code audit green + phase close; OSS-01/02/03 Complete; next Phase 8 (Differential Validation)
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
-  completed_phases: 6
-  total_plans: 28
-  completed_plans: 28
-  percent: 75
+  completed_phases: 7
+  total_plans: 29
+  completed_plans: 29
+  percent: 88
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 07 (Open Source Readiness) — IN PROGRESS. 07-02 COMPLETE: examples/ (2 real specs — manual-capture-demo-app from 03-04 + autonomous-explore-demo-app from 05-05; both secret-clean; fallback path per D7-03); CONTRIBUTING.md (dev setup, .ts footguns, no-enums footgun, GATE-03 guard, architecture map, in/out-of-scope, security pointer); SECURITY.md (responsible-disclosure, redaction/floor bypass scope); .gitignore fold-in (archeo-build-prompt*.md — deliberate pre-publication cleanup per D7-04). Suite 858/858. Next: 07-03 (fresh-eyes cold-start verification + phase close — OSS-01/02/03).
+**Current focus:** Phase 07 (Open Source Readiness) — COMPLETE (3/3). 07-03 closed the phase: a fresh-eyes stranger subagent (forbidden from reading .planning/ or src/ for how-to) ran the README key-free manual quickstart against a live local target in real headed Chromium and produced a valid archeo-spec.json with all 6 ArcheoSpec keys and no API key — OSS-01 proven live. Doc-vs-code audit green: every README/CONTRIBUTING command+flag maps to src/cli, both examples secret-clean with provenance, scope statement present, cross-links resolve, LICENSE/NOTICE intact. One minor README gap fixed (Ctrl+C scripted-end note — matches src/cli/browser.ts D-06). Two non-blocking notes recorded for follow-up (pre-existing `npm run typecheck` diagnostics; CONTRIBUTING test-layout diagram lists absent `test/types` / omits `test/oss`). Suite 858/858. OSS-01/02/03 Complete. Next: Phase 8 (Differential Validation) — VALID-01/02.
 
 ## Current Position
 
-Phase: 07 (open-source-readiness) — IN PROGRESS (2/3)
-Plan: 07-02 COMPLETE (2026-07-04) — examples/ (2 specs, secret-clean) + CONTRIBUTING.md + SECURITY.md + .gitignore fold-in; recorded in 07-02-SUMMARY.md
-Next: 07-03 — fresh-eyes cold-start verification + doc-vs-code audit + phase close (OSS-01/02/03)
-Status: 07-02 complete; 07-03 ready to execute
+Phase: 07 (open-source-readiness) — COMPLETE (3/3, 2026-07-04)
+Plan: 07-03 COMPLETE (2026-07-04) — fresh-eyes cold-start PASS + doc-vs-code audit green + phase close; evidence in 07-03-COLDSTART-VERIFICATION.md, recorded in 07-03-SUMMARY.md
+Next: Phase 8 (Differential Validation) — VALID-01/02 (needs discuss → plan → execute)
+Status: Phase 7 closed; Phase 8 not started
 Last activity: 2026-07-04
 
-Progress: [████████░░] 75% (6/8 phases)
+Progress: [█████████░] 88% (7/8 phases)
 
 ## Performance Metrics
 
@@ -368,9 +368,19 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
 - **Suite:** 858 (857 pass + 1 documented skip) — unchanged. LICENSE/NOTICE untouched. `.gitignore` pre-existing edit left unstaged (07-02 folds it in).
 - **ROADMAP:** Phase 7 1/3; 07-01 ticked.
 
+### Phase 07-03 execution decisions (PHASE 7 CLOSE — fresh-eyes cold-start + doc-vs-code audit):
+
+- **Cold-start verified AUTONOMOUSLY (D7-05, no human).** A separate general-purpose subagent was spawned as a STRANGER: told to IGNORE `.planning/` entirely and NOT read `src/` to figure out how to run the tool, and to produce a spec from the README quickstart ALONE, key-free. Environment setup handed to it (not a how-to hint): a throwaway 50-line `node:http` target app running at `http://127.0.0.1:5173` (serves an HTML page firing `GET /api/items` + `GET /api/account`) + a scratch dir. Verdict: **clone→spec YES.**
+- **What the stranger proved live:** `node src/cli/index.ts --help` clean from fresh-clone state; `node src/cli/index.ts http://127.0.0.1:5173 --i-have-authorization` printed the authorization gate, launched **real headed Chromium** (no environment limitation), started the dashboard, created a capture store (`.archeo/captures/session-…/`), captured 4 records (GET /, nav, GET /api/items, GET /api/account); `kill -INT` (scripted window-close equivalent) triggered graceful shutdown → `[archeo] spec written: …/archeo-spec.json`. Spec parses with all 6 ArcheoSpec keys (meta/dataModels/endpoints/flows/rules/coverage), 3 endpoints, 2 dataModels, **secret-clean** (the target's `email`/`accountId` values redacted by CAP-05 — proven live). Evidence copied to `07-03-cold-start/produced-spec.json` + `target-app.mjs`.
+- **Cold-start finding CS-1 (non-blocking, FIXED):** the README's only "how to end a manual capture" instruction was "close the browser window" — nothing for a non-interactive/scripted shell with no window. The code already supports Ctrl+C as a graceful-shutdown-and-write-spec path (`src/cli/browser.ts` D-06/T-01-10), so this was a doc-vs-code *completeness* gap. Fixed with a one-paragraph "Ending the run" note in the README manual quickstart (Ctrl+C → same flush + spec write + exit 0). Docs-only; suite count unchanged. This is the one sanctioned doc edit this plan; it matches the stranger's own successful path.
+- **Doc-vs-code audit GREEN:** every command/flag in README + CONTRIBUTING maps to a `src/cli/*.ts` registration (audit table in 07-03-COLDSTART-VERIFICATION.md); providers `scripted`→`frontier` / `anthropic`→`claude-haiku-4-5` match `DEFAULT_MODELS`; fresh-clone form `node src/cli/index.ts` runs (`--help`/`--version` clean on Node 26); both `examples/*/archeo-spec.json` carry a generating command + validate with 6 keys + are secret-clean (strict `bearer |sk-ant-|eyJ…` grep hits are `.md` prose only; spec-JSON `password`/`secretNote`/`/api/token/revoke` are field-name keys with type annotations, values redacted); in/out-of-scope statement present in CONTRIBUTING; README↔examples↔CONTRIBUTING↔SECURITY cross-links resolve; LICENSE/NOTICE unchanged since `839e666 feat(01-01)`.
+- **Two non-blocking audit notes recorded for follow-up (NOT fixed — out of scope for a docs-close plan):** AN-1 `npm run typecheck` reports 18 pre-existing `tsc` diagnostics (in `src/cli/index.ts` + several `test/**` files) — the runtime uses Node native TS stripping not `tsc`, so all 858 tests pass; the diagnostics predate Phase 7 (07-* commits are docs-only); a code-hygiene pass should clear them. AN-2 CONTRIBUTING test-layout diagram lists a `types/` row but `test/types/` doesn't exist while `test/oss/` exists and is unlisted — cosmetic diagram nit, no functional impact.
+- **Gate:** `node --test 'test/**/*.test.ts'` → 858 (857 pass + 1 documented skip `test/agent/observation.test.ts`, 0 fail) as BOTH pre-gate and post-gate; LICENSE/NOTICE intact; no-network guard (GATE-03) green within the suite.
+- **Bookkeeping:** ROADMAP Phase 7 → 3/3 Complete (2026-07-04) + 07-03 ticked + Progress row; REQUIREMENTS OSS-01/02/03 → Complete in both the checklist and the traceability table; STATE → Phase 8 (Differential Validation), completed_phases 7, completed_plans 29, percent 88.
+
 ### Blockers/Concerns
 
-None.
+None. Phase 7 closed. Phase 8 (Differential Validation, VALID-01/02) is next and needs discuss → plan → execute.
 
 ## Deferred Items
 
@@ -381,5 +391,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-07-04T00:00:00.000Z
-Stopped at: 07-02 COMPLETE — examples/ (2 real specs, secret-clean), CONTRIBUTING.md + SECURITY.md, .gitignore fold-in, 858/858 suite green. Next: 07-03 (fresh-eyes cold-start verification + phase close — OSS-01/02/03).
+Stopped at: Phase 7 COMPLETE (3/3) — 07-03 fresh-eyes cold-start PASS (stranger produced a spec from the README quickstart alone, key-free, in real headed Chromium) + doc-vs-code audit green + phase close; OSS-01/02/03 Complete; 858/858 suite green. Next: Phase 8 (Differential Validation — VALID-01/02).
 Resume file: None
