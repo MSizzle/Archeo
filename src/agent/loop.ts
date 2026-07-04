@@ -13,6 +13,8 @@
  *   chosen stop reason is returned in ExploreResult.
  * - AGENT-02: fill actions use syntheticValue (obviously-fake data); submits stay safe
  *   because the floor is ON (attached by the CLI before any navigation).
+ * - COST-05 (06-03): recovery wiring — observeWithRecovery replaces captureObservation;
+ *   model/action/nav failures are caught, logged, and recovered without killing the run.
  *
  * This module takes a Playwright Page by TYPE import only — no chromium value import, no
  * network surface of its own. The real Page integration is proven live in 05-05; here the
@@ -23,7 +25,9 @@
 import type { Page } from 'playwright'
 import type { Provider } from '../model/types.ts'
 import type { CaptureStore } from '../capture/store.ts'
-import { captureObservation } from './observation.ts'
+import { observeWithRecovery } from './recovery.ts'
+import { ERROR_CLASSES, IssueLog, classifyError, isHalting } from './recovery.ts'
+import type { IssueLogEntry, ErrorClass } from './recovery.ts'
 import type { Observation, InventoryElement } from './observation.ts'
 import { computeStateSignature } from './signature.ts'
 import type { SignatureInput } from './signature.ts'
@@ -83,6 +87,13 @@ export interface ExploreResult {
    * Deterministic backtrack/exhausted steps are NOT counted (they were never model calls).
    */
   modelCallsSkipped: number
+  /**
+   * COST-05 (06-03): total number of issues logged to the rotating IssueLog during this run.
+   * Includes recoverable errors (context-destroyed retries, model backoffs, action failures,
+   * nav failures). Does NOT include run-halting entries (BROWSER_GONE, TARGET_UNREACHABLE)
+   * since those stop the loop. Use onError/onHalt callbacks for real-time notification.
+   */
+  issueCount: number
 }
 
 // Frontier tier ranking for the per-state decision list (nav > form > click).
@@ -182,6 +193,15 @@ async function executeAction(page: Page, action: AgentAction, obs: Observation):
  *
  * Never throws on a bad model reply (decideWithRetry's fallback handles it) and never
  * exceeds maxSteps. Resolves an ExploreResult carrying the recorded stop reason.
+ *
+ * Recovery (COST-05 / 06-03):
+ *   - observeWithRecovery replaces captureObservation: catches 'Execution context was
+ *     destroyed' (real cross-document navigations), settles, re-observes.
+ *   - Model/provider errors: backoff sleep + deterministic frontier policy step.
+ *   - Action failures: logged, re-observe next iteration (no throw escapes the loop).
+ *   - Nav failures: retry once; after 3 consecutive unreachable → TARGET_UNREACHABLE halt.
+ *   - Run-halting classes (BROWSER_GONE, TARGET_UNREACHABLE): call onHalt + break.
+ *   - The loop writes NOTHING to stderr; all errors go through onError / onHalt callbacks.
  */
 export async function explore(
   page: Page,
@@ -196,6 +216,10 @@ export async function explore(
     paceMs?: number
     now?: () => number
     sleep?: (ms: number) => Promise<void>
+    /** Called for every recoverable issue (muted — no terminal write). */
+    onError?: (e: IssueLogEntry) => void
+    /** Called once for halting issues (loud — dashboard banner + one terminal line). */
+    onHalt?: (info: { class: ErrorClass; message: string }) => void
   },
 ): Promise<ExploreResult> {
   const { maxSteps, onStep } = opts
@@ -204,6 +228,12 @@ export async function explore(
   const stop = new StopController({ maxSteps, plateauK: 10 })
   const budget = new BudgetTracker({ maxTokens: opts.maxTokens, maxCost: opts.maxCost, model: opts.model })
   const pacer = new Pacer({ paceMs: opts.paceMs ?? 0, now: opts.now, sleep: opts.sleep })
+  const issueLog = new IssueLog()
+
+  // Injected sleep used for both Pacer AND model-error backoff (deterministic in tests).
+  const sleepFn = opts.sleep ?? ((_ms: number): Promise<void> => Promise.resolve())
+  // Exponential backoff base for model errors (doubles on each consecutive error).
+  let modelBackoffMs = 100
 
   // Track distinct endpoint templates seen so far via the store's own record stream, so a
   // step counts as "new endpoint" for the plateau detector. Agent-step records are ignored.
@@ -226,14 +256,45 @@ export async function explore(
   let stopReason: StopReason = STOP_REASONS.MAX_STEPS
 
   // D6-02 / COST-02: change detector state.
-  // prevModelCallInput tracks the ChangeInput from the last step that triggered a REAL model
-  // call (decideWithRetry). It is NOT updated on policy steps — the detector stays
-  // anchored to the last meaningful structural observation.
   let prevModelCallInput: ChangeInput | null = null
   let modelCallsSkipped = 0
 
+  // COST-05 (06-03): consecutive navigation failure counter.
+  // Resets to 0 on any successful action. Reaches 3 → TARGET_UNREACHABLE halt.
+  let consecutiveNavFailures = 0
+
   for (let stepIndex = 0; stepIndex < maxSteps; stepIndex++) {
-    const obs = await captureObservation(page)
+    // -----------------------------------------------------------------------
+    // Observe — COST-05: observeWithRecovery catches 'Execution context was destroyed'
+    // (real cross-document navigation race, 05-05 finding #1) and re-observes.
+    // -----------------------------------------------------------------------
+    let obs: Observation
+    try {
+      obs = await observeWithRecovery(page, {
+        retries: 3,
+        onIssue: (e) => {
+          issueLog.record(e)
+          opts.onError?.(e)
+        },
+        step: stepIndex,
+      })
+    } catch (obsErr) {
+      // observeWithRecovery exhausted retries — treat as a halting error.
+      const cls = classifyError(obsErr)
+      const msg = obsErr instanceof Error ? obsErr.message : String(obsErr)
+      const haltCls = isHalting(cls) ? cls : ERROR_CLASSES.BROWSER_GONE
+      const entry: IssueLogEntry = {
+        class: haltCls,
+        message: msg,
+        step: stepIndex,
+        recovered: false,
+        timestamp: new Date().toISOString(),
+      }
+      issueLog.record(entry)
+      opts.onHalt?.({ class: haltCls, message: msg })
+      break
+    }
+
     // D6-02: extract structural signals for the change detector.
     const currChangeInput = changeInputFromObservation(obs)
     const sig = computeStateSignature(signatureInput(obs))
@@ -244,8 +305,7 @@ export async function explore(
       firstSeenStep: stepIndex,
     })
 
-    // Record the transition from the previous state + feed loop detection (using the newly
-    // observed "to" state's newness as the discovery signal).
+    // Record the transition from the previous state + feed loop detection.
     if (prevSig !== null) {
       graph.addTransition(prevSig, sig, lastAction)
       loopDetect.record(prevSig, sig, isNew)
@@ -265,17 +325,17 @@ export async function explore(
       break
     }
 
+    // -----------------------------------------------------------------------
     // Decide the action for this step.
-    let action: AgentAction
+    // -----------------------------------------------------------------------
+    let action!: AgentAction
     let targetRef: number | undefined
     let exercisedItem: FrontierItem | undefined
-    // D6-02: track whether this step's decision came from the model or a policy skip.
     let stepSource: 'model' | 'policy' = 'model'
     let stepSkipped = false
 
     if (loopDetect.isTrapped()) {
-      // AGENT-07b: oscillation → backtrack to the frontier instead of repeating the pair.
-      // These are deterministic policy steps but NOT change-detector skips (skipped:false).
+      // AGENT-07b: oscillation → backtrack to the frontier.
       loopDetect.reset()
       const target = graph.nextFrontier()
       if (target && target.url) {
@@ -294,8 +354,7 @@ export async function explore(
     } else {
       const currentUnexercised = orderByPriority(items.filter((it) => !exercised.has(exKey(sig, it.ref))))
       if (currentUnexercised.length === 0) {
-        // Current state exhausted — jump to the next global frontier target (directed, AGENT-04).
-        // Deterministic policy step, NOT a change-detector skip (skipped:false).
+        // Current state exhausted — jump to the next global frontier target (AGENT-04).
         const target = graph.nextFrontier()
         if (target && target.url) {
           graph.markExercised(target)
@@ -315,10 +374,7 @@ export async function explore(
       } else {
         // D6-02: change-gating — only call the model when the page meaningfully changed.
         if (!isMeaningfulChange(prevModelCallInput, currChangeInput)) {
-          // Cosmetic churn — no structural change since the last model call.
-          // Take a deterministic policy step: pick the next unexercised item from the current
-          // state's frontier (same selection logic as the model's unexercised list, so
-          // coverage still advances). Navigate if the item has a URL; click otherwise.
+          // Cosmetic churn — take a deterministic policy step.
           const policyItem = currentUnexercised[0]
           if (policyItem.url) {
             action = {
@@ -338,35 +394,104 @@ export async function explore(
           stepSource = 'policy'
           stepSkipped = true
           modelCallsSkipped++
-          // prevModelCallInput stays unchanged — the detector remains anchored to the last
-          // real structural observation.
         } else {
           // Page meaningfully changed (or first observation) → call the vision model.
           const frontier: FrontierSummary = {
             refs: currentUnexercised.map((it) => it.ref),
             urls: currentUnexercised.map((it) => it.url).filter((u): u is string => typeof u === 'string'),
           }
-          const decision = await decideWithRetry(provider, obs, frontier)
-          budget.add(decision.usage)
-          if (budget.exceeded()) {
-            stopReason = STOP_REASONS.BUDGET
-            break
+
+          // COST-05: wrap decideWithRetry in try/catch for MODEL_ERROR recovery.
+          let modelFailed = false
+          try {
+            const decision = await decideWithRetry(provider, obs, frontier)
+            budget.add(decision.usage)
+            if (budget.exceeded()) {
+              stopReason = STOP_REASONS.BUDGET
+              break
+            }
+            action = decision.action
+            targetRef = action.targetRef
+            if (targetRef !== undefined) {
+              exercisedItem = items.find((it) => it.ref === targetRef)
+            }
+            stepSource = 'model'
+            stepSkipped = false
+            prevModelCallInput = currChangeInput
+            modelBackoffMs = 100  // reset backoff on successful model call
+          } catch (modelErr) {
+            const cls = classifyError(modelErr)
+            const msg = modelErr instanceof Error ? modelErr.message : String(modelErr)
+            if (isHalting(cls)) {
+              const entry: IssueLogEntry = {
+                class: cls,
+                message: msg,
+                step: stepIndex,
+                recovered: false,
+                timestamp: new Date().toISOString(),
+              }
+              issueLog.record(entry)
+              opts.onHalt?.({ class: cls, message: msg })
+              break
+            }
+            // MODEL_ERROR: backoff (injected sleep) + deterministic frontier policy step.
+            const entry: IssueLogEntry = {
+              class: ERROR_CLASSES.MODEL_ERROR,
+              message: msg,
+              step: stepIndex,
+              recovered: true,
+              timestamp: new Date().toISOString(),
+            }
+            issueLog.record(entry)
+            opts.onError?.(entry)
+            await sleepFn(modelBackoffMs)
+            modelBackoffMs = Math.min(modelBackoffMs * 2, 30000)
+            modelFailed = true
           }
-          action = decision.action
-          targetRef = action.targetRef
-          if (targetRef !== undefined) {
-            exercisedItem = items.find((it) => it.ref === targetRef)
+
+          if (modelFailed) {
+            // Fall back to deterministic policy step (same selection logic as change-detector).
+            const policyItem = currentUnexercised[0]
+            if (policyItem?.url) {
+              action = {
+                action: 'navigate',
+                value: policyItem.url,
+                reasoning: `policy: model error — exercising ref ${policyItem.ref}`,
+              }
+            } else if (policyItem) {
+              action = {
+                action: 'click',
+                targetRef: policyItem.ref,
+                reasoning: `policy: model error — exercising ref ${policyItem.ref}`,
+              }
+              targetRef = policyItem.ref
+            } else {
+              // No unexercised items in current state — go to global frontier.
+              const target = graph.nextFrontier()
+              if (target?.url) {
+                graph.markExercised(target)
+                action = {
+                  action: 'navigate',
+                  value: target.url,
+                  reasoning: 'policy: model error — navigating to frontier',
+                }
+              } else {
+                if (target) graph.markExercised(target)
+                action = { action: 'back', reasoning: 'policy: model error — going back' }
+              }
+            }
+            exercisedItem = policyItem
+            stepSource = 'policy'
+            stepSkipped = false
           }
-          stepSource = 'model'
-          stepSkipped = false
-          // Advance the change detector anchor to the current structural snapshot.
-          prevModelCallInput = currChangeInput
         }
       }
     }
 
-    // Append the agent-step record BEFORE mutating graph transitions so the dashboard sees
-    // the reasoning immediately — the same record the spec's flows consume (single source).
+    // -----------------------------------------------------------------------
+    // Append the agent-step record BEFORE mutating graph transitions so the dashboard
+    // sees the reasoning immediately — same record the spec's flows consume.
+    // -----------------------------------------------------------------------
     const targetEl = targetRef !== undefined ? obs.inventory[targetRef] : undefined
     store.appendAgentStep({
       action: action.action,
@@ -396,12 +521,91 @@ export async function explore(
       break
     }
 
+    // -----------------------------------------------------------------------
+    // Execute the action — COST-05: wrapped for ACTION_FAILURE / NAV_FAILURE recovery.
+    // -----------------------------------------------------------------------
     await pacer.wait()
-    await executeAction(page, action, obs)
+    let haltOccurred = false
+    try {
+      await executeAction(page, action, obs)
+      consecutiveNavFailures = 0  // reset on any successful action
+    } catch (actionErr) {
+      const cls = classifyError(actionErr)
+      const msg = actionErr instanceof Error ? actionErr.message : String(actionErr)
+
+      if (isHalting(cls)) {
+        // BROWSER_GONE or similar: loud halt.
+        const entry: IssueLogEntry = {
+          class: cls,
+          message: msg,
+          step: stepIndex,
+          recovered: false,
+          timestamp: new Date().toISOString(),
+        }
+        issueLog.record(entry)
+        opts.onHalt?.({ class: cls, message: msg })
+        haltOccurred = true
+      } else if (action.action === 'navigate') {
+        // Navigation failure: retry once, then mark unreachable.
+        let retryFailed = true
+        const navUrl = action.value
+        if (navUrl) {
+          try {
+            await page.goto(navUrl)
+            retryFailed = false
+            consecutiveNavFailures = 0
+          } catch {
+            // Retry also failed — fall through to consecutiveNavFailures increment.
+          }
+        }
+
+        if (retryFailed) {
+          consecutiveNavFailures++
+          if (consecutiveNavFailures >= 3) {
+            // Third consecutive unreachable → TARGET_UNREACHABLE halt.
+            const haltMsg = 'target unreachable after 3 consecutive navigation failures'
+            const haltEntry: IssueLogEntry = {
+              class: ERROR_CLASSES.TARGET_UNREACHABLE,
+              message: haltMsg,
+              step: stepIndex,
+              recovered: false,
+              timestamp: new Date().toISOString(),
+            }
+            issueLog.record(haltEntry)
+            opts.onHalt?.({ class: ERROR_CLASSES.TARGET_UNREACHABLE, message: haltMsg })
+            haltOccurred = true
+          } else {
+            // Recoverable nav failure: log + continue (next iteration will re-observe).
+            const entry: IssueLogEntry = {
+              class: ERROR_CLASSES.NAV_FAILURE,
+              message: msg,
+              step: stepIndex,
+              recovered: true,
+              timestamp: new Date().toISOString(),
+            }
+            issueLog.record(entry)
+            opts.onError?.(entry)
+          }
+        }
+      } else {
+        // ACTION_FAILURE: element gone or click failed — log + re-observe next iteration.
+        consecutiveNavFailures = 0
+        const entry: IssueLogEntry = {
+          class: cls,
+          message: msg,
+          step: stepIndex,
+          recovered: true,
+          timestamp: new Date().toISOString(),
+        }
+        issueLog.record(entry)
+        opts.onError?.(entry)
+      }
+    }
+
+    if (haltOccurred) break
 
     // Mark the chosen ref exercised so directed exploration never re-offers it.
-    // Both model-chosen and policy-chosen refs are marked (D6-02: policy steps still
-    // advance coverage, just without a vision call).
+    // Done even on non-halting failures to avoid retrying gone/unreachable elements.
     if (targetRef !== undefined) {
       exercised.add(exKey(sig, targetRef))
       graph.markExercised(exercisedItem ?? { fromSignature: sig, ref: targetRef, kind: 'click' })
@@ -423,5 +627,6 @@ export async function explore(
     stopReason,
     totalTokens: budget.totalTokens,
     modelCallsSkipped,
+    issueCount: issueLog.count,
   }
 }

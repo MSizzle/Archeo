@@ -779,7 +779,13 @@ class RecoveryFakePage {
     }
     // no-op navigation (stays on same page)
   }
-  async goBack(): Promise<void> {}
+  async goBack(): Promise<void> {
+    // When gotoAlwaysThrows is true, all navigation methods fail so the consecutive
+    // nav failure counter never resets on a successful 'back' action.
+    if (this.gotoAlwaysThrows) {
+      throw new Error('page.goBack: net::ERR_CONNECTION_REFUSED')
+    }
+  }
 }
 
 function asRecoveryPage(p: RecoveryFakePage): import('playwright').Page {
@@ -870,14 +876,62 @@ describe('explore — recovery wiring (06-03 / COST-05)', () => {
   })
 
   test('(d) page.goto always throws → TARGET_UNREACHABLE halt after 3 consecutive nav failures', async () => {
-    const page = new RecoveryFakePage({ gotoAlwaysThrows: true })
+    // Build a page whose URL changes on every evaluate() call so the change detector
+    // always sees a route change → always calls the model (avoids policy-skip bypass).
+    // Both goto and goBack throw so consecutiveNavFailures accumulates without reset.
+    let evalCallCount = 0
+    const alwaysFailNavPage = {
+      url(): string { return `http://app.test/step-${evalCallCount}` },
+      async title(): Promise<string> { return 'Nav Test' },
+      async evaluate(_fn: unknown): Promise<unknown> {
+        evalCallCount++
+        return [{ tag: 'a', text: 'Link', href: '/target',
+          bbox: { x: 0, y: 0, w: 1, h: 1 }, visible: true }]
+      },
+      async screenshot(_opts?: unknown): Promise<Buffer> { return Buffer.from('x') },
+      async waitForLoadState(_s: string): Promise<void> {},
+      mouse: {
+        click: async (_cx: number, _cy: number): Promise<void> => {},
+        wheel: async (_dx: number, _dy: number): Promise<void> => {},
+      },
+      keyboard: {
+        type: async (_t: string): Promise<void> => {},
+        press: async (_k: string): Promise<void> => {},
+      },
+      async goto(_url: string): Promise<void> {
+        throw new Error('page.goto: net::ERR_CONNECTION_REFUSED')
+      },
+      async goBack(): Promise<void> {
+        throw new Error('page.goBack: net::ERR_CONNECTION_REFUSED')
+      },
+    }
+
     const { store, cleanup } = makeStore()
     const halts: Array<{ class: string; message: string }> = []
+    // Provider that always returns a navigate action (forces page.goto path in executeAction)
+    const alwaysNavProvider: import('../../src/model/types.ts').Provider = {
+      id: 'always-nav',
+      async chat(_msgs: import('../../src/model/types.ts').ChatMessage[]) {
+        return {
+          text: JSON.stringify({
+            action: 'navigate',
+            value: 'http://app.test/target',
+            reasoning: 'always navigate',
+          }),
+          usage: { inputTokens: 0, outputTokens: 0 },
+        }
+      },
+    }
     try {
-      const result = await explore(asRecoveryPage(page), createScriptedProvider(), store, {
-        maxSteps: 30,
-        onHalt: (info) => halts.push(info as { class: string; message: string }),
-      }) as ExploreResult & { issueCount: number }
+      const result = await explore(
+        alwaysFailNavPage as unknown as import('playwright').Page,
+        alwaysNavProvider,
+        store,
+        {
+          maxSteps: 30,
+          onHalt: (info) => halts.push(info as { class: string; message: string }),
+        },
+      ) as ExploreResult & { issueCount: number }
       // The loop must halt cleanly (not crash)
       assert.ok(typeof result.steps === 'number', 'explore must resolve on TARGET_UNREACHABLE')
       assert.ok(halts.length >= 1, 'onHalt must fire on TARGET_UNREACHABLE')
