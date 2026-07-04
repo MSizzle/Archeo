@@ -34,6 +34,8 @@ import { startDashboard } from '../dashboard/server.ts';
 import { confirmAllowWrites } from './allowWrites.ts';
 import { makeExternalRedactionHook } from '../capture/redactionModel.ts';
 import type { RedactionModelHook } from '../capture/redactionModel.ts';
+import { runCompare, productionExploreTarget } from './compare.ts';
+import { diffSpecs } from '../spec/drift.ts';
 
 // ---------------------------------------------------------------------------
 // latestSessionDir — resolve the most-recent session under .archeo/captures
@@ -411,6 +413,96 @@ cli
         process.stderr.write(`archeo: ${err.message}\n`)
       }
       process.exit(1)
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// `archeo compare <urlA> <urlB>` — explore two targets and report divergence (VALID-01)
+//
+// GATE-01: runAuthorizationGate is the FIRST statement in the action handler —
+//   compare opens browsers at TWO live targets, so the gate applies.
+// FLOOR ON, NON-NEGOTIABLE: a rebuild is still a live app. compare registers NO
+//   --allow-writes / --i-accept-writes option and passes no write-enabling flag to
+//   either child. Each target flows through the floor-ON productionExploreTarget path.
+//   Pinned by the VALID-02 structural test (test/cli/compare-isolation.test.ts).
+// Registered as a named subcommand BEFORE '<url>' (same pattern as the other commands)
+//   so cac parses 'compare' by name rather than as a positional URL argument.
+// ---------------------------------------------------------------------------
+
+cli
+  .command('compare <urlA> <urlB>', 'Explore two targets with the same config and report where their observed behavior diverges (VALID-01)')
+  .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')
+  .option('--model <spec>', 'Model provider spec, e.g. anthropic:claude-haiku-4-5 (default: scripted)', { default: 'scripted' })
+  .option('--model-base-url <url>', 'Override the provider API base URL (advanced)')
+  .option('--max-steps <n>', 'Maximum exploration steps per target before stopping (default: 50)', { default: 50 })
+  .option('--pace-ms <ms>', 'Minimum milliseconds between actions (default: 500)', { default: 500 })
+  .option('--max-tokens <n>', 'Hard token ceiling per target run; stop cleanly when reached (COST-01)')
+  .option('--max-cost <usd>', 'Hard dollar ceiling per target run; stop cleanly when reached (COST-03)')
+  .action(async (urlA: string, urlB: string, opts: {
+    iHaveAuthorization?: boolean;
+    model?: string;
+    modelBaseUrl?: string;
+    maxSteps?: number;
+    paceMs?: number | string;
+    maxTokens?: number | string;
+    maxCost?: number | string;
+  }) => {
+    // WR-07: wrap the async body so rejections surface as clean error messages.
+    try {
+      // GATE-01: runAuthorizationGate is the FIRST statement in this action handler.
+      // compare opens browsers at two targets — the authorization gate applies.
+      await runAuthorizationGate(opts.iHaveAuthorization ?? false);
+
+      // Validate BOTH URLs before any browser/child process is spawned (T-01-07).
+      if (!isValidUrl(urlA)) {
+        process.stderr.write(
+          `archeo: invalid URL (urlA) — ${urlA}\n` +
+          `  URLs must be absolute (e.g. https://example.com).\n`,
+        );
+        process.exit(1);
+      }
+      if (!isValidUrl(urlB)) {
+        process.stderr.write(
+          `archeo: invalid URL (urlB) — ${urlB}\n` +
+          `  URLs must be absolute (e.g. https://example.com).\n`,
+        );
+        process.exit(1);
+      }
+
+      // Build a timestamped compare output directory (isolated per run).
+      const outDir = join('.archeo', 'compares', `compare-${Date.now()}`);
+
+      // Parse numeric opts — NaN from non-numeric strings becomes undefined (no ceiling).
+      const maxTokens = parseFiniteFlag(opts.maxTokens);
+      const maxCost = parseFiniteFlag(opts.maxCost);
+      const paceMs = opts.paceMs !== undefined ? Number(opts.paceMs) : 500;
+      const maxSteps = opts.maxSteps ?? 50;
+
+      const result = await runCompare(
+        {
+          urlA,
+          urlB,
+          model: opts.model ?? 'scripted',
+          modelBaseUrl: opts.modelBaseUrl,
+          maxSteps,
+          paceMs,
+          maxTokens,
+          maxCost,
+          outDir,
+        },
+        {
+          exploreTarget: productionExploreTarget,
+          diff: diffSpecs,
+        },
+      );
+
+      process.stdout.write(result.stdout);
+      process.stdout.write(`[archeo] compare report written: ${result.reportPath}\n`);
+    } catch (err) {
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`);
+      }
+      process.exit(1);
     }
   });
 
