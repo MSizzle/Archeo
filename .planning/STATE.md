@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 6 COMPLETE — 06-06 live verification PASS after 06-07 fixes
+stopped_at: Phase 7 — 07-01 README rewrite COMPLETE (doc-vs-code audit: zero mismatches; 858/858 suite green)
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 27
-  completed_plans: 27
+  total_plans: 28
+  completed_plans: 28
   percent: 75
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 07 (Open Source Readiness) — OPEN. Phase 6 (Hardening) is COMPLETE: 06-06 autonomous live verification was RE-RUN after the 06-07 source fixes and all 7 stages are GREEN through the real, unmodified CLI (literal `--max-tokens 0` budget stop, change-gate skip, recovery across REAL cross-document navigations, auth-expiry pause→Enter→RESUME with monotonic states 3→7 and zero capture during the pause, drift with zero false positives, `--resume` seeds the genuine prior session, allow-writes lands then floor restored). Next: Phase 7 (README + BYO-key + example specs + contributor docs / OSS-01..03).
+**Current focus:** Phase 07 (Open Source Readiness) — IN PROGRESS. 07-01 COMPLETE: README rewritten (doc-vs-code audit: all commands/flags verified against src/cli/*.ts, zero mismatches; Task 3 skipped — no wrong --help strings found; 858/858 suite green). Next: 07-02 (examples/, CONTRIBUTING.md, SECURITY.md, .gitignore cleanup — OSS-02, OSS-03).
 
 ## Current Position
 
-Phase: 06 (hardening) — COMPLETE (6/6, closed 2026-07-04)
-Plan: 06-06 verified live PASS after the 06-07 closure fixes
-Next: Phase 07 (Open Source Readiness) — OSS-01, OSS-02, OSS-03
-Status: Phase 6 closed; Phase 7 ready to plan
+Phase: 07 (open-source-readiness) — IN PROGRESS (1/3)
+Plan: 07-01 COMPLETE (2026-07-04) — truthful README rewrite; doc-vs-code audit recorded in 07-01-SUMMARY.md
+Next: 07-02 — examples/, CONTRIBUTING.md, SECURITY.md, .gitignore fold-in (OSS-02, OSS-03)
+Status: 07-01 complete; 07-02 ready to execute
 Last activity: 2026-07-04
 
 Progress: [████████░░] 75% (6/8 phases)
@@ -347,9 +347,20 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   traceability table. Full suite 858 (857 pass + 1 pre-existing documented skip, 0 fail) as the final
   gate. Pre-existing unstaged `.gitignore` edit left unstaged.
 
+### Phase 07-01 execution decisions (OSS-01 — truthful README rewrite):
+
+- **Doc-vs-code audit result:** ALL commands and flags verified by reading `src/cli/index.ts` + handler files. Zero mismatches between `--help` text and actual behavior. The one UX-confusing item (`(default: true)` shown next to `--no-dashboard` in cac's help output) is correct — it reflects the `dashboard` property default (true = dashboard enabled). No code fix required.
+- **Fresh-clone invocation form:** `node src/cli/index.ts <url>` (dev-script form). Justification: `dist/` is gitignored; a fresh clone has no built artifacts. `npm run dev` = `node src/cli/index.ts` (no extra flags on Node 24+). The README also documents the build path (`npm run build && npx archeo`) as an alternative.
+- **Key manual/autonomous split clarification:** `archeo <url>` → MANUAL capture (human drives, floor ON, spec auto-generated on window close; no model, no key); `archeo explore <url>` → AUTONOMOUS vision loop (needs provider key for real model; scripted default is key-free). The stale "explore the app" claim on `archeo <url>` is removed.
+- **Safety model:** 7 properties documented in plain language, each citing the enforcing source file: interceptor.ts (floor + destructive-GET), redactor.ts (fail-closed redaction), login.ts (D4-01 credential isolation), allowWrites.ts (opt-in bypass), dashboard/server.ts (127.0.0.1 bind), no-network.test.ts (GATE-03 zero phone-home).
+- **Node version:** `package.json engines: ">=22.0.0"`. Node 24+ strips TS natively without flags; Node 22–23 needs `NODE_OPTIONS=--experimental-strip-types`. README states this truthfully.
+- **Task 3 skipped:** no wrong `--help`/doc-string found in source — no code fix needed.
+- **Suite:** 858 (857 pass + 1 documented skip) — unchanged. LICENSE/NOTICE untouched. `.gitignore` pre-existing edit left unstaged (07-02 folds it in).
+- **ROADMAP:** Phase 7 1/3; 07-01 ticked.
+
 ### Blockers/Concerns
 
-None yet.
+None.
 
 ## Deferred Items
 
@@ -360,5 +371,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-07-04T00:00:00.000Z
-Stopped at: Phase 6 COMPLETE — 06-06 live verification RE-RUN after 06-07 fixes, all 7 stages GREEN (harness exit 0), full suite 858 (857 pass + 1 skip). Next: Phase 7 (Open Source Readiness).
+Stopped at: 07-01 COMPLETE — README rewritten (doc-vs-code audit: zero mismatches), 858/858 suite green. Next: 07-02 (examples/, CONTRIBUTING.md, SECURITY.md, .gitignore — OSS-02/03).
 Resume file: None

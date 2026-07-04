@@ -249,7 +249,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md — Truthful README rewrite (doc-vs-code verified): key-free manual quickstart first, then BYO-key autonomous mode, BYO-key config, and the safety model in plain language (OSS-01)
+- [x] 07-01-PLAN.md — Truthful README rewrite (doc-vs-code verified): key-free manual quickstart first, then BYO-key autonomous mode, BYO-key config, and the safety model in plain language (OSS-01) (completed 2026-07-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -285,5 +285,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
-| 7. Open Source Readiness | 0/3 | Not started | - |
+| 7. Open Source Readiness | 1/3 | In progress | - |
 | 8. Differential Validation | 0/TBD | Not started | - |
