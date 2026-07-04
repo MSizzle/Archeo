@@ -448,6 +448,98 @@ describe('handleRoute — corpus-based synthetic response (FLOOR-06 / D-03)', ()
 });
 
 // ---------------------------------------------------------------------------
+// pause flag — pass-through-unrecorded (D4-01 trust model) — COST-06
+// ---------------------------------------------------------------------------
+describe('pause flag — pass-through-unrecorded (D4-01 trust model)', () => {
+  test('POST request while paused → route.continue called, ZERO store records', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archeo-interceptor-pause-'))
+    try {
+      const store = CaptureStore.create(dir, 'example.com')
+      const records: unknown[] = []
+      store.onRecord((r) => records.push(r))
+
+      const route = makeMockRoute()
+      const request = makeMockRequest({ method: 'POST', url: 'https://example.com/api/login', body: JSON.stringify({ password: 'secret' }) })
+
+      let paused = true
+      await handleRoute(route as unknown as import('playwright').Route, request as unknown as import('playwright').Request, store, async () => false, { paused: () => paused })
+
+      assert.equal(route._calls.length, 1, 'exactly one route call')
+      assert.equal(route._calls[0].method, 'continue', 'route.continue was called')
+      assert.equal(records.length, 0, 'ZERO records written while paused')
+      await store.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('GET request while paused → route.continue called, ZERO store records', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archeo-interceptor-pause-get-'))
+    try {
+      const store = CaptureStore.create(dir, 'example.com')
+      const records: unknown[] = []
+      store.onRecord((r) => records.push(r))
+
+      const route = makeMockRoute()
+      const request = makeMockRequest({ method: 'GET', url: 'https://example.com/api/profile' })
+
+      await handleRoute(route as unknown as import('playwright').Route, request as unknown as import('playwright').Request, store, async () => false, { paused: () => true })
+
+      assert.equal(route._calls[0].method, 'continue', 'route.continue was called for GET')
+      assert.equal(records.length, 0, 'ZERO records for GET while paused')
+      await store.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('unpaused (controls.paused=false) → existing floor behaviour intact (held write)', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archeo-interceptor-unpaused-'))
+    try {
+      const store = CaptureStore.create(dir, 'example.com')
+      const records: unknown[] = []
+      store.onRecord((r) => records.push(r))
+
+      const route = makeMockRoute()
+      const request = makeMockRequest({ method: 'POST', url: 'https://example.com/api/items', body: JSON.stringify({ name: 'test' }) })
+
+      await handleRoute(route as unknown as import('playwright').Route, request as unknown as import('playwright').Request, store, async () => false, { paused: () => false })
+
+      // Floor holds the write: route.fulfill (not continue/fetch) + one held record
+      const fulfillCall = route._calls.find((c: {method: string}) => c.method === 'fulfill')
+      assert.ok(fulfillCall, 'route.fulfill called for held write')
+      assert.equal(records.length, 1, 'one record written for held write')
+      assert.equal((records[0] as {held: boolean}).held, true, 'record is held:true')
+      await store.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  test('no controls param → existing floor behaviour unchanged', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archeo-interceptor-nocontrols-'))
+    try {
+      const store = CaptureStore.create(dir, 'example.com')
+      const records: unknown[] = []
+      store.onRecord((r) => records.push(r))
+
+      const route = makeMockRoute()
+      const request = makeMockRequest({ method: 'POST', url: 'https://example.com/api/items', body: JSON.stringify({ name: 'test' }) })
+
+      // No controls param at all
+      await handleRoute(route as unknown as import('playwright').Route, request as unknown as import('playwright').Request, store, async () => false)
+
+      const fulfillCall = route._calls.find((c: {method: string}) => c.method === 'fulfill')
+      assert.ok(fulfillCall, 'route.fulfill called without controls')
+      assert.equal(records.length, 1)
+      await store.close()
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
 // handleRoute — destructive GET (FLOOR-04 / T-02-09)
 // These tests inject a mock confirmFn to avoid waiting for real stdin.
 // ---------------------------------------------------------------------------
