@@ -218,7 +218,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 06-04-PLAN.md — Session-expiry pause/resume (pass-through-unrecorded) + incremental `--resume` seeding + `archeo diff` drift (COST-06, DRIFT-01, DRIFT-02)
+- [x] 06-04-PLAN.md — Session-expiry pause/resume (pass-through-unrecorded) + incremental `--resume` seeding + `archeo diff` drift (COST-06, DRIFT-01, DRIFT-02)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
@@ -267,6 +267,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
-| 6. Hardening | 2/6 | In Progress|  |
+| 6. Hardening | 4/6 | In Progress|  |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |
