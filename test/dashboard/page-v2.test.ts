@@ -194,4 +194,50 @@ describe('Dashboard page v2 (DASH-04..07)', () => {
       'skip counter update must use textContent (not innerHTML)',
     );
   });
+
+  // ── 06-03 quiet error surface (DASH-08) ──────────────���─────────────────────
+
+  test('page has a collapsed issues panel element (06-03 / DASH-08)', () => {
+    assert.ok(
+      page.includes('issues') || page.includes('Issues'),
+      'page must have an issues panel element',
+    );
+  });
+
+  test('page has an issuesCount or issues-count display element (06-03 / DASH-08)', () => {
+    assert.ok(
+      page.includes('issuesCount') || page.includes('issues-count') || page.includes('issueCount'),
+      'page must have an element showing the issues count',
+    );
+  });
+
+  test('page has EventSource handler for "error" events (06-03 / DASH-08)', () => {
+    assert.ok(
+      page.includes("'error'") || page.includes('"error"'),
+      'page must register an EventSource handler for "error" events',
+    );
+  });
+
+  test('page has a run-halting banner element (06-03 / DASH-08)', () => {
+    assert.ok(
+      page.includes('halt') || page.includes('Halt') || page.includes('halted'),
+      'page must have a run-halting banner or element',
+    );
+  });
+
+  test('page has EventSource handler for "halt" events (06-03 / DASH-08)', () => {
+    assert.ok(
+      page.includes("'halt'") || page.includes('"halt"'),
+      'page must register an EventSource handler for "halt" events',
+    );
+  });
+
+  test('issue messages rendered with textContent — not innerHTML (DASH-08 security)', () => {
+    // Error messages may contain target-derived text — must never go through innerHTML.
+    // The page uses textContent for issue display (same safety rule as reasoning, DASH-06).
+    assert.ok(
+      page.includes('textContent'),
+      'page must use textContent for issue message rendering (not innerHTML)',
+    );
+  });
 });

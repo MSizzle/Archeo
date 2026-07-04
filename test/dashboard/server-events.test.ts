@@ -322,6 +322,118 @@ describe('Dashboard server typed emitters (DASH-04..07)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// sendError / sendHalt — DASH-08 quiet-vs-loud error surface (06-03 Task 3)
+// ---------------------------------------------------------------------------
+describe('Dashboard server sendError / sendHalt (06-03 / DASH-08)', () => {
+  test('dashboard handle exposes sendError and sendHalt methods', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    try {
+      const h = dash as unknown as Record<string, unknown>;
+      assert.ok(typeof h.sendError === 'function', 'dashboard handle must expose sendError');
+      assert.ok(typeof h.sendHalt === 'function', 'dashboard handle must expose sendHalt');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('sendError broadcasts a muted "error" SSE event to connected clients', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendError = (dash as unknown as Record<string, unknown>).sendError as
+      ((entry: unknown) => void) | undefined;
+    try {
+      assert.ok(typeof sendError === 'function', 'sendError must be a function');
+      const eventsPromise = collectSSE(dash.port, 2);
+      await new Promise(r => setTimeout(r, 50));
+
+      sendError!({
+        class: 'action-failure',
+        message: 'Element not found',
+        step: 3,
+        recovered: true,
+        timestamp: new Date().toISOString(),
+      });
+
+      const events = await eventsPromise;
+      const errorEvent = events.find(e => e.event === 'error');
+      assert.ok(errorEvent, 'should receive an "error" SSE event');
+      const data = errorEvent!.data as Record<string, unknown>;
+      assert.equal(data.class, 'action-failure');
+      assert.equal(data.recovered, true);
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('sendError increments issues count in snapshot', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendError = (dash as unknown as Record<string, unknown>).sendError as
+      ((entry: unknown) => void) | undefined;
+    try {
+      assert.ok(typeof sendError === 'function');
+      sendError!({ class: 'nav-failure', message: 'ERR', step: 0, recovered: true, timestamp: '' });
+      sendError!({ class: 'model-error', message: 'err', step: 1, recovered: true, timestamp: '' });
+      await new Promise(r => setTimeout(r, 20));
+
+      const events = await collectSSE(dash.port, 1);
+      const snap = events[0].data as Record<string, unknown>;
+      assert.ok(typeof snap.issuesCount === 'number', 'snapshot must carry issuesCount');
+      assert.equal(snap.issuesCount, 2, 'issuesCount must be 2 after two sendError calls');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('late-connecting client still sees accumulated issuesCount in snapshot', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendError = (dash as unknown as Record<string, unknown>).sendError as
+      ((entry: unknown) => void) | undefined;
+    try {
+      assert.ok(typeof sendError === 'function');
+      sendError!({ class: 'action-failure', message: 'x', step: 0, recovered: true, timestamp: '' });
+      await new Promise(r => setTimeout(r, 20));
+
+      const events = await collectSSE(dash.port, 1);
+      const snap = events[0].data as Record<string, unknown>;
+      assert.ok(typeof snap.issuesCount === 'number', 'late-connect snapshot must carry issuesCount');
+      assert.equal(snap.issuesCount, 1, 'issuesCount must be 1 after one sendError before connect');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('sendHalt broadcasts a loud "halt" SSE event to connected clients', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendHalt = (dash as unknown as Record<string, unknown>).sendHalt as
+      ((info: unknown) => void) | undefined;
+    try {
+      assert.ok(typeof sendHalt === 'function', 'sendHalt must be a function');
+      const eventsPromise = collectSSE(dash.port, 2);
+      await new Promise(r => setTimeout(r, 50));
+
+      sendHalt!({ class: 'browser-gone', message: 'Browser has been closed' });
+
+      const events = await eventsPromise;
+      const haltEvent = events.find(e => e.event === 'halt');
+      assert.ok(haltEvent, 'should receive a "halt" SSE event');
+      const data = haltEvent!.data as Record<string, unknown>;
+      assert.equal(data.class, 'browser-gone');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
 // sendSkip — COST-02 / D6-02 skip counter (06-02 Task 4)
 // ---------------------------------------------------------------------------
 describe('Dashboard server sendSkip (06-02)', () => {
