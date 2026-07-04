@@ -214,7 +214,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 06-03-PLAN.md — Error recovery incl. the mandatory context-destroyed re-observe fix + quiet dashboard error surface (issues panel + halt banner) (COST-05, DASH-08)
+- [x] 06-03-PLAN.md — Error recovery incl. the mandatory context-destroyed re-observe fix + quiet dashboard error surface (issues panel + halt banner) (COST-05, DASH-08)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 

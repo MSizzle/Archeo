@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-07-04T00:50:32.926Z"
+last_updated: "2026-07-04T08:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 26
-  completed_plans: 22
-  percent: 63
+  completed_plans: 23
+  percent: 65
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 05 COMPLETE (5/5) — autonomous vision-driven exploration + full dashboard delivered and proven live. Next: Phase 06 (Hardening — cost/rate control, error recovery, drift re-run).
+**Current focus:** Phase 06 (Hardening) IN PROGRESS — 3/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface). Next: 06-04 (session-expiry pause/resume, incremental --resume seeding, archeo diff drift).
 
 ## Current Position
 
-Phase: 06 (hardening) — IN PROGRESS (1/6)
-Plan: 2 of 6 — 06-01 complete
-Next: 06-02 (semantic change detector — vision-call gating + skip accounting)
+Phase: 06 (hardening) — IN PROGRESS (3/6)
+Plan: 3 of 6 — 06-03 complete
+Next: 06-04 (session-expiry pause/resume + incremental --resume seeding + archeo diff drift)
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -286,9 +286,21 @@ Phase 05-01 execution decisions:
 - CLI: --max-tokens NaN guard — Number('abc') = NaN → || undefined = undefined (no ceiling applied). parseModelSpec extracts model ID for BudgetTracker price lookup.
 - .gitignore unstaged edit left unstaged throughout (never git add .gitignore).
 
+### Phase 06-03 execution decisions (COST-05, DASH-08):
+
+- `observeWithRecovery` wraps `captureObservation` and retries up to 3 times on 'Execution context was destroyed' (the MANDATORY fix from D6-03 — a real cross-document nav raises this on subsequent `page.evaluate`). Non-context-destroyed errors rethrow immediately.
+- `ERROR_CLASSES` as-const object; `classifyError` pure string-match; `isHalting` returns true for BROWSER_GONE + TARGET_UNREACHABLE only.
+- `IssueLog` rotating buffer: `capacity` configurable (default 100); `count` = total ever appended (monotonic); `entries` = sliding window; oldest dropped when full.
+- Loop recovery wiring: `decideWithRetry` failure → MODEL_ERROR → exponential backoff (100ms→30 000ms, reset on success) + policy fallback; `executeAction` navigate failure → retry once + `consecutiveNavFailures++` (≥3 → TARGET_UNREACHABLE halt); `executeAction` other failure → ACTION_FAILURE logged + re-observe next iteration; `consecutiveNavFailures` reset to 0 on successful action ONLY (not on failure of 'back' or other non-navigate actions — critical for TARGET_UNREACHABLE to fire reliably).
+- Test (d) uses an inline custom page where `url()` returns a distinct step-scoped URL after each `evaluate()` call so the change detector always sees a route change → always calls the model → navigate always fails → 3 consecutive nav failures → halt.
+- Dashboard: `sendError(entry)` increments `issuesCount` aggregate + broadcasts muted 'error' SSE; `sendHalt(info)` broadcasts loud 'halt' SSE. Both wrapped in try/catch so dashboard failure never crashes the run (T-03-12). `issuesCount` included in snapshot for late-connecting clients.
+- Page: collapsed `<details>` issues panel + `<div id="haltBanner">` (hidden, shown on 'halt' event). All issue text via `textContent` (target-derived content, DASH-06 safety precedent).
+- CLI `explore.ts`: `onError → dashboard.sendError` (no terminal line); `onHalt → dashboard.sendHalt + one stdout line`. Non-dashboard path: `onHalt` still writes the terminal line.
+- Suite: 745 tests (744 pass + 1 pre-existing documented skip). Baseline was 701; 44 new tests added (26 recovery.ts + 6 loop recovery-wiring + 5 server-events + 7 page-v2).
+
 ### Pending Todos
 
-None for 06-01. Next: 06-02 (semantic change detector + vision-call gating).
+None for 06-03. Next: 06-04 (session-expiry pause/resume + incremental --resume seeding + archeo diff drift).
 
 ### Blockers/Concerns
 
