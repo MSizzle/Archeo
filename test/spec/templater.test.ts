@@ -8,7 +8,7 @@
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
 import { templatePathSegment, templatePath, groupRecords } from '../../src/spec/templater.ts';
-import type { CaptureRecord } from '../../src/types/index.ts';
+import type { CaptureRecord, GraphQLSchemaFragment } from '../../src/types/index.ts';
 
 // ---------------------------------------------------------------------------
 // Test-record factory — builds minimal valid CaptureRecord objects.
@@ -461,4 +461,221 @@ describe('groupRecords', () => {
     });
   });
 
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 bodyEncoding — EndpointTemplate.bodyEncoding derived from content-type
+// TDD RED: groupRecords does not yet compute bodyEncoding → tests FAIL.
+// ---------------------------------------------------------------------------
+describe('11-02 bodyEncoding on EndpointTemplate (builder finding #1)', () => {
+
+  test('application/json content-type → bodyEncoding: json', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/data', path: '/api/data',
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: { name: 'string' },
+    })];
+    const templates = groupRecords(records);
+    assert.equal(templates.length, 1);
+    assert.strictEqual(templates[0].bodyEncoding, 'json',
+      'application/json → bodyEncoding must be "json"');
+  });
+
+  test('application/x-www-form-urlencoded → bodyEncoding: form', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/form', path: '/api/form',
+      requestHeaders: { 'content-type': 'application/x-www-form-urlencoded' },
+      requestBody: 'string',
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, 'form',
+      'application/x-www-form-urlencoded → bodyEncoding must be "form"');
+  });
+
+  test('multipart/form-data → bodyEncoding: form', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/upload', path: '/api/upload',
+      requestHeaders: { 'content-type': 'multipart/form-data; boundary=----abc' },
+      requestBody: 'string',
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, 'form',
+      'multipart/form-data → bodyEncoding must be "form"');
+  });
+
+  test('text/plain → bodyEncoding: text', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/text', path: '/api/text',
+      requestHeaders: { 'content-type': 'text/plain' },
+      requestBody: 'string',
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, 'text',
+      'text/plain → bodyEncoding must be "text"');
+  });
+
+  test('application/octet-stream → bodyEncoding: binary', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/blob', path: '/api/blob',
+      requestHeaders: { 'content-type': 'application/octet-stream' },
+      requestBody: 'string',
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, 'binary',
+      'application/octet-stream → bodyEncoding must be "binary"');
+  });
+
+  test('no request body (GET) → bodyEncoding absent (undefined)', () => {
+    const records = [rec({
+      method: 'GET', url: 'https://example.com/api/items', path: '/api/items',
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: null,
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, undefined,
+      'no request body → bodyEncoding must be absent (undefined)');
+  });
+
+  test('no content-type header → bodyEncoding absent', () => {
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/api/data', path: '/api/data',
+      requestHeaders: {},
+      requestBody: { name: 'string' },
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].bodyEncoding, undefined,
+      'no content-type → bodyEncoding must be absent');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 pollingIntervalMs — EndpointTemplate.pollingIntervalMs median inter-arrival
+// TDD RED: groupRecords does not yet compute pollingIntervalMs → tests FAIL.
+// ---------------------------------------------------------------------------
+describe('11-02 pollingIntervalMs on EndpointTemplate (builder finding #6)', () => {
+
+  test('polling URL (>=3 hits) with timestamps → pollingIntervalMs set to median inter-arrival', () => {
+    const url = 'https://example.com/api/status';
+    const base = {
+      method: 'GET' as const, path: '/api/status', requestHeaders: {} as Record<string, string>, requestBody: null,
+    };
+    const records = [
+      rec({ ...base, url, id: 'r1', seq: 1, timestamp: new Date(1000).toISOString() }),
+      rec({ ...base, url, id: 'r2', seq: 2, timestamp: new Date(6000).toISOString() }),
+      rec({ ...base, url, id: 'r3', seq: 3, timestamp: new Date(11000).toISOString() }),
+    ];
+    const templates = groupRecords(records);
+    assert.equal(templates.length, 1);
+    assert.strictEqual(templates[0].polling, true, 'polling must be true for URL seen 3 times');
+    assert.ok(typeof templates[0].pollingIntervalMs === 'number',
+      'pollingIntervalMs must be a number when polling:true and timestamps present');
+    // inter-arrivals: [6000-1000=5000, 11000-6000=5000]; median = 5000ms
+    assert.strictEqual(templates[0].pollingIntervalMs, 5000,
+      'pollingIntervalMs must be 5000 (median of [5000, 5000])');
+  });
+
+  test('non-polling URL (< 3 hits) → pollingIntervalMs absent', () => {
+    const url = 'https://example.com/api/items';
+    const base = {
+      method: 'GET' as const, path: '/api/items', requestHeaders: {} as Record<string, string>, requestBody: null,
+    };
+    const records = [
+      rec({ ...base, url, id: 'r1', seq: 1, timestamp: new Date(1000).toISOString() }),
+      rec({ ...base, url, id: 'r2', seq: 2, timestamp: new Date(5000).toISOString() }),
+    ];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].polling, false, 'polling must be false for URL seen < 3 times');
+    assert.strictEqual(templates[0].pollingIntervalMs, undefined,
+      'pollingIntervalMs must be absent when polling:false');
+  });
+
+  test('polling with 4 hits → pollingIntervalMs = median of 3 inter-arrival intervals', () => {
+    const url = 'https://example.com/api/live';
+    const base = {
+      method: 'GET' as const, path: '/api/live', requestHeaders: {} as Record<string, string>, requestBody: null,
+    };
+    const records = [
+      rec({ ...base, url, id: 'r1', seq: 1, timestamp: new Date(0).toISOString() }),
+      rec({ ...base, url, id: 'r2', seq: 2, timestamp: new Date(1000).toISOString() }),
+      rec({ ...base, url, id: 'r3', seq: 3, timestamp: new Date(3000).toISOString() }),
+      rec({ ...base, url, id: 'r4', seq: 4, timestamp: new Date(4000).toISOString() }),
+    ];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].polling, true);
+    // inter-arrivals: [1000, 2000, 1000]; sorted: [1000, 1000, 2000]; median = 1000
+    assert.strictEqual(templates[0].pollingIntervalMs, 1000,
+      'pollingIntervalMs must be median inter-arrival = 1000ms');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 graphqlSchema on EndpointTemplate (SPEC-09)
+// TDD RED: groupRecords does not yet surface record.graphqlSchema → tests FAIL.
+// ---------------------------------------------------------------------------
+describe('11-02 graphqlSchema on EndpointTemplate (SPEC-09)', () => {
+
+  test('GraphQL record with graphqlSchema → fragment surfaced on EndpointTemplate', () => {
+    const fragment: GraphQLSchemaFragment = {
+      operationType: 'query',
+      operationName: 'GetUser',
+      arguments: ['id'],
+      fields: ['user', 'user.name', 'user.email'],
+      query: 'query GetUser { user(id: <redacted>) { name email } }',
+    };
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/graphql', path: '/graphql',
+      protocol: 'GraphQL',
+      operationType: 'read',
+      graphqlOperationName: 'GetUser',
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: '{ "query": "..." }',
+      graphqlSchema: fragment,
+    })];
+    const templates = groupRecords(records);
+    assert.equal(templates.length, 1);
+    assert.ok(templates[0].graphqlSchema,
+      'graphqlSchema must be surfaced from record to EndpointTemplate');
+    assert.strictEqual(templates[0].graphqlSchema!.operationType, 'query');
+    assert.ok(templates[0].graphqlSchema!.arguments.includes('id'),
+      'argument name "id" must be present on template graphqlSchema');
+    assert.deepStrictEqual(templates[0].graphqlSchema, fragment,
+      'full fragment must match the record graphqlSchema');
+  });
+
+  test('SAFETY: graphqlSchema on EndpointTemplate is secret-clean (recursive no-raw-value)', () => {
+    const SECRET = 'template-secret-clean-77777';
+    const fragment: GraphQLSchemaFragment = {
+      operationType: 'query',
+      operationName: 'GetUser',
+      arguments: ['id'],
+      fields: ['user', 'user.name'],
+      // query is VALUE-STRIPPED (no secret — as extracted by extractGraphQLSchemaFragment)
+      query: 'query GetUser { user(id: <redacted>) { name } }',
+    };
+    // SECRET does NOT appear in the fragment (it was stripped by the extractor)
+    const records = [rec({
+      method: 'POST', url: 'https://example.com/graphql', path: '/graphql',
+      protocol: 'GraphQL',
+      operationType: 'read',
+      graphqlOperationName: 'GetUser',
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: '{ "query": "..." }',
+      graphqlSchema: fragment,
+    })];
+    const templates = groupRecords(records);
+    const schemaStr = JSON.stringify(templates[0].graphqlSchema ?? {});
+    assert.ok(!schemaStr.includes(SECRET),
+      `SAFETY: graphqlSchema on EndpointTemplate must not contain "${SECRET}"; got: ${schemaStr}`);
+  });
+
+  test('non-GraphQL record → graphqlSchema absent on EndpointTemplate', () => {
+    const records = [rec({
+      method: 'GET', url: 'https://example.com/api/items', path: '/api/items',
+      requestHeaders: {},
+      requestBody: null,
+    })];
+    const templates = groupRecords(records);
+    assert.strictEqual(templates[0].graphqlSchema, undefined,
+      'non-GraphQL endpoint must not have graphqlSchema');
+  });
 });

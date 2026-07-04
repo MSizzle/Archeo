@@ -29,7 +29,7 @@ import { createInterface } from 'node:readline';
 import { isTargetScope, classifyRequest } from './classifier.ts';
 import { redactHeaders, redactBody, redactUrl } from './redactor.ts';
 import type { CaptureStore } from './store.ts';
-import type { CaptureRecord } from '../types/index.ts';
+import type { CaptureRecord, GraphQLSchemaFragment } from '../types/index.ts';
 import type { RedactionModelHook } from './redactionModel.ts';
 import { applyExtraRedactions } from './redactionModel.ts';
 
@@ -120,6 +120,24 @@ function extractGraphQLIdentifier(body: string | null): string | undefined {
   const bodyMatch = /\{[\s,]*(\w+)/.exec(stripped);
   if (bodyMatch) return bodyMatch[1];
 
+  return undefined;
+}
+
+/**
+ * Extract the GraphQL operation schema fragment from a raw request body.
+ * PRE-REDACTION: reads the query STRING for SHAPE only — argument NAMES, selection field
+ * NAMES, operation type, and a value-stripped query string. NEVER reads field values.
+ * CAP-05 / D11-02: the body is still fully redacted before store.append().
+ * SPEC-09: captures per-operation query structure for the downstream coding agent.
+ *
+ * Mirrors extractGraphQLIdentifier's parse-before-redact discipline (03-05).
+ * $variable references are preserved (they are identifiers, not values).
+ * Inline literal values (strings, numbers, enums, booleans) → <redacted> placeholder.
+ *
+ * @param body  Raw request body string (before redaction) or null.
+ */
+export function extractGraphQLSchemaFragment(body: string | null): GraphQLSchemaFragment | undefined {
+  // STUB — returns undefined (RED phase). Implemented in feat(11-02).
   return undefined;
 }
 

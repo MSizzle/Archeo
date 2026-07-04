@@ -10,7 +10,10 @@
  * SPEC-01/02: collapse id-varying paths; flag polling noise.
  * SPEC-03..07: ArcheoSpec carries data models, endpoints, flows, rules, and coverage.
  */
-import type { Protocol, OperationType } from './index.ts';
+import type { Protocol, OperationType, GraphQLSchemaFragment } from './index.ts';
+
+// Re-export GraphQLSchemaFragment for consumers that import from spec.ts.
+export type { GraphQLSchemaFragment };
 
 // ---------------------------------------------------------------------------
 // ArcheoSpec top-level type (D3-04, SPEC-03..07)
@@ -233,4 +236,23 @@ export interface EndpointTemplate {
   polling: boolean;
   /** GraphQL only: schema-level operation name (CreateUser, ListUsers, etc.). */
   operationName?: string;
+  /**
+   * GraphQL only: per-operation schema fragment (arg names, field names, value-stripped query).
+   * SPEC-09 (11-02). Only present for GraphQL endpoints; passes through generateSpec unchanged.
+   */
+  graphqlSchema?: GraphQLSchemaFragment;
+  /**
+   * Request body encoding derived from the request content-type header value.
+   * 'json' = application/json; 'form' = form-urlencoded or multipart;
+   * 'text' = text/*; 'binary' = binary content types.
+   * Absent when there is no request body (11-02, builder finding #1).
+   */
+  bodyEncoding?: 'json' | 'form' | 'text' | 'binary';
+  /**
+   * For polling endpoints (polling:true), the median inter-arrival time (ms) between
+   * successive requests to the repeated concrete URL.
+   * Absent for non-polling endpoints or when fewer than 2 timestamps available.
+   * (11-02, builder finding #6).
+   */
+  pollingIntervalMs?: number;
 }

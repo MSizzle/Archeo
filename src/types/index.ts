@@ -110,6 +110,18 @@ export interface CaptureRecord {
   rpcMethod?: string;
 
   // ---------------------------------------------------------------------------
+  // GraphQL schema fragment (D11-02 / SPEC-09) — set PRE-REDACTION by extractGraphQLSchemaFragment.
+  // Contains ONLY schema-level identifiers (arg names, field names, value-stripped query).
+  // Safety class: same as graphqlOperationName (schema identifiers only, never a secret).
+  // ---------------------------------------------------------------------------
+  /**
+   * GraphQL operation schema fragment extracted PRE-REDACTION (D11-02 / SPEC-09).
+   * Contains only schema-level identifiers — never a data value.
+   * Parallels graphqlOperationName/rpcMethod (schema-level identifier class).
+   */
+  graphqlSchema?: GraphQLSchemaFragment;
+
+  // ---------------------------------------------------------------------------
   // Agent-step fields (D5-03 / AGENT-05) — present ONLY on RECORD_TYPES.AGENT_STEP records.
   // Additive + optional, mirroring the graphqlOperationName/rpcMethod precedent so no
   // existing capture/spec/dashboard code path changes. These carry structural exploration
@@ -131,6 +143,34 @@ export interface CaptureRecord {
    * Absent on pre-06-02 records (treated as 'model' by consumers).
    */
   agentSource?: 'model' | 'policy';
+}
+
+/**
+ * GraphQL operation schema fragment extracted PRE-REDACTION by extractGraphQLSchemaFragment.
+ * Contains ONLY schema-level identifiers — NEVER a data value.
+ * D11-02 / SPEC-09: captures the operation's SHAPE for a downstream coding agent.
+ * Safety class: same as graphqlOperationName / rpcMethod — structural identifiers only.
+ *
+ * No TypeScript enums (native stripping limitation).
+ */
+export interface GraphQLSchemaFragment {
+  /** GraphQL operation type. Parallels detectGraphQLOperation + adds 'subscription'. */
+  operationType: 'query' | 'mutation' | 'subscription' | 'introspection';
+  /** Named operation or first selection field name (reuses extractGraphQLIdentifier logic). */
+  operationName?: string;
+  /** Top-level argument NAMES (never values). E.g. ['id', 'limit']. */
+  arguments: string[];
+  /**
+   * Selection-set field NAMES, nested paths flattened with dots
+   * (e.g. 'user', 'user.name', 'user.email'). Depth-capped at MAX_FIELD_DEPTH.
+   */
+  fields: string[];
+  /**
+   * The query text with inline argument literal VALUES stripped to a <redacted> placeholder.
+   * $variable references (identifiers, not values) are preserved.
+   * Whitespace normalized. Never contains a data value.
+   */
+  query: string;
 }
 
 /**

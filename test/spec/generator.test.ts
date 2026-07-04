@@ -23,6 +23,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync, existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
+import type { GraphQLSchemaFragment } from '../../src/types/index.ts';
 
 // ---------------------------------------------------------------------------
 // Helpers to build a test session directory
@@ -1216,5 +1217,214 @@ describe('GATE-03 guard — generator source', () => {
     assert.ok(!/from ['"]playwright['"]/.test(src), 'generator must not import playwright (GATE-03)');
     assert.ok(!src.includes('axios'), 'generator must not import axios (GATE-03)');
     assert.ok(!src.includes('undici'), 'generator must not import undici (GATE-03)');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 SPEC-09: graphqlSchema flows through generateSpec; normalizeShapeLeaves skips it
+// TDD RED: groupRecords does not yet surface graphqlSchema → spec.endpoints[n].graphqlSchema
+// is undefined → these tests FAIL until feat(11-02) is implemented.
+// ---------------------------------------------------------------------------
+describe('11-02 SPEC-09: graphqlSchema on spec endpoints + Test C recursive no-raw-value', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir(): string { const d = mkdtempSync(join(tmpdir(), 'archeo-11-02-gen-')); dirs.push(d); return d; }
+
+  test('SPEC-09: GraphQL endpoint in spec carries graphqlSchema fragment', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const fragment: GraphQLSchemaFragment = {
+      operationType: 'query',
+      operationName: 'GetUser',
+      arguments: ['id'],
+      fields: ['user', 'user.name', 'user.email'],
+      query: 'query GetUser { user(id: <redacted>) { name email } }',
+    };
+
+    const record = {
+      id: '550e8400-e29b-41d4-a716-446655440001',
+      seq: 1,
+      timestamp: '2026-07-04T10:01:00.000Z',
+      type: 'request-response',
+      protocol: 'GraphQL',
+      operationType: 'read',
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      path: '/graphql',
+      held: false,
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: { query: 'string', variables: { id: 'string' } },
+      graphqlOperationName: 'GetUser',
+      graphqlSchema: fragment,
+      responseStatus: 200,
+      responseHeaders: { 'content-type': 'application/json' },
+      responseBody: { user: { name: 'string', email: 'string' } },
+    };
+
+    writeFileSync(join(dir, 'capture.jsonl'), JSON.stringify(record) + '\n');
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+      version: '1', sessionId: '550e8400-e29b-41d4-a716-000000000001',
+      targetOrigin: 'example.com',
+      startedAt: '2026-07-04T10:00:00.000Z', updatedAt: '2026-07-04T10:01:00.000Z',
+      recordCount: 1, heldWriteCount: 0, logFile: 'capture.jsonl',
+    }));
+
+    const spec = generateSpec(dir);
+
+    const gqlEndpoint = spec.endpoints.find(e => e.protocol === 'GraphQL');
+    assert.ok(gqlEndpoint, 'GraphQL endpoint must appear in spec');
+    assert.ok(gqlEndpoint!.graphqlSchema,
+      'SPEC-09: graphqlSchema must be present on GraphQL endpoint in spec');
+    assert.strictEqual(gqlEndpoint!.graphqlSchema!.operationType, 'query',
+      'graphqlSchema.operationType must be "query"');
+    assert.ok(gqlEndpoint!.graphqlSchema!.arguments.includes('id'),
+      'graphqlSchema.arguments must include "id"');
+    assert.ok(gqlEndpoint!.graphqlSchema!.fields.includes('user') || gqlEndpoint!.graphqlSchema!.fields.some(f => f === 'user'),
+      'graphqlSchema.fields must include "user"');
+  });
+
+  test('graphqlSchema passes through normalizeShapeLeaves UNCHANGED (names survive)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const fragment: GraphQLSchemaFragment = {
+      operationType: 'query',
+      operationName: 'GetItems',
+      arguments: ['limit', 'offset'],
+      fields: ['items', 'items.id', 'items.name'],
+      query: 'query GetItems { items(limit: <redacted>, offset: <redacted>) { id name } }',
+    };
+
+    const record = {
+      id: '550e8400-e29b-41d4-a716-446655440002',
+      seq: 1,
+      timestamp: '2026-07-04T10:01:00.000Z',
+      type: 'request-response',
+      protocol: 'GraphQL',
+      operationType: 'read',
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      path: '/graphql',
+      held: false,
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: { query: 'string' },
+      graphqlOperationName: 'GetItems',
+      graphqlSchema: fragment,
+      responseStatus: 200,
+      responseHeaders: {},
+      responseBody: null,
+    };
+
+    writeFileSync(join(dir, 'capture.jsonl'), JSON.stringify(record) + '\n');
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+      version: '1', sessionId: '550e8400-e29b-41d4-a716-000000000002',
+      targetOrigin: 'example.com',
+      startedAt: '2026-07-04T10:00:00.000Z', updatedAt: '2026-07-04T10:01:00.000Z',
+      recordCount: 1, heldWriteCount: 0, logFile: 'capture.jsonl',
+    }));
+
+    const spec = generateSpec(dir);
+    const gqlEndpoint = spec.endpoints.find(e => e.protocol === 'GraphQL');
+    assert.ok(gqlEndpoint?.graphqlSchema, 'graphqlSchema must survive generateSpec');
+    // Field names must pass through UNCHANGED (normalizeShapeLeaves must NOT touch graphqlSchema)
+    assert.ok(gqlEndpoint!.graphqlSchema!.fields.includes('items.id'),
+      'graphqlSchema.fields "items.id" must survive normalizeShapeLeaves unchanged');
+    assert.ok(gqlEndpoint!.graphqlSchema!.fields.includes('items.name'),
+      'graphqlSchema.fields "items.name" must survive normalizeShapeLeaves unchanged');
+    assert.deepStrictEqual(gqlEndpoint!.graphqlSchema, fragment,
+      'graphqlSchema must be passed through UNCHANGED by generateSpec/normalizeShapeLeaves');
+  });
+
+  test('Test C: recursive no-raw-value — planted SECRET in requestBody does not appear in generated spec', async () => {
+    // Test C: even if a value somehow survived redactBody (e.g., matched a safe-category),
+    // normalizeShapeLeaves in generateSpec strips it to its type keyword.
+    // The spec must be recursively clean of raw values.
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+    const SECRET = 'recursive-secret-55555-testC';
+
+    const fragment: GraphQLSchemaFragment = {
+      operationType: 'query',
+      operationName: 'GetUser',
+      arguments: ['id'],
+      fields: ['user'],
+      // graphqlSchema.query is VALUE-STRIPPED (no secret)
+      query: 'query GetUser { user(id: <redacted>) { name } }',
+    };
+
+    // requestBody has the SECRET as a field value — simulating a value that survived redactBody
+    // normalizeShapeLeaves in generateSpec will strip it to 'string'
+    const record = {
+      id: '550e8400-e29b-41d4-a716-446655440003',
+      seq: 1,
+      timestamp: '2026-07-04T10:01:00.000Z',
+      type: 'request-response',
+      protocol: 'GraphQL',
+      operationType: 'read',
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      path: '/graphql',
+      held: false,
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: { query: SECRET },  // SECRET as a body value — will be normalized
+      graphqlOperationName: 'GetUser',
+      graphqlSchema: fragment,  // value-stripped — no secret
+      responseStatus: 200,
+      responseHeaders: {},
+      responseBody: null,
+    };
+
+    writeFileSync(join(dir, 'capture.jsonl'), JSON.stringify(record) + '\n');
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+      version: '1', sessionId: '550e8400-e29b-41d4-a716-000000000003',
+      targetOrigin: 'example.com',
+      startedAt: '2026-07-04T10:00:00.000Z', updatedAt: '2026-07-04T10:01:00.000Z',
+      recordCount: 1, heldWriteCount: 0, logFile: 'capture.jsonl',
+    }));
+
+    const spec = generateSpec(dir);
+    const specJson = JSON.stringify(spec);
+
+    // Test C assertion: SECRET must not appear in the generated spec JSON
+    assert.ok(!specJson.includes(SECRET),
+      `Test C: SECRET "${SECRET}" must not appear anywhere in generated spec JSON after normalizeShapeLeaves`);
+  });
+
+  test('11-02 bodyEncoding: REST endpoint with JSON body → bodyEncoding "json" in spec', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const record = {
+      id: '550e8400-e29b-41d4-a716-446655440004',
+      seq: 1,
+      timestamp: '2026-07-04T10:01:00.000Z',
+      type: 'request-response',
+      protocol: 'REST',
+      operationType: 'read',
+      method: 'GET',
+      url: 'https://example.com/api/items',
+      path: '/api/items',
+      held: false,
+      requestHeaders: { 'content-type': 'application/json' },
+      requestBody: { filter: 'string' },
+      responseStatus: 200,
+      responseHeaders: { 'content-type': 'application/json' },
+      responseBody: { items: 'array' },
+    };
+
+    writeFileSync(join(dir, 'capture.jsonl'), JSON.stringify(record) + '\n');
+    writeFileSync(join(dir, 'manifest.json'), JSON.stringify({
+      version: '1', sessionId: '550e8400-e29b-41d4-a716-000000000004',
+      targetOrigin: 'example.com',
+      startedAt: '2026-07-04T10:00:00.000Z', updatedAt: '2026-07-04T10:01:00.000Z',
+      recordCount: 1, heldWriteCount: 0, logFile: 'capture.jsonl',
+    }));
+
+    const spec = generateSpec(dir);
+    const endpoint = spec.endpoints[0];
+    assert.ok(endpoint, 'endpoint must exist');
+    assert.strictEqual(endpoint.bodyEncoding, 'json',
+      '11-02: endpoint with application/json body → bodyEncoding must be "json"');
   });
 });

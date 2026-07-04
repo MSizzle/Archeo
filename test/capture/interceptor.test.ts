@@ -20,7 +20,8 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
-import { handleRoute, attachInterceptor } from '../../src/capture/interceptor.ts';
+import { handleRoute, attachInterceptor, extractGraphQLSchemaFragment } from '../../src/capture/interceptor.ts';
+import type { GraphQLSchemaFragment } from '../../src/types/index.ts';
 import { CaptureStore } from '../../src/capture/store.ts';
 
 // ---------------------------------------------------------------------------
@@ -1184,5 +1185,306 @@ describe('handleRoute — allowWrites pass-through-captured (FLOOR-08)', () => {
     const lines = readFileSync(getLogPath(store), 'utf8').split('\n').filter(Boolean);
     const record = JSON.parse(lines[0]);
     assert.equal(record.held, true, 'floor ON (no allowWrites): POST must be held:true');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 SPEC-09: extractGraphQLSchemaFragment — pure pre-redaction schema extractor
+// TDD RED: stub returns undefined, all these tests FAIL until feat(11-02) implements it.
+// ---------------------------------------------------------------------------
+describe('11-02 SPEC-09: extractGraphQLSchemaFragment — pure pre-redaction shape extractor', () => {
+
+  test('null body → undefined', () => {
+    const result = extractGraphQLSchemaFragment(null);
+    assert.strictEqual(result, undefined);
+  });
+
+  test('non-GraphQL body (no query field) → undefined', () => {
+    const result = extractGraphQLSchemaFragment(JSON.stringify({ data: { id: '1' } }));
+    assert.strictEqual(result, undefined);
+  });
+
+  test('non-JSON body → undefined', () => {
+    const result = extractGraphQLSchemaFragment('not json at all');
+    assert.strictEqual(result, undefined);
+  });
+
+  test('named query → operationType=query, operationName, arg names, field names extracted', () => {
+    const body = JSON.stringify({
+      query: 'query GetUser { user(id: "user123") { name email } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment for a valid GraphQL query body');
+    assert.strictEqual(result!.operationType, 'query');
+    assert.strictEqual(result!.operationName, 'GetUser');
+    assert.ok(result!.arguments.includes('id'), '"id" must be in arguments');
+    const hasName = result!.fields.some(f => f === 'name' || f.endsWith('.name'));
+    assert.ok(hasName, '"name" must appear in fields (possibly as dotted path)');
+    const hasEmail = result!.fields.some(f => f === 'email' || f.endsWith('.email'));
+    assert.ok(hasEmail, '"email" must appear in fields (possibly as dotted path)');
+  });
+
+  test('named query → inline string literal is stripped from query field (SAFETY)', () => {
+    const SECRET = 'supersecret-api-key-12345';
+    const body = JSON.stringify({
+      query: `query GetUser { user(id: "${SECRET}") { name } }`,
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment');
+    assert.ok(!result!.query.includes(SECRET),
+      'inline string literal must be stripped from fragment.query');
+    assert.ok(result!.arguments.includes('id'),
+      'argument name "id" must survive value-stripping');
+  });
+
+  test('mutation → operationType=mutation', () => {
+    const body = JSON.stringify({
+      query: 'mutation UpdateProfile { updateProfile(name: "Alice") { id } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment for a mutation');
+    assert.strictEqual(result!.operationType, 'mutation');
+  });
+
+  test('subscription → operationType=subscription', () => {
+    const body = JSON.stringify({
+      query: 'subscription OnMessage { message(channel: "general") { text } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment for a subscription');
+    assert.strictEqual(result!.operationType, 'subscription');
+  });
+
+  test('introspection query → operationType=introspection', () => {
+    const body = JSON.stringify({
+      query: '{ __schema { types { name } } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment for an introspection query');
+    assert.strictEqual(result!.operationType, 'introspection');
+  });
+
+  test('$variable reference kept in stripped query (it is an identifier, not a value)', () => {
+    const body = JSON.stringify({
+      query: 'query GetUser($id: ID!) { user(id: $id) { name } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment');
+    assert.ok(result!.query.includes('$id'),
+      '$variable reference must be preserved in fragment.query');
+    assert.ok(result!.arguments.includes('id'),
+      'argument name "id" must be present');
+  });
+
+  test('comment lines stripped before processing (CR-03 pattern)', () => {
+    const body = JSON.stringify({
+      query: '# This is a comment\nquery GetData { items { id } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment even when query starts with comment');
+    assert.strictEqual(result!.operationType, 'query');
+    assert.strictEqual(result!.operationName, 'GetData');
+  });
+
+  // --------------------------------------------------------------------------
+  // SAFETY Test A: SECRET in inline literal + SECRET in variables
+  // --------------------------------------------------------------------------
+  test('SAFETY Test A: inline literal SECRET stripped while arg/field NAMES survive', () => {
+    const SECRET = 'supersecret-api-key-12345';
+    const body = JSON.stringify({
+      query: `query GetUser { user(id: "${SECRET}") { name } }`,
+      variables: { token: SECRET },  // variables NOT read by this function
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment for this query');
+
+    // (a) The fragment must NOT contain the SECRET anywhere
+    const fragmentStr = JSON.stringify(result);
+    assert.ok(!fragmentStr.includes(SECRET),
+      `SAFETY Test A: planted SECRET "${SECRET}" must NOT appear anywhere in graphqlSchema fragment; got: ${fragmentStr.slice(0, 200)}`);
+
+    // (b) Argument name "id" must survive
+    assert.ok(result!.arguments.includes('id'),
+      'argument name "id" must survive value-stripping');
+
+    // (c) Field name "name" (or "user.name") must survive
+    const hasName = result!.fields.some(f => f === 'name' || f.endsWith('.name'));
+    assert.ok(hasName, 'field name "name" must survive value-stripping');
+
+    // (d) Query field must not contain SECRET
+    assert.ok(!result!.query.includes(SECRET),
+      'SAFETY: SECRET must not appear in fragment.query');
+
+    // NOTE: variables object is NOT read by extractGraphQLSchemaFragment —
+    // it stays in the raw body and is redacted by redactBody (CAP-05 path unchanged).
+  });
+
+  test('number literal stripped: user(count: 42) → count arg present, 42 absent from query', () => {
+    const body = JSON.stringify({
+      query: 'query GetItems { items(count: 42, offset: 0) { id name } }',
+    });
+    const result = extractGraphQLSchemaFragment(body);
+    assert.ok(result, 'should return a fragment');
+    assert.ok(result!.arguments.includes('count'), '"count" must be in arguments');
+    assert.ok(result!.arguments.includes('offset'), '"offset" must be in arguments');
+    assert.ok(!result!.query.includes('42'), 'number literal 42 must be stripped');
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-02 CAP-05 planted-secret regression — graphqlSchema wiring at interceptor sites
+// TDD RED: graphqlSchema not yet wired at capture sites, so record.graphqlSchema is undefined.
+// ---------------------------------------------------------------------------
+describe('11-02 CAP-05 planted-secret regression — graphqlSchema wired at interceptor sites', () => {
+  const tmpRoot = mkdtempSync(join(tmpdir(), 'archeo-11-02-cap05-'));
+
+  after(() => { rmSync(tmpRoot, { recursive: true, force: true }); });
+
+  test('Test B: SAFETY — planted secret in inline literal + variable → zero occurrences in graphqlSchema + requestBody (allowed GET path)', async () => {
+    const SECRET = 'supersecret-planted-key-99999';
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: `query GetUser { user(id: "${SECRET}") { name } }`,
+        variables: { token: SECRET },
+      }),
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await store.close();
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+
+    // (a) graphqlSchema must be present and have arg/field NAMES
+    assert.ok(record.graphqlSchema,
+      'Test B: record must have graphqlSchema field (wired at allowed-path site)');
+    assert.ok(Array.isArray(record.graphqlSchema.arguments),
+      'graphqlSchema.arguments must be an array');
+    assert.ok(record.graphqlSchema.arguments.includes('id'),
+      'graphqlSchema.arguments must include "id" (arg name survived)');
+
+    // (b) graphqlSchema stringified must contain ZERO occurrence of SECRET
+    const schemaStr = JSON.stringify(record.graphqlSchema);
+    assert.ok(!schemaStr.includes(SECRET),
+      `SAFETY Test B: planted SECRET must NOT appear in graphqlSchema; schemaStr: ${schemaStr.slice(0, 200)}`);
+
+    // (c) requestBody (redacted) must contain ZERO occurrence of SECRET
+    const bodyStr = JSON.stringify(record.requestBody);
+    assert.ok(!bodyStr.includes(SECRET),
+      `SAFETY Test B: planted SECRET must NOT appear in redacted requestBody; bodyStr: ${bodyStr.slice(0, 200)}`);
+
+    store.close();
+  });
+
+  test('Test B (held path): graphqlSchema wired on held-write (mutation) record', async () => {
+    const SECRET = 'mutation-secret-held-88888';
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: `mutation UpdateProfile { updateProfile(email: "${SECRET}") { id } }`,
+        variables: { token: SECRET },
+      }),
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await store.close();
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+    assert.equal(record.type, 'held-write', 'mutation must be held');
+    assert.ok(record.graphqlSchema, 'graphqlSchema must be wired on held-write path');
+    assert.strictEqual(record.graphqlSchema.operationType, 'mutation');
+
+    // graphqlSchema must NOT contain SECRET
+    const schemaStr = JSON.stringify(record.graphqlSchema);
+    assert.ok(!schemaStr.includes(SECRET),
+      `SAFETY: SECRET must not appear in graphqlSchema on held path; got: ${schemaStr.slice(0, 200)}`);
+
+    // requestBody must NOT contain SECRET
+    const bodyStr = JSON.stringify(record.requestBody);
+    assert.ok(!bodyStr.includes(SECRET),
+      `SAFETY: SECRET must not appear in redacted requestBody on held path`);
+
+    store.close();
+  });
+
+  test('Test B (allowWrites path): graphqlSchema wired on allowWrites mutation record', async () => {
+    const SECRET = 'mutation-secret-writes-77777';
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute(makeMockResponse({ status: 200 }));
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        query: `mutation CreatePost { createPost(title: "${SECRET}") { id } }`,
+        variables: { authToken: SECRET },
+      }),
+    });
+
+    await handleRoute(route as never, request as never, store, undefined, { allowWrites: true });
+    await store.close();
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+    assert.ok(record.graphqlSchema, 'graphqlSchema must be wired on allowWrites path');
+    assert.strictEqual(record.graphqlSchema.operationType, 'mutation');
+
+    const schemaStr = JSON.stringify(record.graphqlSchema);
+    assert.ok(!schemaStr.includes(SECRET),
+      `SAFETY: SECRET must not appear in graphqlSchema on allowWrites path; got: ${schemaStr.slice(0, 200)}`);
+
+    store.close();
+  });
+
+  test('Test D (redact ordering): redactHeaders + redactBody still called before store.append — CAP-05 intact', async () => {
+    // Verify that auth header is STILL redacted when graphqlSchema extraction is also happening.
+    // This is the T-03-05a redact-ordering regression for the 11-02 new extraction site.
+    const store = makeStore(tmpRoot);
+    const route = makeMockRoute();
+    const request = makeMockRequest({
+      method: 'POST',
+      url: 'https://example.com/graphql',
+      headers: {
+        'content-type': 'application/json',
+        authorization: 'Bearer cap05-secret-bearer-token',
+      },
+      body: JSON.stringify({
+        query: 'query GetUser { user(id: "some-user-id") { name } }',
+        variables: { token: 'cap05-secret-variable-value' },
+      }),
+    });
+
+    await handleRoute(route as never, request as never, store);
+    await store.close();
+
+    const content = readFileSync(getLogPath(store), 'utf8');
+
+    // Auth header value must NOT appear
+    assert.ok(!content.includes('cap05-secret-bearer-token'),
+      'Test D: auth header value must still be redacted when extracting graphqlSchema (CAP-05 ordering unchanged)');
+
+    // Variable value must NOT appear
+    assert.ok(!content.includes('cap05-secret-variable-value'),
+      'Test D: variable value must still be redacted in requestBody (CAP-05 ordering unchanged)');
+
+    // graphqlSchema must NOT contain the inline "some-user-id" literal either
+    const record = JSON.parse(content.split('\n').filter(Boolean)[0]);
+    if (record.graphqlSchema) {
+      const schemaStr = JSON.stringify(record.graphqlSchema);
+      assert.ok(!schemaStr.includes('some-user-id'),
+        'Test D: inline literal must not appear in graphqlSchema.query');
+    }
+
+    store.close();
   });
 });
