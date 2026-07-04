@@ -42,6 +42,33 @@ import { writeResumeState } from '../agent/resume.ts'
 import type { ResumeState } from '../agent/resume.ts'
 import type { RedactionModelHook } from '../capture/redactionModel.ts'
 
+// ---------------------------------------------------------------------------
+// promptAuthResume — COST-06: testable auth-resume prompt (TDD buggy form)
+// ---------------------------------------------------------------------------
+
+/**
+ * Prompt the user to press Enter to resume (or type "abort" to stop) after session expiry.
+ *
+ * Enter/empty/anything-but-abort → 'resume'; 'abort' (trimmed, case-insensitive) → 'abort';
+ * stdin closed WITHOUT a line (EOF) → 'abort' (fail-safe).
+ *
+ * @param input  Readable stream (process.stdin in production; fake Readable in tests)
+ * @param output Writable stream (process.stdout in production; null sink in tests)
+ */
+export function promptAuthResume(
+  input: NodeJS.ReadableStream,
+  output: NodeJS.WritableStream,
+): Promise<'resume' | 'abort'> {
+  const rl = createInterface({ input, output })
+  return new Promise<'resume' | 'abort'>((resolve) => {
+    rl.once('line', (line) => {
+      rl.close() // BUG (COST-06): fires 'close' synchronously — close handler resolves 'abort' first
+      resolve(line.trim().toLowerCase() === 'abort' ? 'abort' : 'resume')
+    })
+    rl.once('close', () => resolve('abort'))
+  })
+}
+
 /** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03) + sendDrift (06-04). */
 interface DashboardHandle {
   port?: number

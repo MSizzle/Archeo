@@ -17,6 +17,8 @@ import { readFileSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
+import { Readable, Writable } from 'node:stream'
+import { promptAuthResume } from '../../src/cli/explore.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const INDEX_PATH = resolve(__dirname, '../../src/cli/index.ts')
@@ -161,5 +163,34 @@ describe('archeo explore — --allow-writes non-TTY refusal (FLOOR-08)', () => {
       code.includes('destructiveGet') && (code.includes('confirmDestructiveGet') || code.includes('confirmFn')),
       'interceptor.ts must still have the destructive-GET tripwire (unchanged under allowWrites)',
     )
+  })
+})
+
+// 06-07: promptAuthResume readline race (COST-06) — bare Enter must resolve 'resume'
+describe('promptAuthResume (COST-06 readline race)', () => {
+  test('bare Enter → "resume" [FAILS against buggy resolve-after-close code]', async () => {
+    const input = new Readable({ read() {} })
+    input.push('\n')
+    input.push(null)
+    const out = new Writable({ write(_: unknown, __: unknown, cb: () => void) { cb() } })
+    const result = await promptAuthResume(input, out)
+    assert.equal(result, 'resume')
+  })
+
+  test('"abort" typed → "abort"', async () => {
+    const input = new Readable({ read() {} })
+    input.push('abort\n')
+    input.push(null)
+    const out = new Writable({ write(_: unknown, __: unknown, cb: () => void) { cb() } })
+    const result = await promptAuthResume(input, out)
+    assert.equal(result, 'abort')
+  })
+
+  test('EOF without line → "abort" (fail-safe, non-TTY / Ctrl+D)', async () => {
+    const input = new Readable({ read() {} })
+    input.push(null) // immediate EOF, no data
+    const out = new Writable({ write(_: unknown, __: unknown, cb: () => void) { cb() } })
+    const result = await promptAuthResume(input, out)
+    assert.equal(result, 'abort')
   })
 })
