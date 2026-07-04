@@ -15,6 +15,7 @@
     "build": "tsup",
     "typecheck": "tsc --noEmit",
     "test": "node --test 'test/**/*.test.ts'",
+    "test:types": "node --test test/types/typecheck.guard.ts",
     "postinstall": "playwright install chromium"
   },
   "dependencies": {

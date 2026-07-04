@@ -41,6 +41,7 @@ import { startScreencast } from '../agent/screencast.ts'
 import { writeResumeState } from '../agent/resume.ts'
 import type { ResumeState } from '../agent/resume.ts'
 import type { RedactionModelHook } from '../capture/redactionModel.ts'
+import type { DashboardHandle } from '../dashboard/types.ts'
 
 // ---------------------------------------------------------------------------
 // parseFiniteFlag — COST-01: numeric CLI flag parser (TDD buggy form)
@@ -94,24 +95,6 @@ export function promptAuthResume(
       rl.close() // safe: 'close' fires after resolve; answered=true blocks double-resolve
     })
   })
-}
-
-/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03) + sendDrift (06-04). */
-interface DashboardHandle {
-  port?: number
-  close(): Promise<void>
-  sendFrame(base64: string): void
-  sendState(node: { signature: string; url: string; title: string }): void
-  sendTransition(t: { from: string; to: string; action: string }): void
-  sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void
-  sendHeldBeat(info: { path?: string; count: number }): void
-  sendSkip(info: { count: number }): void
-  /** DASH-08 (06-03): muted recoverable error event — no terminal write, aggregated in snapshot. */
-  sendError(entry: unknown): void
-  /** DASH-08 (06-03): loud run-halting event — dashboard shows prominent banner. */
-  sendHalt(info: { class: string; message: string }): void
-  /** DRIFT-02 (06-04): emit a drift report SSE event after auto-diff at explore end. */
-  sendDrift?(report: unknown): void
 }
 
 /**

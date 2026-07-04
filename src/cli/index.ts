@@ -31,6 +31,7 @@ import { CaptureStore } from '../capture/store.ts';
 import { createProvider, parseModelSpec } from '../model/adapter.ts';
 import { writeSpec } from '../spec/generator.ts';
 import { startDashboard } from '../dashboard/server.ts';
+import type { DashboardHandle } from '../dashboard/types.ts';
 import { confirmAllowWrites } from './allowWrites.ts';
 import { makeExternalRedactionHook } from '../capture/redactionModel.ts';
 import type { RedactionModelHook } from '../capture/redactionModel.ts';
@@ -304,7 +305,7 @@ cli
       });
 
       // D3-05: start the localhost dashboard unless --no-dashboard.
-      let dashboardHandle: { port: number; close(): Promise<void> } | undefined;
+      let dashboardHandle: DashboardHandle | undefined;
       if (opts.dashboard !== false) {
         dashboardHandle = await startDashboard(store, { port: opts.dashboardPort ?? 0 });
         process.stdout.write(`[archeo] dashboard: http://127.0.0.1:${dashboardHandle.port}\n`);
@@ -575,7 +576,7 @@ cli
       // D3-05: Start the localhost dashboard AFTER store creation and BEFORE openAndWait.
       // cac maps --no-dashboard → opts.dashboard === false (boolean flag negation).
       // --dashboard-port <n> overrides the OS-assigned port; default is 0 (OS-assigned).
-      let dashboardHandle: { port: number; close(): Promise<void> } | undefined;
+      let dashboardHandle: DashboardHandle | undefined;
       if (opts.dashboard !== false) {
         dashboardHandle = await startDashboard(store, { port: opts.dashboardPort ?? 0 });
         process.stdout.write(`[archeo] dashboard: http://127.0.0.1:${dashboardHandle.port}\n`);

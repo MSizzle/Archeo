@@ -31,6 +31,7 @@ import { renderPage } from './page.ts';
 import type { CaptureStore } from '../capture/store.ts';
 import type { CaptureRecord } from '../types/index.ts';
 import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts';
+import type { DashboardHandle } from './types.ts';
 
 // ---------------------------------------------------------------------------
 // DashboardSnapshot — aggregate shape pushed to SSE clients
@@ -84,22 +85,7 @@ const MAX_RECENT_ENDPOINTS = 10;
 export function startDashboard(
   store: CaptureStore,
   opts?: { port?: number },
-): Promise<{
-  port: number;
-  close(): Promise<void>;
-  sendFrame(base64: string): void;
-  sendState(node: { signature: string; url: string; title: string }): void;
-  sendTransition(t: { from: string; to: string; action: string }): void;
-  sendReasoning(line: { stepIndex: number; action: string; reasoning: string }): void;
-  sendHeldBeat(info: { path?: string; count: number }): void;
-  sendSkip(info: { count: number }): void;
-  /** DASH-08 (06-03): muted recoverable error event + aggregate (no terminal write). */
-  sendError(entry: IssueLogEntry): void;
-  /** DASH-08 (06-03): loud run-halting event (browser gone, target unreachable). */
-  sendHalt(info: { class: ErrorClass; message: string }): void;
-  /** DRIFT-02 (06-04): emit a 'drift' SSE event after auto-diff at explore end. */
-  sendDrift(report: import('../spec/drift.ts').DriftReport): void;
-}> {
+): Promise<DashboardHandle> {
   // ---------------------------------------------------------------------------
   // In-memory aggregates (DASH-02: counts climb as discovery progresses)
   // ---------------------------------------------------------------------------
