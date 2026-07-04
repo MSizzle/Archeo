@@ -253,7 +253,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-02-PLAN.md — `examples/` with a real generated spec + provenance + secret-clean gate; CONTRIBUTING.md (dev setup, native-TS footguns, GATE-03 guard, architecture map, in/out-of-scope) + SECURITY.md; fold in the .gitignore cleanup (OSS-02, OSS-03)
+- [x] 07-02-PLAN.md — `examples/` with a real generated spec + provenance + secret-clean gate; CONTRIBUTING.md (dev setup, native-TS footguns, GATE-03 guard, architecture map, in/out-of-scope) + SECURITY.md; fold in the .gitignore cleanup (OSS-02, OSS-03) (completed 2026-07-04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -285,5 +285,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
-| 7. Open Source Readiness | 1/3 | In progress | - |
+| 7. Open Source Readiness | 2/3 | In progress | - |
 | 8. Differential Validation | 0/TBD | Not started | - |

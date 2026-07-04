@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 — 07-01 README rewrite COMPLETE (doc-vs-code audit: zero mismatches; 858/858 suite green)
+stopped_at: Phase 7 — 07-02 examples + contributor docs COMPLETE (examples/ 2 real specs + secret-clean; CONTRIBUTING.md + SECURITY.md; .gitignore fold-in; 858/858 suite green)
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 07 (Open Source Readiness) — IN PROGRESS. 07-01 COMPLETE: README rewritten (doc-vs-code audit: all commands/flags verified against src/cli/*.ts, zero mismatches; Task 3 skipped — no wrong --help strings found; 858/858 suite green). Next: 07-02 (examples/, CONTRIBUTING.md, SECURITY.md, .gitignore cleanup — OSS-02, OSS-03).
+**Current focus:** Phase 07 (Open Source Readiness) — IN PROGRESS. 07-02 COMPLETE: examples/ (2 real specs — manual-capture-demo-app from 03-04 + autonomous-explore-demo-app from 05-05; both secret-clean; fallback path per D7-03); CONTRIBUTING.md (dev setup, .ts footguns, no-enums footgun, GATE-03 guard, architecture map, in/out-of-scope, security pointer); SECURITY.md (responsible-disclosure, redaction/floor bypass scope); .gitignore fold-in (archeo-build-prompt*.md — deliberate pre-publication cleanup per D7-04). Suite 858/858. Next: 07-03 (fresh-eyes cold-start verification + phase close — OSS-01/02/03).
 
 ## Current Position
 
-Phase: 07 (open-source-readiness) — IN PROGRESS (1/3)
-Plan: 07-01 COMPLETE (2026-07-04) — truthful README rewrite; doc-vs-code audit recorded in 07-01-SUMMARY.md
-Next: 07-02 — examples/, CONTRIBUTING.md, SECURITY.md, .gitignore fold-in (OSS-02, OSS-03)
-Status: 07-01 complete; 07-02 ready to execute
+Phase: 07 (open-source-readiness) — IN PROGRESS (2/3)
+Plan: 07-02 COMPLETE (2026-07-04) — examples/ (2 specs, secret-clean) + CONTRIBUTING.md + SECURITY.md + .gitignore fold-in; recorded in 07-02-SUMMARY.md
+Next: 07-03 — fresh-eyes cold-start verification + doc-vs-code audit + phase close (OSS-01/02/03)
+Status: 07-02 complete; 07-03 ready to execute
 Last activity: 2026-07-04
 
 Progress: [████████░░] 75% (6/8 phases)
@@ -347,6 +347,16 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   traceability table. Full suite 858 (857 pass + 1 pre-existing documented skip, 0 fail) as the final
   gate. Pre-existing unstaged `.gitignore` edit left unstaged.
 
+### Phase 07-02 execution decisions (OSS-02, OSS-03 — examples + contributor docs):
+
+- **Example path:** FALLBACK (verification fixture specs). Preferred path (public demo app headless) not attempted — sandbox has no reliable outbound network access to public apps. D7-03 explicitly sanctions this path.
+- **Two specs shipped:** `manual-capture-demo-app/` (03-04 manual capture, 2026-07-03) + `autonomous-explore-demo-app/` (05-05 autonomous explore, 2026-07-04). Both are unmodified generator bytes; no hostname redaction needed (`target: "localhost"` in both).
+- **Secret-clean gate:** `grep -rniE "bearer |sk-ant-|eyJ[A-Za-z0-9_-]{10,}" examples/` → zero hits. Broader grep hits in README.md files are documentation prose (CLI flag names, grep command in code block, app descriptions) — all adjudicated and none are real secret values.
+- **CONTRIBUTING.md:** Seven sections: in/out-of-scope, dev setup (Node >=22.0.0 + `NODE_OPTIONS` note for 22–23), .ts footgun + no-enum footgun (both cite `src/cli/index.ts`), TDD/atomic-commit norm, test-layout, GATE-03 guard (all forbidden tokens + two scoped exceptions + endpoint pinning), architecture map (7 layers each with representative source file, verified against `find src`).
+- **SECURITY.md:** Responsible-disclosure stub with clearly marked maintainer placeholder; covers redaction/floor bypass as top-priority classes; links from CONTRIBUTING.md.
+- **`.gitignore` fold-in:** Staged and committed the pre-existing unstaged edit (`archeo-build-prompt*.md`) as a deliberate pre-publication cleanup commit (`chore(07-02)`). This is the one sanctioned deviation from the Phases 2–6 "leave it unstaged" rule. `archeo-build-prompt (5).md` was never tracked in git (`git ls-files archeo-build-prompt*` → empty) so no `git rm` needed.
+- **Suite:** 858 (857 pass + 1 skip, 0 fail) — baseline preserved. LICENSE/NOTICE untouched. No `src/` or `test/` files modified.
+
 ### Phase 07-01 execution decisions (OSS-01 — truthful README rewrite):
 
 - **Doc-vs-code audit result:** ALL commands and flags verified by reading `src/cli/index.ts` + handler files. Zero mismatches between `--help` text and actual behavior. The one UX-confusing item (`(default: true)` shown next to `--no-dashboard` in cac's help output) is correct — it reflects the `dashboard` property default (true = dashboard enabled). No code fix required.
@@ -371,5 +381,5 @@ None.
 ## Session Continuity
 
 Last session: 2026-07-04T00:00:00.000Z
-Stopped at: 07-01 COMPLETE — README rewritten (doc-vs-code audit: zero mismatches), 858/858 suite green. Next: 07-02 (examples/, CONTRIBUTING.md, SECURITY.md, .gitignore — OSS-02/03).
+Stopped at: 07-02 COMPLETE — examples/ (2 real specs, secret-clean), CONTRIBUTING.md + SECURITY.md, .gitignore fold-in, 858/858 suite green. Next: 07-03 (fresh-eyes cold-start verification + phase close — OSS-01/02/03).
 Resume file: None
