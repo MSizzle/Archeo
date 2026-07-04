@@ -236,6 +236,7 @@ cli
   .option('--max-tokens <n>', 'Hard token ceiling; stop cleanly when reached (COST-01)')
   .option('--max-cost <usd>', 'Hard dollar ceiling; stop cleanly when reached (COST-03)')
   .option('--pace-ms <ms>', 'Minimum milliseconds between actions (default: 500)', { default: 500 })
+  .option('--resume', 'Seed from the latest prior session for the same hostname (DRIFT-01)')
   .action(async (url: string, opts: {
     iHaveAuthorization?: boolean;
     dashboard?: boolean;
@@ -246,6 +247,7 @@ cli
     maxTokens?: number | string;
     maxCost?: number | string;
     paceMs?: number | string;
+    resume?: boolean;
   }) => {
     // WR-07: wrap the async body so any rejection surfaces as a clean error + exit 1.
     try {
@@ -290,6 +292,21 @@ cli
       // Model ID (without provider prefix) for BudgetTracker price lookup.
       const modelId = parseModelSpec(opts.model ?? 'scripted').model;
 
+      // DRIFT-01: --resume — seed from the latest prior session for the same hostname
+      let seed: import('../agent/resume.ts').ResumeState | undefined
+      if (opts.resume) {
+        const { latestSessionForHost, readResumeState } = await import('../agent/resume.ts')
+        const hostname = new URL(url).hostname
+        const priorDir = latestSessionForHost('.archeo/captures', hostname)
+        if (priorDir && priorDir !== store.dir) {
+          const loaded = readResumeState(priorDir)
+          if (loaded) {
+            seed = loaded
+            process.stdout.write(`[archeo] --resume: seeding from ${priorDir} (${loaded.states.length} states, ${loaded.frontier.length} frontier items)\n`)
+          }
+        }
+      }
+
       await runExplore(url, profileDirPath, store, provider, {
         maxSteps: opts.maxSteps ?? 50,
         dashboard: dashboardHandle,
@@ -297,6 +314,7 @@ cli
         maxCost,
         model: modelId,
         paceMs,
+        seed,
       });
     } catch (err) {
       if (err instanceof Error) {

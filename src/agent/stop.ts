@@ -21,6 +21,7 @@ export const STOP_REASONS = {
   EMPTY_FRONTIER: 'empty-frontier',
   DONE: 'model-done',
   BUDGET: 'budget',
+  AUTH_EXPIRED: 'auth-expired',
 } as const
 
 export type StopReason = typeof STOP_REASONS[keyof typeof STOP_REASONS]

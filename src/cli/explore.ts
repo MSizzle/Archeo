@@ -25,6 +25,7 @@
  * No TypeScript enums (native stripping). .ts import extensions.
  */
 import { chromium } from 'playwright'
+import { createInterface } from 'node:readline'
 import type { CaptureStore } from '../capture/store.ts'
 import type { Provider } from '../model/types.ts'
 import { attachInterceptor } from '../capture/interceptor.ts'
@@ -34,8 +35,10 @@ import { explore } from '../agent/loop.ts'
 import type { StepEvent } from '../agent/loop.ts'
 import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts'
 import { startScreencast } from '../agent/screencast.ts'
+import { writeResumeState } from '../agent/resume.ts'
+import type { ResumeState } from '../agent/resume.ts'
 
-/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03). */
+/** Dashboard handle shape — typed emitters wired in 05-04 (DASH-04..07) + sendSkip (06-02) + sendError/sendHalt (06-03) + sendDrift (06-04). */
 interface DashboardHandle {
   port?: number
   close(): Promise<void>
@@ -49,6 +52,8 @@ interface DashboardHandle {
   sendError(entry: unknown): void
   /** DASH-08 (06-03): loud run-halting event — dashboard shows prominent banner. */
   sendHalt(info: { class: string; message: string }): void
+  /** DRIFT-02 (06-04): emit a drift report SSE event after auto-diff at explore end. */
+  sendDrift?(report: unknown): void
 }
 
 /**
@@ -74,9 +79,18 @@ export async function runExplore(
     maxCost?: number
     model?: string
     paceMs?: number
+    seed?: ResumeState
   },
 ): Promise<void> {
   const { maxSteps, dashboard } = opts
+
+  // COST-06: pause flag for interceptor (toggled by authControls)
+  let isPaused = false
+  const authControls = {
+    pause: () => { isPaused = true },
+    resume: () => { isPaused = false },
+  }
+  const controls = { paused: () => isPaused }
 
   // D4-02/D4-03: persistent context preserves the authenticated session across runs.
   const context = await chromium.launchPersistentContext(profileDirPath, { headless: false })
@@ -157,7 +171,7 @@ export async function runExplore(
     // context.route() intercepts all pages + popups. Writes stay held — non-negotiable; no
     // write-enabling flag exists in this phase.
     const targetHostname = new URL(url).hostname
-    await attachInterceptor(context, targetHostname, store)
+    await attachInterceptor(context, targetHostname, store, controls)
 
     // Reuse the initial about:blank page (no second page opened).
     page = context.pages()[0] ?? (await context.newPage())
@@ -197,6 +211,26 @@ export async function runExplore(
     maxCost: opts.maxCost,
     model: opts.model,
     paceMs: opts.paceMs,
+    seed: opts.seed,
+    authControls,
+    persistResume: (state: ResumeState) => {
+      try {
+        writeResumeState(store.dir, state)
+      } catch (e) {
+        process.stderr.write(`[archeo] resume persist error: ${e instanceof Error ? e.message : String(e)}\n`)
+      }
+    },
+    onAuthExpired: () => new Promise<'resume' | 'abort'>((resolve) => {
+      process.stdout.write(
+        '\n[archeo] Session expired — log in in the browser, then press Enter to resume (or type "abort" to stop): '
+      )
+      const rl = createInterface({ input: process.stdin, output: process.stdout })
+      rl.once('line', (line) => {
+        rl.close()
+        resolve(line.trim().toLowerCase() === 'abort' ? 'abort' : 'resume')
+      })
+      rl.once('close', () => resolve('abort'))
+    }),
     onStep: dashboard ? (s: StepEvent) => {
       // DASH-06: verbatim agent reasoning
       dashboard.sendReasoning({ stepIndex: s.stepIndex, action: s.action, reasoning: s.reasoning })

@@ -44,6 +44,9 @@ import { BudgetTracker } from './budget.ts'
 import { Pacer } from './pace.ts'
 import { changeInputFromObservation, isMeaningfulChange } from './changeDetect.ts'
 import type { ChangeInput } from './changeDetect.ts'
+import { AuthWatch, looksLikeLoginState } from './authWatch.ts'
+import type { ResumeState } from './resume.ts'
+import { seedGraph } from './resume.ts'
 
 export interface StepEvent {
   stepIndex: number
@@ -220,15 +223,38 @@ export async function explore(
     onError?: (e: IssueLogEntry) => void
     /** Called once for halting issues (loud — dashboard banner + one terminal line). */
     onHalt?: (info: { class: ErrorClass; message: string }) => void
+    /** Auth pause/resume controls — toggles the interceptor pause flag. */
+    authControls?: { pause: () => void; resume: () => void }
+    /** Called when auth expiry is detected. Resolves 'resume' (loop continues) or 'abort'. */
+    onAuthExpired?: () => Promise<'resume' | 'abort'>
+    /** Called at EVERY loop stop (auth-pause + normal) to persist coverage (DRIFT-01). */
+    persistResume?: (state: ResumeState) => void
+    /** --resume seeding: seedGraph before the loop starts (DRIFT-01). */
+    seed?: ResumeState
   },
 ): Promise<ExploreResult> {
   const { maxSteps, onStep } = opts
   const graph = new CoverageGraph()
+
+  // DRIFT-01: seed graph from prior session if --resume was given
+  if (opts.seed) {
+    seedGraph(graph, opts.seed)
+  }
+
   const loopDetect = new LoopDetector()
   const stop = new StopController({ maxSteps, plateauK: 10 })
   const budget = new BudgetTracker({ maxTokens: opts.maxTokens, maxCost: opts.maxCost, model: opts.model })
   const pacer = new Pacer({ paceMs: opts.paceMs ?? 0, now: opts.now, sleep: opts.sleep })
   const issueLog = new IssueLog()
+
+  // COST-06: auth-expiry detector (subscribed to store.onRecord for read records)
+  const authWatch = new AuthWatch()
+  store.onRecord((r) => {
+    const t = r.type as string
+    if ((t === 'request-response' || t === 'dead-end') && r.responseStatus !== undefined) {
+      authWatch.record(r.responseStatus)
+    }
+  })
 
   // Injected sleep used for both Pacer AND model-error backoff (deterministic in tests).
   const sleepFn = opts.sleep ?? ((_ms: number): Promise<void> => Promise.resolve())
@@ -250,6 +276,7 @@ export async function explore(
   const exKey = (sig: string, ref: number): string => `${sig}::${ref}`
 
   let prevSig: string | null = null
+  let prevUrl: string | undefined
   let lastAction = ''
   let lastEndpointCount = 0
   let stepsTaken = 0
@@ -293,6 +320,46 @@ export async function explore(
       issueLog.record(entry)
       opts.onHalt?.({ class: haltCls, message: msg })
       break
+    }
+
+    // COST-06: check for auth expiry — looksLikeLoginState + AuthWatch both trigger
+    const loginState = looksLikeLoginState({ url: obs.url, inventory: obs.inventory }, prevUrl)
+    if ((authWatch.isExpired() || loginState) && opts.onAuthExpired) {
+      // Build and persist the ResumeState
+      const resumeState: ResumeState = {
+        targetHostname: opts.seed?.targetHostname ?? (() => { try { return new URL(obs.url).hostname } catch { return 'unknown' } })(),
+        states: graph.states,
+        transitions: graph.transitions,
+        frontier: graph.snapshotFrontier(),
+        stopReason: 'auth-expired',
+      }
+      opts.persistResume?.(resumeState)
+      // Pause the interceptor (human is re-authenticating — record nothing)
+      opts.authControls?.pause()
+      const outcome = await opts.onAuthExpired()
+      if (outcome === 'abort') {
+        stopReason = STOP_REASONS.AUTH_EXPIRED
+        opts.authControls?.resume()
+        break
+      }
+      // Resume: re-observe to verify auth restored
+      let resumeObs: Observation
+      try {
+        resumeObs = await observeWithRecovery(page, { retries: 3, onIssue: () => {}, step: stepIndex })
+      } catch {
+        opts.authControls?.resume()
+        continue
+      }
+      // Verify auth restored: login state gone + AuthWatch reset
+      const stillLoginState = looksLikeLoginState({ url: resumeObs.url, inventory: resumeObs.inventory }, obs.url)
+      if (!stillLoginState) {
+        authWatch.reset()
+      }
+      // Reload graph from the persisted resume state (frontier re-seeded)
+      seedGraph(graph, resumeState)
+      opts.authControls?.resume()
+      // Replace obs with the post-resume observation
+      obs = resumeObs
     }
 
     // D6-02: extract structural signals for the change detector.
@@ -616,7 +683,20 @@ export async function explore(
     }
 
     prevSig = sig
+    prevUrl = obs.url
     lastAction = action.action
+  }
+
+  // DRIFT-01: persist coverage at every stop
+  if (opts.persistResume) {
+    const finalResumeState: ResumeState = {
+      targetHostname: opts.seed?.targetHostname ?? 'unknown',
+      states: graph.states,
+      transitions: graph.transitions,
+      frontier: graph.snapshotFrontier(),
+      stopReason,
+    }
+    opts.persistResume(finalResumeState)
   }
 
   return {
