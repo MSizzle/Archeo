@@ -181,4 +181,27 @@ describe('latestSessionForHost', () => {
     const result = latestSessionForHost(root, 'example.com')
     assert.equal(result, null)
   })
+
+  test('excludes the supplied excludeDir — only-current session → null (DRIFT-01)', () => {
+    const root = mkdtempSync(join(tmpRoot, 'captures-excl-only-'))
+    const currentDir = join(root, 'session-2026-07-04-cur0001')
+    mkdirSync(currentDir, { recursive: true })
+    writeFileSync(join(currentDir, 'manifest.json'), JSON.stringify({ targetOrigin: 'example.com' }), 'utf8')
+    // Before fix: latestSessionForHost ignores excludeDir and returns currentDir
+    const result = latestSessionForHost(root, 'example.com', currentDir)
+    assert.equal(result, null) // FAILS before fix → returns currentDir instead of null
+  })
+
+  test('excludes the supplied excludeDir — prior session present → prior chosen (DRIFT-01)', () => {
+    const root = mkdtempSync(join(tmpRoot, 'captures-excl-prior-'))
+    const priorDir = join(root, 'session-2026-07-03-prior01')
+    const currentDir = join(root, 'session-2026-07-04-cur0002')
+    mkdirSync(priorDir, { recursive: true })
+    mkdirSync(currentDir, { recursive: true })
+    writeFileSync(join(priorDir, 'manifest.json'), JSON.stringify({ targetOrigin: 'example.com' }), 'utf8')
+    writeFileSync(join(currentDir, 'manifest.json'), JSON.stringify({ targetOrigin: 'example.com' }), 'utf8')
+    // Before fix: returns currentDir (lexically latest), not priorDir
+    const result = latestSessionForHost(root, 'example.com', currentDir)
+    assert.equal(result, priorDir) // FAILS before fix → returns currentDir instead
+  })
 })
