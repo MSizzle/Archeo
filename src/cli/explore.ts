@@ -26,11 +26,14 @@
  */
 import { chromium } from 'playwright'
 import { createInterface } from 'node:readline'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import type { CaptureStore } from '../capture/store.ts'
 import type { Provider } from '../model/types.ts'
 import { attachInterceptor } from '../capture/interceptor.ts'
 import { attachNavigationTracker } from '../capture/navigation.ts'
 import { writeSpec } from '../spec/generator.ts'
+import { diffSpecs, formatDriftTable } from '../spec/drift.ts'
 import { explore } from '../agent/loop.ts'
 import type { StepEvent } from '../agent/loop.ts'
 import type { IssueLogEntry, ErrorClass } from '../agent/recovery.ts'
@@ -111,6 +114,36 @@ export async function runExplore(
     }
   }
 
+  /**
+   * Find the spec.json path in the most-recent prior session for the same hostname,
+   * excluding the current session dir. Returns null if none found.
+   * Used for DRIFT-02 auto-diff in gracefulShutdown.
+   */
+  function priorSessionSpecPath(capturesRoot: string, currentDir: string, hostname: string): string | null {
+    let entries: string[]
+    try {
+      entries = readdirSync(capturesRoot)
+    } catch { return null }
+    const sessions = entries
+      .filter((e) => e.startsWith('session-'))
+      .map((e) => join(capturesRoot, e))
+      .filter((d) => d !== currentDir)
+      .sort()
+    for (let i = sessions.length - 1; i >= 0; i--) {
+      const dir = sessions[i]
+      try {
+        const manifest = JSON.parse(readFileSync(join(dir, 'manifest.json'), 'utf8')) as { targetOrigin?: string }
+        if (!manifest.targetOrigin) continue
+        const originHost = new URL(manifest.targetOrigin).hostname
+        if (originHost !== hostname) continue
+        const specFile = join(dir, 'spec.json')
+        readFileSync(specFile) // confirm it exists
+        return specFile
+      } catch { continue }
+    }
+    return null
+  }
+
   async function gracefulShutdown(): Promise<void> {
     if (shuttingDown) return
     shuttingDown = true
@@ -119,13 +152,35 @@ export async function runExplore(
     await closeStore()
 
     // 2. Auto-generate the spec (D3-04). Any failure warns and proceeds to exit 0.
+    let specPath: string | undefined
     try {
-      const specPath = writeSpec(store.dir)
+      specPath = writeSpec(store.dir)
       process.stdout.write(`[archeo] spec written: ${specPath}\n`)
     } catch (e) {
       process.stderr.write(
         `[archeo] spec generation failed: ${e instanceof Error ? e.message : String(e)}\n`,
       )
+    }
+
+    // 2b. DRIFT-02: auto-diff against the most-recent prior session for the same host.
+    //     Any failure warns but never blocks or delays exit (T-03-12).
+    if (specPath) {
+      try {
+        const hostname = new URL(url).hostname
+        const capturesRoot = join(store.dir, '..')
+        const priorSpec = priorSessionSpecPath(capturesRoot, store.dir, hostname)
+        if (priorSpec) {
+          const specA = JSON.parse(readFileSync(priorSpec, 'utf8')) as import('../types/spec.ts').ArcheoSpec
+          const specB = JSON.parse(readFileSync(specPath, 'utf8')) as import('../types/spec.ts').ArcheoSpec
+          const driftReport = diffSpecs(specA, specB)
+          process.stdout.write(formatDriftTable(driftReport))
+          dashboard?.sendDrift?.(driftReport)
+        }
+      } catch (e) {
+        process.stderr.write(
+          `[archeo] auto-diff error: ${e instanceof Error ? e.message : String(e)}\n`,
+        )
+      }
     }
 
     // 3. Stop screencast before closing the dashboard (DASH-04).

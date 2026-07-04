@@ -511,6 +511,9 @@ describe('sendDrift — DRIFT-02 SSE event', () => {
 
       const events = collectSSE(dashboard.port, 2); // snapshot + drift
 
+      // Wait for the SSE connection to be established before sending the event
+      await new Promise(r => setTimeout(r, 50));
+
       const report = {
         newEndpoints: ['GET /api/new'],
         removedEndpoints: [],

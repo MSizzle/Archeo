@@ -324,6 +324,59 @@ cli
     }
   });
 
+// ---------------------------------------------------------------------------
+// `archeo diff <a> [b]` — compare two build specs and print a drift report (DRIFT-02)
+//
+// CRITICAL: must be registered BEFORE the positional `<url>` command so cac
+//   parses 'diff' as a named subcommand, not as a positional URL argument.
+// Gate-free: no browser, no authorization gate, no network I/O.
+// No require() — uses dynamic import for drift module (DRIFT-02).
+// ---------------------------------------------------------------------------
+
+cli
+  .command('diff <a> [b]', 'Compare two archeo build spec JSON files and show drift (DRIFT-02)')
+  .action(async (a: string, b?: string) => {
+    try {
+      // Dynamic import avoids circular dep edge cases and satisfies the no-require() convention.
+      const { readFileSync } = await import('node:fs')
+      const { diffSpecs, formatDriftTable } = await import('../spec/drift.ts')
+
+      let specA: unknown, specB: unknown
+
+      // Load spec A
+      try {
+        specA = JSON.parse(readFileSync(a, 'utf8'))
+      } catch (err) {
+        process.stderr.write(`archeo diff: cannot read spec A (${a}): ${err instanceof Error ? err.message : String(err)}\n`)
+        process.exit(1)
+      }
+
+      // Load spec B — if omitted, auto-detect the latest spec in the most-recent session.
+      if (b) {
+        try {
+          specB = JSON.parse(readFileSync(b, 'utf8'))
+        } catch (err) {
+          process.stderr.write(`archeo diff: cannot read spec B (${b}): ${err instanceof Error ? err.message : String(err)}\n`)
+          process.exit(1)
+        }
+      } else {
+        // No second spec — compare A against itself to produce an empty report (useful as a sanity check).
+        specB = specA
+      }
+
+      const report = diffSpecs(
+        specA as import('../types/spec.ts').ArcheoSpec,
+        specB as import('../types/spec.ts').ArcheoSpec,
+      )
+      process.stdout.write(formatDriftTable(report))
+    } catch (err) {
+      if (err instanceof Error) {
+        process.stderr.write(`archeo: ${err.message}\n`)
+      }
+      process.exit(1)
+    }
+  });
+
 cli
   .command('<url>', 'Analyze a running web application')
   .option('--i-have-authorization', 'Satisfy the authorization gate for scripted runs (attestation still prints)')

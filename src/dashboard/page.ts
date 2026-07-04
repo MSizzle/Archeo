@@ -352,6 +352,12 @@ export function renderPage(): string {
     </div>
   </div>
 
+  <!-- DRIFT-02 (06-04): drift panel — hidden until a 'drift' event fires -->
+  <div id="driftPanel" style="display:none;margin:16px auto;max-width:900px;background:#1e1e1e;border:1px solid #444;border-radius:6px;padding:12px 16px;">
+    <h2 style="margin:0 0 8px;font-size:14px;color:#ccc;">Spec Drift vs Previous Session</h2>
+    <pre id="driftContent" style="margin:0;font-size:12px;color:#e5c07b;white-space:pre-wrap;word-break:break-all;"></pre>
+  </div>
+
   <script>
     // Discovery dashboard client — DASH-01/02/03/04/05/06/07.
     // One EventSource connection; snapshot on connect then typed events per action.
@@ -624,6 +630,42 @@ export function renderPage(): string {
       var parsed = JSON.parse(e.data);
       if (haltMessageEl) haltMessageEl.textContent = (parsed.class || 'halted') + ': ' + (parsed.message || '');
       if (haltBanner) haltBanner.classList.add('visible');
+    });
+
+    // DRIFT-02 (06-04): show drift panel when a 'drift' event fires
+    es.addEventListener('drift', function(e) {
+      var report = JSON.parse(e.data);
+      var driftPanel = document.getElementById('driftPanel');
+      var driftContent = document.getElementById('driftContent');
+      if (!driftPanel || !driftContent) return;
+      var lines = [];
+      if (report.newEndpoints && report.newEndpoints.length) {
+        lines.push('New Endpoints:');
+        report.newEndpoints.forEach(function(ep) { lines.push('  + ' + ep); });
+      }
+      if (report.removedEndpoints && report.removedEndpoints.length) {
+        lines.push('Removed Endpoints:');
+        report.removedEndpoints.forEach(function(ep) { lines.push('  - ' + ep); });
+      }
+      if (report.removedPages && report.removedPages.length) {
+        lines.push('Removed Pages:');
+        report.removedPages.forEach(function(p) { lines.push('  - ' + p); });
+      }
+      if (report.changedShapes && report.changedShapes.length) {
+        lines.push('Changed Shapes:');
+        report.changedShapes.forEach(function(c) {
+          lines.push('  ~ ' + c.endpoint + ' [' + c.field + '] ' + c.change + (c.from ? ' from:' + c.from : '') + (c.to ? ' to:' + c.to : ''));
+        });
+      }
+      if (report.heldStatusChanges && report.heldStatusChanges.length) {
+        lines.push('Held Status Changes:');
+        report.heldStatusChanges.forEach(function(h) {
+          lines.push('  ~ ' + h.endpoint + ': held ' + h.from + ' → ' + h.to);
+        });
+      }
+      if (!lines.length) lines.push('No drift detected.');
+      driftContent.textContent = lines.join('\n');
+      driftPanel.style.display = 'block';
     });
 
     es.onerror = function() {

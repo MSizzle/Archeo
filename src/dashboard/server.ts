@@ -97,6 +97,8 @@ export function startDashboard(
   sendError(entry: IssueLogEntry): void;
   /** DASH-08 (06-03): loud run-halting event (browser gone, target unreachable). */
   sendHalt(info: { class: ErrorClass; message: string }): void;
+  /** DRIFT-02 (06-04): emit a 'drift' SSE event after auto-diff at explore end. */
+  sendDrift(report: import('../spec/drift.ts').DriftReport): void;
 }> {
   // ---------------------------------------------------------------------------
   // In-memory aggregates (DASH-02: counts climb as discovery progresses)
@@ -250,6 +252,20 @@ export function startDashboard(
     }
   }
 
+  /**
+   * DRIFT-02 (06-04): emit a 'drift' SSE event after auto-diff at explore end.
+   * Wrapped in try/catch so a dashboard failure never blocks exit (T-03-12).
+   */
+  function sendDrift(report: unknown): void {
+    try {
+      for (const client of clients) {
+        writeEvent(client, 'drift', report);
+      }
+    } catch {
+      // Dashboard failure must not propagate (T-03-12).
+    }
+  }
+
   // ---------------------------------------------------------------------------
   // onRecord subscription — one SSE event per record, no batching (DASH-03)
   // ---------------------------------------------------------------------------
@@ -388,6 +404,7 @@ export function startDashboard(
         sendSkip,
         sendError,
         sendHalt,
+        sendDrift,
       });
     });
   });
