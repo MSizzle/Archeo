@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 2 context gathered
+stopped_at: Phase 6 COMPLETE — 06-06 live verification PASS after 06-07 fixes
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
-  completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
-  percent: 96
+  completed_phases: 6
+  total_plans: 27
+  completed_plans: 27
+  percent: 75
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 06 (Hardening) IN PROGRESS — 06-07 complete (promptAuthResume race fix COST-06, parseFiniteFlag zero-budget COST-01, latestSessionForHost excludeDir DRIFT-01). NOTE: Phase 6 is NOT yet closed — 06-06 live verification stages (the autonomous live test against real cross-document navigation) still need to run. Next: 06-06 live stages.
+**Current focus:** Phase 07 (Open Source Readiness) — OPEN. Phase 6 (Hardening) is COMPLETE: 06-06 autonomous live verification was RE-RUN after the 06-07 source fixes and all 7 stages are GREEN through the real, unmodified CLI (literal `--max-tokens 0` budget stop, change-gate skip, recovery across REAL cross-document navigations, auth-expiry pause→Enter→RESUME with monotonic states 3→7 and zero capture during the pause, drift with zero false positives, `--resume` seeds the genuine prior session, allow-writes lands then floor restored). Next: Phase 7 (README + BYO-key + example specs + contributor docs / OSS-01..03).
 
 ## Current Position
 
-Phase: 06 (hardening) — IN PROGRESS (5/6)
-Plan: 6 of 6 — 06-05 complete
-Next: 06-06 (autonomous live verification + phase close)
-Status: Ready to execute
+Phase: 06 (hardening) — COMPLETE (6/6, closed 2026-07-04)
+Plan: 06-06 verified live PASS after the 06-07 closure fixes
+Next: Phase 07 (Open Source Readiness) — OSS-01, OSS-02, OSS-03
+Status: Phase 6 closed; Phase 7 ready to plan
 Last activity: 2026-07-04
 
-Progress: [█████████░] 92%
+Progress: [████████░░] 75% (6/8 phases)
 
 ## Performance Metrics
 
@@ -320,6 +320,33 @@ None for 06-04. Next: 06-05 (--allow-writes floor bypass + CAP-06 external-comma
 
 None for 06-05. Next: 06-06 (autonomous live verification + phase close).
 
+### Phase 06-06/06-07 execution decisions (PHASE 6 CLOSE — the 06-06→06-07→06-06-rerun loop):
+
+- **The loop:** the first 06-06 live run proved 6/7 stages but surfaced THREE source bugs it refused
+  to patch (directive: report gaps, don't touch src/) — see `06-06-FINDINGS.md`. 06-07 fixed all
+  three TDD-first (answered-guard for `promptAuthResume` COST-06; `parseFiniteFlag`/`Number.isFinite`
+  for zero-budget COST-01; `latestSessionForHost` `excludeDir` for --resume self-seed DRIFT-01), +10
+  unit tests. This 06-06 re-run confirmed the fixes hold under the REAL unmodified CLI and closed the
+  phase.
+- **Re-run result:** all 7 stages GREEN, harness exit 0. Two harness edits (in `.planning/` only, no
+  src/test touched) prove the fixes directly: Stage A now uses the **literal `--max-tokens 0`** (the
+  `-1` workaround kept as an additional A2 check); Stage E **drops the lexical session pin** so
+  `--resume` seeds the genuine prior session via the excludeDir fix (`seededFromPriorV1 &&
+  !seededFromSelf`).
+- **Auth-resume (the previously blocking stage D):** server expired the cookie mid-run → pause prompt
+  → harness drove the browser auto-relogin (`reLogins=1`) and pressed ENTER → run RESUMED and stopped
+  at `empty-frontier` (NOT `auth-expired`); state count monotonic **3 → 7** across the pause; **zero
+  capture records for /login or /mfa during the paused window** (`credCaptured=0`, `pwLeak=0`) — D4-01
+  pass-through held. This FAILED pre-06-07 (every Enter aborted) and PASSES now.
+- **Real cross-document navigation exercised** (the 05-05 gap closed): Stage C recovered
+  context-destroyed errors across multiple authenticated pages reached by full-page `<a href>`
+  navigations, 0 halts, quiet stderr — D6-03 fix proven real-world-grade.
+- **Bookkeeping:** ROADMAP Phase 6 → 6/6 Complete (2026-07-04) + 06-06 ticked; REQUIREMENTS
+  COST-01..06 / FLOOR-08 / DASH-08 / DRIFT-01/02 → Complete, CAP-06 → Complete-with-scope-note per
+  D6-07 (external-command redaction seam, not a bundled local model) in both the checklist and the
+  traceability table. Full suite 858 (857 pass + 1 pre-existing documented skip, 0 fail) as the final
+  gate. Pre-existing unstaged `.gitignore` edit left unstaged.
+
 ### Blockers/Concerns
 
 None yet.
@@ -333,5 +360,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-07-04T00:00:00.000Z
-Stopped at: 06-07 complete — three bugs fixed TDD-first (COST-06/01, DRIFT-01); Phase 6 NOT yet closed (06-06 live stages pending)
+Stopped at: Phase 6 COMPLETE — 06-06 live verification RE-RUN after 06-07 fixes, all 7 stages GREEN (harness exit 0), full suite 858 (857 pass + 1 skip). Next: Phase 7 (Open Source Readiness).
 Resume file: None

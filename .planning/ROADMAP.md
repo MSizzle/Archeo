@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Spec Generator + Buildability Proof** - JSON spec from manual capture; builder agent confirms it is consumable; live dashboard plumbing (completed 2026-07-03)
 - [x] **Phase 4: Authentication Handoff** - Explore authenticated apps without Archeo touching credentials (completed 2026-07-03)
 - [x] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard (completed 2026-07-04)
-- [ ] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run
+- [x] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run (completed 2026-07-04)
 - [ ] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec
 - [ ] **Phase 8: Differential Validation** - Diff original vs. rebuild observed behavior
 
@@ -226,7 +226,7 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 
-- [ ] 06-06-PLAN.md — Autonomous live verification (trapped app w/ REAL cross-document navigation) + phase close (D6-08)
+- [x] 06-06-PLAN.md — Autonomous live verification (trapped app w/ REAL cross-document navigation) + phase close (D6-08) (verified autonomously 2026-07-04 after the 06-07 fixes: all 7 stages GREEN through the real unmodified CLI in real headed Chromium — literal `--max-tokens 0` budget stop, change-gate skip, recovery across REAL cross-document navigations, **auth-expiry pause→Enter→RESUME with monotonic state count 3→7 and zero capture during the pause**, drift catches +endpoint/−page/field-type with zero false positives, `--resume` seeds the genuine prior session, allow-writes lands then floor restored; full suite 858 = 857 pass + 1 skip)
 
 **Wave 7** *(closure — fixes from 06-06 live findings)*
 
@@ -271,6 +271,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
-| 6. Hardening | 4/6 | In Progress|  |
+| 6. Hardening | 6/6 | Complete   | 2026-07-04 |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |

@@ -22,7 +22,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [x] **FLOOR-05**: Each held mutating request is captured with full method, URL, headers, and body, flagged as a contract-bearing held mutation
 - [x] **FLOOR-06**: The held request is dropped before reaching the server, and a synthetic response shaped from similar observed responses is returned to the browser
 - [x] **FLOOR-07**: When the app errors past a held write, that state is treated as a dead end and the agent backtracks to the last good state
-- [ ] **FLOOR-08**: A single `--allow-writes` flag disables interception (off by default, loud unmissable startup warning when on)
+- [x] **FLOOR-08**: A single `--allow-writes` flag disables interception (off by default, loud unmissable startup warning when on)
 
 ### Capture Store & Redaction
 
@@ -31,7 +31,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [x] **CAP-03**: For any field not on a small structural allowlist (ids, enums, status flags, types, timestamps), the value is discarded and only the inferred type is kept
 - [x] **CAP-04**: Header names and structure survive redaction even after secret values are stripped (the auth/versioning shape is preserved)
 - [x] **CAP-05**: Redaction fails closed — it never persists values it cannot classify as structurally safe
-- [ ] **CAP-06**: (Phase 6, opt-in) An optional local-model pass catches residual values in fields that must keep their values — an enhancement on top of the already-safe floor, never a replacement for it
+- [x] **CAP-06**: (Phase 6, opt-in) An optional local-model pass catches residual values in fields that must keep their values — an enhancement on top of the already-safe floor, never a replacement for it *(scope per D6-07: delivered as an external-command redaction seam — a `--redact-cmd` hook that pipes each candidate record to a user-supplied command and fails closed on timeout/non-zero/garbage — NOT a bundled local model, per D5 "no bundled/hosted model")*
 
 ### Spec Generator
 
@@ -56,7 +56,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 - [x] **DASH-05**: The coverage map draws itself as states and transitions are discovered
 - [x] **DASH-06**: The agent's real model reasoning is streamed as a one-line rationale per action (never a generated flourish)
 - [x] **DASH-07**: The held-write moment is surfaced as a visible, reassuring beat
-- [ ] **DASH-08**: The error surface is quiet by default — recoverable errors go to a calm collapsed log with a muted counter; only run-halting errors surface clearly and pause the run
+- [x] **DASH-08**: The error surface is quiet by default — recoverable errors go to a calm collapsed log with a muted counter; only run-halting errors surface clearly and pause the run
 
 ### Authentication Handoff
 
@@ -81,17 +81,17 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Cost, Rate & Error Hardening
 
-- [ ] **COST-01**: Configurable step budget and model selection
+- [x] **COST-01**: Configurable step budget and model selection
 - [x] **COST-02**: A semantic change detector calls the vision model only when the page has meaningfully changed (new interactive elements, route/major-container swap, modal) — cosmetic churn is ignored
-- [ ] **COST-03**: A hard dollar/token ceiling runs alongside the step budget
-- [ ] **COST-04**: Polite request pacing against the target
-- [ ] **COST-05**: Error recovery for dead ends, loops, navigation failures, and model errors
-- [ ] **COST-06**: Mid-run session expiry is detected (401 spike or login redirect), the run pauses, prompts for re-auth, and resumes from the coverage store
+- [x] **COST-03**: A hard dollar/token ceiling runs alongside the step budget
+- [x] **COST-04**: Polite request pacing against the target
+- [x] **COST-05**: Error recovery for dead ends, loops, navigation failures, and model errors
+- [x] **COST-06**: Mid-run session expiry is detected (401 spike or login redirect), the run pauses, prompts for re-auth, and resumes from the coverage store
 
 ### Drift & Re-Run
 
-- [ ] **DRIFT-01**: The coverage store and prior spec are persisted so a re-run is incremental, not a cold restart
-- [ ] **DRIFT-02**: A re-run diffs the new capture against the prior spec and reports new endpoints, removed flows, and altered shapes
+- [x] **DRIFT-01**: The coverage store and prior spec are persisted so a re-run is incremental, not a cold restart
+- [x] **DRIFT-02**: A re-run diffs the new capture against the prior spec and reports new endpoints, removed flows, and altered shapes
 
 ### Differential Validation (closes the open loop)
 
@@ -174,17 +174,17 @@ Each requirement maps to exactly one phase.
 | DASH-05 | Phase 5 | Complete (05-04; verified live 05-05) |
 | DASH-06 | Phase 5 | Complete (05-04; verified live 05-05) |
 | DASH-07 | Phase 5 | Complete (05-04; verified live 05-05) |
-| COST-01 | Phase 6 | Pending |
-| COST-02 | Phase 6 | Complete |
-| COST-03 | Phase 6 | Pending |
-| COST-04 | Phase 6 | Pending |
-| COST-05 | Phase 6 | Pending |
-| COST-06 | Phase 6 | Pending |
-| FLOOR-08 | Phase 6 | Pending |
-| CAP-06 | Phase 6 | Pending |
-| DASH-08 | Phase 6 | Pending |
-| DRIFT-01 | Phase 6 | Pending |
-| DRIFT-02 | Phase 6 | Pending |
+| COST-01 | Phase 6 | Complete (06-01; zero-budget fix 06-07; verified live 06-06) |
+| COST-02 | Phase 6 | Complete (06-02; verified live 06-06) |
+| COST-03 | Phase 6 | Complete (06-01; verified live 06-06) |
+| COST-04 | Phase 6 | Complete (06-01; verified live 06-06) |
+| COST-05 | Phase 6 | Complete (06-03; verified live 06-06) |
+| COST-06 | Phase 6 | Complete (06-04; auth-resume race fix 06-07; verified live 06-06) |
+| FLOOR-08 | Phase 6 | Complete (06-05; verified live 06-06) |
+| CAP-06 | Phase 6 | Complete-with-scope-note (06-05; per D6-07 — external-command redaction seam, NOT a bundled local model) |
+| DASH-08 | Phase 6 | Complete (06-03; verified live 06-06) |
+| DRIFT-01 | Phase 6 | Complete (06-04; self-seed fix 06-07; verified live 06-06) |
+| DRIFT-02 | Phase 6 | Complete (06-04; verified live 06-06) |
 | OSS-01 | Phase 7 | Pending |
 | OSS-02 | Phase 7 | Pending |
 | OSS-03 | Phase 7 | Pending |

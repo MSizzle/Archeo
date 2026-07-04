@@ -203,25 +203,37 @@ async function main() {
 
   // =========================================================================
   // STAGE A — BUDGET STOP (COST-01/03)
-  // --max-tokens=-1: a non-positive ceiling that 0-usage meets (0 >= -1) → stopReason budget.
-  // NOTE (documented reconciliation): the CLI's Number(x)||undefined guard coerces the literal
-  // `--max-tokens 0` to "no ceiling"; a negative ceiling faithfully exercises the identical
-  // zero-budget >= path through the UNMODIFIED CLI (no source change). See the report.
+  // --max-tokens=0: after 06-07 (parseFiniteFlag / Number.isFinite) the literal 0 is preserved
+  // as a real budget ceiling. Scripted provider reports 0 usage; BudgetTracker.exceeded() uses
+  // `>=`, so 0 >= 0 trips immediately → printed stopReason 'budget' + non-empty partial spec.
+  // (Pre-06-07 the CLI coerced `--max-tokens 0` → undefined = "no ceiling"; that bug is FIXED.)
+  // A2 additionally re-checks the negative-ceiling path (-1) still works.
   // =========================================================================
   console.log('\n========== STAGE A: BUDGET ==========')
   {
     const app = await bootApp('v1')
-    const { res, dir, out } = await runExploreStage('A-budget', app.appUrl, ['--max-tokens=-1', '--max-steps', '40'], { timeoutMs: 120000 })
+    const { res, dir, out } = await runExploreStage('A-budget', app.appUrl, ['--max-tokens=0', '--max-steps', '40'], { timeoutMs: 120000 })
     const spec = dir ? readSpec(dir) : null
     const manifest = dir ? readManifest(dir) : null
     const printedBudget = /exploration stopped: budget/.test(out)
     const coverageBudget = !!(spec && spec.coverage && spec.coverage.stopReason === 'budget')
     const partialNonEmpty = !!(spec && (spec.endpoints.length > 0 || spec.flows.states.length > 0))
     dump.budget = { exit: res, printedBudget, coverageBudget, endpoints: spec?.endpoints.length, states: spec?.flows.states.length, manifestStop: manifest?.stopReason }
-    check('A', 'Budget stop: printed stopReason budget AND coverage.stopReason==budget AND non-empty partial spec',
+    check('A', 'Budget stop (LITERAL --max-tokens 0, 06-07 fix): printed stopReason budget AND coverage.stopReason==budget AND non-empty partial spec',
       res.exited && res.code === 0 && printedBudget && coverageBudget && partialNonEmpty,
       `printed=${printedBudget} coverage.stopReason=${spec?.coverage?.stopReason} endpoints=${spec?.endpoints.length} states=${spec?.flows.states.length}`)
     try { app.server.close() } catch {}
+    // A2: negative-ceiling path (-1) still trips the same >= budget stop (additional check).
+    const app2 = await bootApp('v1')
+    const r2 = await runExploreStage('A2-budget', app2.appUrl, ['--max-tokens=-1', '--max-steps', '40'], { timeoutMs: 120000 })
+    const spec2 = r2.dir ? readSpec(r2.dir) : null
+    const printed2 = /exploration stopped: budget/.test(r2.out)
+    const cov2 = !!(spec2 && spec2.coverage && spec2.coverage.stopReason === 'budget')
+    dump.budgetNeg = { exit: r2.res, printed2, cov2, endpoints: spec2?.endpoints.length }
+    check('A2', 'Budget stop (negative ceiling -1, additional): printed stopReason budget AND coverage.stopReason==budget',
+      r2.res.exited && r2.res.code === 0 && printed2 && cov2,
+      `printed=${printed2} coverage.stopReason=${spec2?.coverage?.stopReason} endpoints=${spec2?.endpoints.length}`)
+    try { app2.server.close() } catch {}
   }
 
   // =========================================================================
@@ -337,14 +349,10 @@ async function main() {
     try { appV1.server.close() } catch {}
     const spec1 = v1.dir ? readSpec(v1.dir) : null
     const states1 = spec1?.flows.states.length ?? 0
-    // Pin the v1 session to be lexically-latest so latestSessionForHost seeds from it
-    // (the CLI's --resume "latest prior" heuristic is a lexical sort that includes the
-    // freshly-created current session — a nuance recorded in the report).
-    const v1Name = v1.dir.split('/').pop()
-    const pinnedName = 'session-2026-07-04-zzzzzzzz'
-    const pinnedDir = sessionPath(pinnedName)
-    renameSync(v1.dir, pinnedDir)
-    const spec1Path = join(pinnedDir, 'archeo-spec.json')
+    // NO lexical pin (06-07 DRIFT-01 fix): latestSessionForHost now receives excludeDir=store.dir,
+    // so --resume seeds from the GENUINE prior session (v1) and can never seed from the freshly-
+    // created current (v2) session — regardless of lexical order of the random uuid8 suffix.
+    const spec1Path = join(v1.dir, 'archeo-spec.json')
 
     const appV2 = await bootApp('v2')
     const v2 = await runExploreStage('E-v2', appV2.appUrl, ['--resume', '--max-steps', '50'], { timeoutMs: 220000 })
@@ -377,9 +385,12 @@ async function main() {
     check('E', 'Drift: +endpoint, -page, changed field-type all caught; ZERO false positives on the unchanged /api/* surface',
       hasNewReports && hasRemovedSettings && hasAccountTypeChange && newEndpointLines === 1 && changedShapeLines === 1 && !removedApiEndpoint && removedEpOnlySettingsDoc,
       `+reports=${hasNewReports} -settingsPage=${hasRemovedSettings} accountTypeChange=${hasAccountTypeChange} newEpLines=${newEndpointLines} changedShapeLines=${changedShapeLines} removedEndpoints=[${removedEpLines.join(', ')}] falsePositiveApiRemoved=${removedApiEndpoint}`)
-    check('E2', 'Incremental --resume: seeded from the prior v1 session at its full state count (DRIFT-01)',
-      seededStates > 0 && seededStates === states1 && states2 >= states1 - 1,
-      `seededStates=${seededStates} priorV1States=${states1} v2States=${states2} (v2 has one fewer page by design — the removed settings page)`)
+    // Prove the seed came from the GENUINE prior session (v1.dir), not the current v2 session.
+    const seededFromV1 = new RegExp(`--resume: seeding from .*${v1.dir.split('/').pop()}`).test(v2.out)
+    const seededFromSelf = v2.dir && new RegExp(`--resume: seeding from .*${v2.dir.split('/').pop()}`).test(v2.out)
+    check('E2', 'Incremental --resume (06-07 DRIFT-01 fix): seeded from the GENUINE prior v1 session (not self) at its full state count',
+      seededStates > 0 && seededStates === states1 && states2 >= states1 - 1 && seededFromV1 && !seededFromSelf,
+      `seededStates=${seededStates} priorV1States=${states1} v2States=${states2} seededFromPriorV1=${seededFromV1} seededFromSelf=${seededFromSelf} (v2 has one fewer page by design)`)
   }
 
   // =========================================================================
