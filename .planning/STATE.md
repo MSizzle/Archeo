@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "PHASE 10 COMPLETE (2/2) — FIX-01 closed. 10-02: authentic differential dogfood on the vision-drivable demo app. Autonomous + manual specs regenerated from examples/demo-app (15 endpoints, 5 held, secret-clean). BUILD-01 re-proven: fresh spec-only builder → examples/demo-app/rebuild/ scored 19/19 capturable + 55/55 self-tests. Authentic archeo compare (original vs rebuild): original explores 22 steps/7 states (the 08-02 gap closed); rebuild stalls at 2 endpoints (relative hrefs + leaner batching → reachability divergence, contract faithful — changedShapes 0, heldStatusChanges 0). Self-compare control fully empty. Floor clean on every target/run. examples/ regenerated. Post-gate: suite green, tsc exit 0. Next: Phase 11 (Spec-quality Enrichment)."
-last_updated: "2026-07-04T17:00:00.000Z"
+stopped_at: "11-01 COMPLETE — SPEC-08 flow enrichment + findings #4 + #5 delivered. inferFlows: states dedup on templatePath (3 × /app/users/1,2,3 → 1 × /app/users/{id}), FlowState.pathTemplate + kind added, FlowTransition.back? from dual-signal back-edge detection (agentAction:back + reversal-of-forward). 8 new tests, full suite 902 = 901 pass + 1 skip, tsc exit 0. Commits: test(11-01) + feat(11-01). Next: 11-02 (GraphQL schema fragment + bodyEncoding + pollingIntervalMs)."
+last_updated: "2026-07-04T18:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 10 COMPLETE; advancing to Phase 11.** 10-02 CLOSED (2026-07-04): authentic capture→spec→rebuild→compare arc on the vision-drivable demo app. BUILD-01 re-proven (19/19 capturable + 55/55 self-tests); original explores 22 steps/7 states (the 08-02 fixture gap closed); authentic compare + fully-empty self-compare control; floor clean; examples/ regenerated secret-clean. FIX-01 closed. Next: Phase 11 (Spec-quality Enrichment — SPEC-08/09/10).
+**Current focus:** **MILESTONE v1.1 — Phase 11 executing (1/4 plans complete).** 11-01 CLOSED (2026-07-04): SPEC-08 flow enrichment — templated states (finding #4: /app/users/1,2,3 → 1 state), kind tag (finding #5), dual-signal back-edge detection. Suite 902 = 901 pass + 1 skip; tsc exit 0. Next: 11-02 (GraphQL schema fragment + bodyEncoding + pollingIntervalMs — SPEC-09).
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **10 COMPLETE (2/2 plans); Phase 11 next (not started)**
-Plan: — (Phase 11 planning is the next step)
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 closed
+Phase: **11 executing (1/4 plans complete)**
+Plan: 11-02 (next)
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 + Phase 11 plan 11-01 closed
 Last activity: 2026-07-04
 
 Progress (v1.1): [███████░░░] ~67% (2/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
@@ -526,6 +526,16 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   current focus → Phase 11; REQUIREMENTS FIX-01 → Complete (checklist + traceability, tally 4/7);
   STATE → completed_phases 2, focus Phase 11. Reproducible harness in 10-02-live-verification/.
   No `src/` or `test/` file touched (examples/ + .planning/ only).
+
+### Phase 11-01 execution decisions (SPEC-08, findings #4, #5):
+
+- **State dedup key changed from `rec.path` to `templatePath(rec.path)`.** The previous concrete-path keying produced N states for N navigations to /users/1,2,3. After the change, all map to one state keyed on `/users/{id}`.
+- **`FlowState.pathTemplate` + `kind` are REQUIRED (non-optional) new fields.** `path` is retained as the first-seen example concrete path. Two test files that constructed FlowState objects directly (`test/cli/compare.test.ts`, `test/spec/drift.test.ts`) received narrowest-correct fixes (add `pathTemplate` and `kind` with `as const` type annotation) — same precedent as D9-02.
+- **`inferFlows` gains an optional second param `endpointPathTemplates: Set<string>`** (default empty Set). This keeps the function unit-testable without endpoint fixtures. `generateSpec` passes `new Set(rawTemplates.map(t => t.pathTemplate))` (uses `rawTemplates` because `pathTemplate` is unchanged by the subsequent body normalization step).
+- **`isApiState` classifies states as 'api' by two criteria:** (1) exact match in the endpoint path template set, or (2) path starts with `/api`, `/graphql`, or `/rpc` (via `API_PREFIX_RE = /^\/(api|graphql|rpc)(\/|$)/`).
+- **Dual-signal back-edge detection via monotonic `backPointer`.** The outer loop iterates nav-record pairs; `backPointer` advances monotonically through sorted `agentBackRecords` (O(n) total). Signal (a) checks if a back agent-step's `seq` is strictly between the two nav records' `seq` values. Signal (b) checks if the reverse key is in `forwardTransitionSet`. A transition flagged by either signal is added to `backEdgeSet`; flagged transitions are NOT added to `forwardTransitionSet`.
+- **`back?: boolean` is optional** on FlowTransition — absent for forward transitions (additive, no consumer breaks). Present+true only for detected back-edges.
+- **Suite count:** baseline 894 → after 11-01: 902 (+8 new tests). tsc exit 0 at both test(11-01) and feat(11-01) commits.
 
 ### Blockers/Concerns
 

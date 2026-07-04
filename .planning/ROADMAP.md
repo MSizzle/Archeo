@@ -408,9 +408,9 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 Plans:
 **Wave 1**
 
-- [ ] 11-01-PLAN.md — Flow back-edges: template flow-state paths (finding #4), add a `kind: page|api`
+- [x] 11-01-PLAN.md — Flow back-edges: template flow-state paths (finding #4), add a `kind: page|api`
   tag (finding #5), and flag observed back/return transitions via a deterministic dual signal (the loop
-  `back` agent-step + reverse-of-observed-forward-edge) (SPEC-08)
+  `back` agent-step + reverse-of-observed-forward-edge) (SPEC-08) (completed 2026-07-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -440,6 +440,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
 | 10. Vision-drivable Demo Fixtures | 2/2 | Complete | 2026-07-04 |
-| 11. Spec-quality Enrichment | 0/4 | Not started | — |
+| 11. Spec-quality Enrichment | 1/4 | Executing | — |
 
 **Milestone v1.1 status: executing — current focus Phase 11 (Spec-quality Enrichment).**
