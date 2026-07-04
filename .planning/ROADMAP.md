@@ -222,7 +222,7 @@ Plans:
 
 **Wave 5** *(blocked on Wave 4 completion)*
 
-- [ ] 06-05-PLAN.md — `--allow-writes` (banner + confirmation + spec mode flag) + CAP-06 external-command redaction seam (FLOOR-08, CAP-06)
+- [x] 06-05-PLAN.md — `--allow-writes` (banner + confirmation + spec mode flag) + CAP-06 external-command redaction seam (FLOOR-08, CAP-06)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 

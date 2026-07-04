@@ -4,14 +4,14 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-07-04T01:51:15.599Z"
+last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 5
   total_plans: 26
-  completed_plans: 24
-  percent: 92
+  completed_plans: 25
+  percent: 96
 ---
 
 # Project State
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 06 (Hardening) IN PROGRESS — 4/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface, 06-04 auth pause/resume + incremental --resume + archeo diff drift). Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam).
+**Current focus:** Phase 06 (Hardening) IN PROGRESS — 5/6 plans complete (06-01 budget/rate, 06-02 change detector, 06-03 error recovery + quiet error surface, 06-04 auth pause/resume + incremental --resume + archeo diff drift, 06-05 --allow-writes + CAP-06 external-command redaction seam). Next: 06-06 (autonomous live verification + phase close).
 
 ## Current Position
 
-Phase: 06 (hardening) — IN PROGRESS (4/6)
-Plan: 5 of 6 — 06-04 complete
-Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam)
+Phase: 06 (hardening) — IN PROGRESS (5/6)
+Plan: 6 of 6 — 06-05 complete
+Next: 06-06 (autonomous live verification + phase close)
 Status: Ready to execute
 Last activity: 2026-07-04
 
@@ -302,6 +302,23 @@ Phase 05-01 execution decisions:
 ### Pending Todos
 
 None for 06-04. Next: 06-05 (--allow-writes floor bypass + CAP-06 external-command redaction seam).
+
+### Phase 06-05 execution decisions (FLOOR-08, CAP-06):
+
+- `confirmAllowWrites`: TTY path calls `printAllowWritesBanner` then a readline question; returns true only on 'y' (exact match — 'yes', 'Y' alone, empty string all refuse). Non-TTY path skips all output and returns true only if `iAcceptWrites=true` (no prompt).
+- Non-TTY guard: both `--allow-writes` AND `--i-accept-writes` must be present; missing either exits 1 with a message containing "allow-writes" + "i-accept-writes". Applied identically to both `archeo <url>` and `archeo explore`.
+- `makeExternalRedactionHook`: spawns command via `node:child_process` spawn, writes `JSON.stringify(candidate)` to stdin, reads stdout, parses as JSON `string[]`. Fail-closed table: timeout (2s default) → `[]`; non-zero exit → `[]`; garbage stdout → `[]`; valid JSON but not array → `[]`; array with non-string elements → `[]`.
+- `applyExtraRedactions`: deep-copies record, walks dot-path to leaf, replaces with `'[REDACTED]'`. Unknown paths are a no-op (cannot remove fields that do not exist).
+- Destructive-GET tripwire placement: `handleRoute` evaluates `if (destructiveGet && !allowWrites)` BEFORE the FLOOR-08 pass-through branch, so the prompt always fires first regardless of `allowWrites`.
+- D4-01 pause-flag: `if (paused())` check at the very top of the non-OPTIONS, non-static path — before `allowWrites` branch — so pause overrides allow-writes (D4-01 precedence maintained).
+- CAP-06 redaction hook applies in BOTH the held path (reads) and the FLOOR-08 pass-through path (writes), so extra redaction works regardless of floor mode.
+- Coverage provenance: `manifest.allowWrites === true` → `coverage.allowWrites = true` in `generateSpec`. Field is absent (not false) when the session used the floor — consumers can distinguish "floor run" from "allow-writes run" by checking presence.
+- `test/cli/explore-isolation.test.ts` destructive-GET test updated: the tripwire lives in `interceptor.ts` (delegated from explore via `attachInterceptor`), so the test now inspects `interceptor.ts` directly. This is a structural improvement, not a deviation.
+- Suite after 06-05: 848 tests (847 pass + 1 pre-existing documented skip). +41 tests vs baseline of 807.
+
+### Pending Todos
+
+None for 06-05. Next: 06-06 (autonomous live verification + phase close).
 
 ### Blockers/Concerns
 
