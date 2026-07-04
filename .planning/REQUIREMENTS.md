@@ -123,9 +123,9 @@ v1.1 phase (9, 10, or 11). Derived from the standing enhancement backlog recorde
 
 ### Spec-quality Enrichment (Phase 11)
 
-- [ ] **SPEC-08**: The generator's flows record observed back/return transitions (back-edges), not only forward transitions — Phase 11
-- [ ] **SPEC-09**: GraphQL endpoints carry a schema-fragment depth — argument names + selected field shapes (schema identifiers only, values stripped per the CAP-05 boundary) — Phase 11
-- [ ] **SPEC-10**: The spec surfaces an `auth` block with observed login/auth endpoints, auth header name, token transport (header vs cookie), and role/permission field names — all from already-redacted records, no secret values — Phase 11
+- [x] **SPEC-08**: The generator's flows record observed back/return transitions (back-edges), not only forward transitions — Phase 11 ✅ Complete 2026-07-04 (11-01; verified together 11-04: templated flow states + `kind` tags + `back:true` back-edge on one spec)
+- [x] **SPEC-09**: GraphQL endpoints carry a schema-fragment depth — argument names + selected field shapes (schema identifiers only, values stripped per the CAP-05 boundary) — Phase 11 ✅ Complete 2026-07-04 (11-02; verified 11-04: per-operation `graphqlSchema` with real arg/field NAMES + value-stripped query, `bodyEncoding`, `pollingIntervalMs`)
+- [x] **SPEC-10**: The spec surfaces an `auth` block with observed login/auth endpoints, auth header name, token transport (header vs cookie), and role/permission field names — all from already-redacted records, no secret values — Phase 11 ✅ Complete 2026-07-04 (11-03; verified 11-04: populated names-only auth block, recursive no-raw-value gate 0 hits)
 
 ## v2 Requirements
 
@@ -216,13 +216,13 @@ Each requirement maps to exactly one phase.
 | QUAL-02 | Phase 9 | Complete (09-01) |
 | DOC-01 | Phase 9 | Complete (09-02) |
 | FIX-01 | Phase 10 | Complete (10-02) |
-| SPEC-08 | Phase 11 | Pending |
-| SPEC-09 | Phase 11 | Pending |
-| SPEC-10 | Phase 11 | Pending |
+| SPEC-08 | Phase 11 | Complete (11-01; verified together 11-04) |
+| SPEC-09 | Phase 11 | Complete (11-02; verified together 11-04) |
+| SPEC-10 | Phase 11 | Complete (11-03; verified together 11-04) |
 
 **Coverage:**
 - v1 requirements: 59 total (header previously stated 49; actual count is 59) — all Complete
-- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — 4 Complete (QUAL-01/02, DOC-01, FIX-01), 3 Pending (SPEC-08/09/10)
+- v1.1 requirements: 7 total (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) — **7 Complete (all)** — Milestone v1.1 COMPLETE 2026-07-04
 - Mapped to phases: 66 ✓ (59 v1 + 7 v1.1)
 - Unmapped: 0 ✓
 
@@ -241,4 +241,4 @@ Each requirement maps to exactly one phase.
 
 ---
 *Requirements defined: 2026-06-29*
-*Last updated: 2026-07-04 — Phase 9 complete: QUAL-01/02 Complete (09-01), DOC-01 Complete (09-02).*
+*Last updated: 2026-07-04 — MILESTONE v1.1 COMPLETE: SPEC-08 (11-01), SPEC-09 (11-02), SPEC-10 (11-03) Complete, all three verified together on one recursively secret-clean spec (11-04). All 7 v1.1 requirements Complete.*

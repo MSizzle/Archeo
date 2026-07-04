@@ -1,0 +1,478 @@
+{
+  "meta": {
+    "specVersion": "1",
+    "tool": "archeo",
+    "target": "http://demo.local",
+    "sessionId": "11111111-2222-4333-8444-555555555555",
+    "generatedAt": "2026-07-04T09:59:28.295Z",
+    "sourceRecordCount": 21
+  },
+  "auth": {
+    "loginEndpoints": [
+      "/api/auth/login"
+    ],
+    "authHeaderNames": [
+      "authorization",
+      "cookie",
+      "set-cookie"
+    ],
+    "tokenTransport": [
+      "header",
+      "cookie"
+    ],
+    "roleFieldNames": [
+      "permissions",
+      "role"
+    ]
+  },
+  "dataModels": [
+    {
+      "name": "Profile",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "permissions",
+          "type": "array"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1,
+      "note": "shares 4/5 field names with User; likely a projection/session view"
+    },
+    {
+      "name": "User",
+      "fields": [
+        {
+          "name": "id",
+          "type": "string"
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "email",
+          "type": "string"
+        },
+        {
+          "name": "role",
+          "type": "string"
+        },
+        {
+          "name": "teamId",
+          "type": "string"
+        }
+      ],
+      "relationships": [],
+      "confidence": "high",
+      "observationCount": 3,
+      "note": "shares 4/5 field names with Profile; likely a projection/session view"
+    },
+    {
+      "name": "Admin",
+      "fields": [
+        {
+          "name": "error",
+          "type": "string"
+        }
+      ],
+      "relationships": [],
+      "confidence": "low",
+      "observationCount": 1
+    },
+    {
+      "name": "Notification",
+      "fields": [
+        {
+          "name": "items",
+          "type": "array"
+        },
+        {
+          "name": "unread",
+          "type": "number"
+        },
+        {
+          "name": "secretField",
+          "type": "string"
+        },
+        {
+          "name": "ownerEmail",
+          "type": "email"
+        },
+        {
+          "name": "token",
+          "type": "string"
+        }
+      ],
+      "relationships": [],
+      "confidence": "high",
+      "observationCount": 4
+    }
+  ],
+  "endpoints": [
+    {
+      "method": "GET",
+      "pathTemplate": "/api/profile",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/profile"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "id": "string",
+        "name": "string",
+        "email": "string",
+        "role": "string",
+        "permissions": "array"
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/users",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/users"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "items": [
+          {
+            "id": "string",
+            "name": "string",
+            "email": "string",
+            "role": "string",
+            "teamId": "string"
+          }
+        ],
+        "page": "number",
+        "total": "number"
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/users/{id}",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 2,
+      "examplePaths": [
+        "/api/users/1",
+        "/api/users/2"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "id": "string",
+        "name": "string",
+        "email": "string",
+        "role": "string",
+        "teamId": "string"
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/admin/{id}",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/admin/42"
+      ],
+      "statusCodes": [
+        401
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "error": "string"
+      },
+      "polling": false
+    },
+    {
+      "method": "GET",
+      "pathTemplate": "/api/notifications",
+      "protocol": "REST",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 4,
+      "examplePaths": [
+        "/api/notifications"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": null,
+      "responseBodyShape": {
+        "items": "array",
+        "unread": "number",
+        "secretField": "string",
+        "ownerEmail": "email",
+        "token": "string"
+      },
+      "polling": true,
+      "pollingIntervalMs": 5000
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/api/auth/login",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/auth/login"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "username": "string",
+        "password": "string"
+      },
+      "responseBodyShape": null,
+      "polling": false,
+      "bodyEncoding": "json",
+      "responseUnobserved": true
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/api/users",
+      "protocol": "REST",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/api/users"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "name": "string",
+        "email": "string"
+      },
+      "responseBodyShape": null,
+      "polling": false,
+      "bodyEncoding": "json",
+      "responseUnobserved": true
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/graphql",
+      "protocol": "GraphQL",
+      "operationType": "read",
+      "held": false,
+      "observationCount": 1,
+      "examplePaths": [
+        "/graphql"
+      ],
+      "statusCodes": [
+        200
+      ],
+      "requestBodyShape": {
+        "query": "string",
+        "variables": {
+          "id": "string"
+        }
+      },
+      "responseBodyShape": {
+        "data": {
+          "user": {
+            "id": "string",
+            "name": "string",
+            "email": "string",
+            "role": "string"
+          }
+        }
+      },
+      "polling": false,
+      "operationName": "GetUser",
+      "graphqlSchema": {
+        "operationType": "query",
+        "operationName": "GetUser",
+        "arguments": [
+          "id"
+        ],
+        "fields": [
+          "user",
+          "user.id",
+          "user.name",
+          "user.email",
+          "user.role"
+        ],
+        "query": "query GetUser { user(id: <redacted>) { id name email role } }"
+      },
+      "bodyEncoding": "json"
+    },
+    {
+      "method": "POST",
+      "pathTemplate": "/graphql",
+      "protocol": "GraphQL",
+      "operationType": "mutation",
+      "held": true,
+      "observationCount": 1,
+      "examplePaths": [
+        "/graphql"
+      ],
+      "statusCodes": [],
+      "requestBodyShape": {
+        "query": "string",
+        "variables": {
+          "name": "string",
+          "bio": "string"
+        }
+      },
+      "responseBodyShape": null,
+      "polling": false,
+      "operationName": "UpdateProfile",
+      "graphqlSchema": {
+        "operationType": "mutation",
+        "operationName": "UpdateProfile",
+        "arguments": [
+          "name",
+          "bio"
+        ],
+        "fields": [
+          "updateProfile",
+          "updateProfile.id",
+          "updateProfile.name"
+        ],
+        "query": "mutation UpdateProfile { updateProfile(name: <redacted>, bio: <redacted>) { id name } }"
+      },
+      "bodyEncoding": "json",
+      "responseUnobserved": true
+    }
+  ],
+  "flows": {
+    "states": [
+      {
+        "name": "app",
+        "pathTemplate": "/app",
+        "path": "/app",
+        "kind": "page"
+      },
+      {
+        "name": "app-users",
+        "pathTemplate": "/app/users",
+        "path": "/app/users",
+        "kind": "page"
+      },
+      {
+        "name": "app-users-detail",
+        "pathTemplate": "/app/users/{id}",
+        "path": "/app/users/1",
+        "kind": "page"
+      },
+      {
+        "name": "app-settings",
+        "pathTemplate": "/app/settings",
+        "path": "/app/settings",
+        "kind": "page"
+      }
+    ],
+    "transitions": [
+      {
+        "from": "app",
+        "to": "app-users",
+        "count": 1
+      },
+      {
+        "from": "app-users",
+        "to": "app-users-detail",
+        "count": 2
+      },
+      {
+        "from": "app-users-detail",
+        "to": "app-users",
+        "count": 1,
+        "back": true
+      },
+      {
+        "from": "app-users-detail",
+        "to": "app-settings",
+        "count": 1
+      }
+    ]
+  },
+  "rules": [
+    {
+      "rule": "auth-required: /api/admin/{id}",
+      "evidence": [
+        "GET /api/admin/{id} -> 401"
+      ],
+      "confidence": "low"
+    },
+    {
+      "rule": "pagination",
+      "evidence": [
+        "GET /api/users?page,limit"
+      ],
+      "confidence": "low"
+    },
+    {
+      "rule": "resource-crud: /api/users",
+      "evidence": [
+        "GET+GET/{id}+held-POST on /api/users"
+      ],
+      "confidence": "high"
+    },
+    {
+      "rule": "write-held-behavior",
+      "evidence": [
+        "POST /api/auth/login (held)",
+        "POST /api/users (held)",
+        "POST /graphql (held)"
+      ],
+      "confidence": "high"
+    }
+  ],
+  "coverage": {
+    "endpointsDiscovered": 9,
+    "dataModelsDiscovered": 4,
+    "statesDiscovered": 4,
+    "transitionsDiscovered": 4,
+    "heldWrites": 3,
+    "knownGaps": [
+      "held mutation response unobserved: POST /api/auth/login",
+      "held mutation response unobserved: POST /api/users",
+      "held mutation response unobserved: POST /graphql"
+    ],
+    "recordBreakdown": {
+      "requestResponse": 10,
+      "heldWrites": 3,
+      "navigations": 7,
+      "deadEnds": 0,
+      "destructiveGetHeld": 0
+    },
+    "stopReason": "empty-frontier"
+  }
+}

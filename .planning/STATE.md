@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
-status: executing
-stopped_at: "**PHASE 11: 11-03 COMPLETE (3/4 plans).** inferAuth (SPEC-10): auth block inferred from already-redacted records — loginEndpoints, authHeaderNames (CAP-04), tokenTransport, roleFieldNames. Human-readable rules.evidence (#8): no bare UUIDs, descriptors like 'GET /api/users/{id} -> 401'. DataModel overlap note (#3): >=80% field overlap annotated with a note. responseUnobserved:true flag (#2): factual marker on held endpoints with no observed response, no fabrication. Suite 949 = 948 pass + 1 skip; tsc exit 0. Next: 11-04 (autonomous verification + milestone v1.1 CLOSE)."
-last_updated: "2026-07-04T11:00:00.000Z"
+status: COMPLETE
+stopped_at: "**MILESTONE v1.1 COMPLETE (2026-07-04).** Phase 11 CLOSED (4/4). 11-04 enriched-spec verification: ONE deterministic generateSpec over a dedicated GraphQL+auth+back-nav fixture exhibits SPEC-08 (templated flow states + kind + observed back-edge), SPEC-09 (per-operation graphqlSchema fragments with value-stripped queries + bodyEncoding + pollingIntervalMs), and SPEC-10 (names-only auth block) TOGETHER, plus the 3 clarity items (dataModel note #3, human-readable rules.evidence #8, held responseUnobserved #2). Recursive no-raw-value gate 0 hits with 3 planted sentinels. All 8 builder findings addressed. examples/demo-app/ byte-stable. Suite 949 = 948 pass + 1 skip; tsc exit 0. All three v1.1 phases (9,10,11) Complete; v1.0 preserved; affordance-drivability + full GraphQL schema reconstruction rolled to v1.2 backlog."
+last_updated: "2026-07-04T12:30:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
-  completed_phases: 2
-  total_plans: 9
+  completed_phases: 3
+  total_plans: 8
   completed_plans: 8
-  percent: 80
+  percent: 100
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 11 executing (3/4 plans complete).** 11-03 CLOSED (2026-07-04): SPEC-10 auth block, dataModel overlap note (#3), human-readable evidence (#8), responseUnobserved flag (#2). Suite 949 = 948 pass + 1 skip; tsc exit 0. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
+**Current focus:** **MILESTONE v1.1 COMPLETE (2026-07-04).** All three phases (9, 10, 11) and all seven v1.1 requirements (QUAL-01/02, DOC-01, FIX-01, SPEC-08/09/10) Complete. 11-04 verified all three Phase-11 enrichments together on one recursively secret-clean spec (949 = 948 pass + 1 skip, tsc exit 0). v1.0 preserved; affordance-drivability + full GraphQL schema reconstruction rolled to v1.2 backlog. Nothing in flight.
 
 ## Current Position
 
-**Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **11 executing (3/4 plans complete)**
-Plan: 11-04 (next)
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 + Phase 11 plans 11-01, 11-02, 11-03 closed
+**Milestone:** v1.1 (enhancement + hygiene) — **COMPLETE (2026-07-04)**
+Phase: **11 COMPLETE (4/4 plans)** — all v1.1 phases done
+Plan: — (milestone complete)
+Status: **v1.1 COMPLETE** — v1.0 COMPLETE and preserved; Phases 9, 10, 11 all closed
 Last activity: 2026-07-04
 
-Progress (v1.1): [███████░░░] ~67% (2/3 phases complete, Phase 11 at 2/4) — v1.0: [██████████] 100% (8/8, COMPLETE)
+Progress (v1.1): [██████████] 100% (3/3 phases complete, Phase 11 4/4) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 
@@ -590,7 +590,7 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
 
 ### Blockers/Concerns
 
-None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 3/4 plans complete.** SPEC-10 closed (partial — full close deferred to 11-04 e2e). Builder findings #2, #3, #8 closed. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
+None. **Milestone v1.1 COMPLETE (3/3 phases — 9, 10, 11).** SPEC-08/09/10 fully closed — 11-04 verified all three enrichments TOGETHER on one recursively secret-clean spec (949 = 948 pass + 1 skip, tsc exit 0). All 8 builder findings addressed. v1.0 preserved. Affordance-drivability + full GraphQL schema reconstruction rolled to v1.2 backlog. Nothing in flight.
 
 ## Deferred Items
 
@@ -600,6 +600,6 @@ None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 3/4 
 
 ## Session Continuity
 
-Last session: 2026-07-04T11:00:00Z
-Stopped at: **PHASE 11: 11-03 COMPLETE (3/4 plans).** inferAuth (SPEC-10), human-readable evidence (#8), dataModel overlap note (#3), responseUnobserved flag (#2). Suite 949 = 948 pass + 1 skip; tsc exit 0. Builder findings #2, #3, #8 closed. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
+Last session: 2026-07-04T12:30:00Z
+Stopped at: **MILESTONE v1.1 COMPLETE (2026-07-04).** Phase 11 CLOSED (4/4). 11-04 verified SPEC-08 + SPEC-09 + SPEC-10 together on one deterministic spec from a dedicated GraphQL+auth+back-nav fixture; recursive no-raw-value gate 0 hits (3 planted sentinels); all 8 builder findings addressed; examples/demo-app/ byte-stable. Suite 949 = 948 pass + 1 skip; tsc exit 0. All three v1.1 phases (9,10,11) Complete; v1.0 preserved; affordance-drivability + full GraphQL schema reconstruction rolled to v1.2 backlog. Nothing in flight.
 Resume file: None

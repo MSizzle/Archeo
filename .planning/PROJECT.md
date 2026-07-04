@@ -138,29 +138,42 @@ Suite 892 (891 pass + 1 documented skip, 0 fail). Full evidence:
 - **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — cosmetic (lists an absent `test/types/`,
   omits the present `test/oss/`).
 
-### Milestone v1.1 — OPEN (executing, opened 2026-07-04)
+### Milestone v1.1 — COMPLETE (2026-07-04)
 
-**Goal: clear the enhancement + hygiene backlog above without breaking a complete, live-verified
-v1.0.** No breaking changes; every phase keeps the full suite green (baseline 892 = 891 pass + 1
-documented skip) and every v1.0 safety guarantee intact (floor ON, CAP-05 fail-closed redaction,
-GATE-01/GATE-03). Three sequential phases turn the standing backlog into shipped requirements:
+**The enhancement + hygiene backlog is cleared without breaking the complete, live-verified v1.0.**
+All three sequential phases (9 → 10 → 11) and all seven v1.1 requirements are Complete; no breaking
+changes; every v1.0 safety guarantee intact (floor ON, CAP-05 fail-closed redaction, GATE-01/GATE-03).
+Final gate: suite **949 = 948 pass + 1 documented skip, 0 fail**; `npx tsc --noEmit` exit 0.
 
-- **Phase 9 — Type-safety & docs hygiene** (LOW risk, do FIRST): drive `npx tsc --noEmit` to zero
-  diagnostics, add a typecheck regression guard so it never silently regresses, and correct the
-  CONTRIBUTING test-layout diagram. New requirements: **QUAL-01, QUAL-02, DOC-01**.
-- **Phase 10 — Vision-drivable demo fixtures**: ship a canonical demo target + rebuild pair that
-  BOTH the manual and autonomous paths can drive (real `<a href>` nav, forms, the REST/GraphQL/
-  JSON-RPC surface), regenerate `examples/` from real autonomous runs, and dogfood `archeo compare`
-  on that authentic pair. New requirement: **FIX-01** (the genuine 08-02 finding).
-- **Phase 11 — Spec-quality enrichment**: the three builder-flagged gaps — flow back-edges, GraphQL
-  schema depth, auth semantics — all from already-redacted records, values still stripped. New
-  requirements: **SPEC-08, SPEC-09, SPEC-10**. Closes the milestone.
+- **Phase 9 — Type-safety & docs hygiene** ✅: `npx tsc --noEmit` at 0 diagnostics + a QUAL-02
+  regression guard + the corrected CONTRIBUTING test-layout diagram. **QUAL-01, QUAL-02, DOC-01**.
+- **Phase 10 — Vision-drivable demo fixtures** ✅: the canonical `examples/demo-app/` + rebuild pair
+  drivable by both paths, `examples/` regenerated from real autonomous runs, authentic `archeo compare`
+  dogfood; BUILD-01 re-proven (19/19 capturable, 55/55 self-tests). **FIX-01**.
+- **Phase 11 — Spec-quality enrichment** ✅: the three builder-flagged gaps closed — flow back-edges +
+  templated states + `kind` (SPEC-08), per-operation GraphQL schema fragments + `bodyEncoding` +
+  `pollingIntervalMs` (SPEC-09), a names-only `auth` block + dataModel `note` + human-readable
+  `rules.evidence` + held `responseUnobserved` (SPEC-10) — all from already-redacted records, values
+  still stripped, verified together on one recursively secret-clean spec (11-04). **SPEC-08, SPEC-09,
+  SPEC-10**.
 
-Conventions binding every v1.1 plan (identical to v1.0 Phases 3–8): zero new runtime deps, `.ts`
-import extensions, NO TS enums, `node:test`, TDD atomic commits `test(NN-MM)`/`feat(NN-MM)`,
-`docs(NN-MM)` for docs-only, SUMMARY/ROADMAP/STATE per plan, CAP-05 redaction fail-closed re-asserted
-wherever new pre-redaction fields are added, GATE-01/GATE-03 guards untouched, floor ON. Commit
-trailer: `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+Conventions held across every v1.1 plan (identical to v1.0 Phases 3–8): zero new runtime deps, `.ts`
+import extensions, NO TS enums, `node:test`, TDD atomic commits, CAP-05 redaction fail-closed
+re-asserted wherever new pre-redaction fields were added, GATE-01/GATE-03 guards untouched, floor ON.
+Commit trailer: `Co-Authored-By: Claude Fable 5 <noreply@anthropic.com>`.
+
+### Standing v1.2 backlog (non-blocking — rolled forward at v1.1 close, NOT built)
+
+Enhancements on a complete, live-verified v1.1 — not gaps in it:
+
+- **Affordance / drivability hints in the spec** — the genuine Phase-10 compare finding (10-02 §3,
+  D11-08): the spec cannot encode that an affordance is drivable (e.g. relative-vs-absolute `<a href>`,
+  per-page fetch batching), so an honestly-imperfect rebuild shows as *unreachable-by-walker* rather
+  than *absent-contract*. Candidate: affordance hints in the spec, or an **unreachable-vs-absent**
+  distinction in `archeo compare`. Out of scope for SPEC-08/09/10.
+- **Full introspection-grade GraphQL schema reconstruction** — SPEC-09 delivered per-operation depth
+  (argument names + selection field shapes), NOT a complete type system. Full schema reconstruction is
+  a v1.2 candidate (D11-08 deferred).
 
 ## Evolution
 
@@ -180,4 +193,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-07-04 — Milestone v1.0 COMPLETE (all 8 phases); Milestone v1.1 OPEN (Phases 9–11, enhancement + hygiene backlog).*
+*Last updated: 2026-07-04 — Milestone v1.0 COMPLETE (all 8 phases); Milestone v1.1 COMPLETE (Phases 9–11, all 7 enhancement + hygiene requirements); v1.2 backlog rolled forward (affordance-drivability hints, full GraphQL schema reconstruction).*

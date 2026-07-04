@@ -429,9 +429,13 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 
-- [ ] 11-04-PLAN.md — Autonomous verification: regenerate one spec from a GraphQL + auth + back-nav
+- [x] 11-04-PLAN.md — Autonomous verification: regenerate one spec from a GraphQL + auth + back-nav
   fixture and assert SPEC-08 + SPEC-09 + SPEC-10 hold TOGETHER, everything recursively secret-clean;
-  CLOSE Phase 11 AND milestone v1.1 (SPEC-08/09/10)
+  CLOSE Phase 11 AND milestone v1.1 (SPEC-08/09/10) — CLOSED 2026-07-04: ONE deterministic
+  `generateSpec` over a dedicated phase fixture exhibits all three enrichments together (templated flow
+  states + kind + back-edge; per-op GraphQL fragments with value-stripped queries; populated names-only
+  auth block) + the 3 clarity items; recursive no-raw-value gate 0 hits with 3 planted sentinels; all 8
+  builder findings addressed; `examples/demo-app/` byte-stable; suite 949 = 948 pass + 1 skip, tsc exit 0
 
 ## Progress (v1.1)
 
@@ -441,6 +445,33 @@ Plans:
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
 | 10. Vision-drivable Demo Fixtures | 2/2 | Complete | 2026-07-04 |
-| 11. Spec-quality Enrichment | 2/4 | Executing | — |
+| 11. Spec-quality Enrichment | 4/4 | Complete | 2026-07-04 |
 
-**Milestone v1.1 status: executing — current focus Phase 11 (Spec-quality Enrichment).**
+**All three v1.1 phases Complete — MILESTONE v1.1 COMPLETE (2026-07-04).**
+
+---
+
+## Milestone v1.1 — COMPLETE (2026-07-04)
+
+The enhancement + hygiene milestone is closed. All three phases (9 → 10 → 11) and all seven v1.1
+requirements (QUAL-01, QUAL-02, DOC-01, FIX-01, SPEC-08, SPEC-09, SPEC-10) are Complete, on top of a
+complete, live-verified v1.0 (preserved above — v1.0 COMPLETE 2026-07-04, all 8 phases / 59
+requirements).
+
+- **Phase 9** drove `npx tsc --noEmit` to 0 diagnostics + added the QUAL-02 regression guard + fixed
+  the CONTRIBUTING test-layout diagram.
+- **Phase 10** shipped the canonical vision-drivable `examples/demo-app/` + rebuild pair, re-proved
+  BUILD-01 (19/19 capturable, 55/55 self-tests), and ran the authentic `archeo compare` dogfood.
+- **Phase 11** closed the three builder-flagged spec gaps — flow back-edges + templated states + kind
+  (SPEC-08), per-operation GraphQL schema fragments + `bodyEncoding` + `pollingIntervalMs` (SPEC-09),
+  and a names-only `auth` block + dataModel `note` + human-readable `rules.evidence` + held
+  `responseUnobserved` (SPEC-10) — all from already-redacted records, values still stripped, verified
+  together on one recursively secret-clean spec (11-04, 949 = 948 pass + 1 skip, tsc exit 0).
+
+Rolled to a **v1.2 backlog** (non-blocking, per 11-CONTEXT D11-08): the Phase-10 affordance/relative-vs-
+absolute-href drivability finding (spec cannot encode affordance drivability; or an
+unreachable-vs-absent distinction in `compare`), and full introspection-grade GraphQL schema
+reconstruction (SPEC-09 delivered per-operation depth, not a complete type system).
+
+**No breaking changes; every v1.0 safety guarantee intact (floor ON, CAP-05 fail-closed redaction,
+GATE-01/GATE-03). v1.0 + v1.1 history both preserved.**
