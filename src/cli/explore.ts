@@ -56,7 +56,8 @@ import type { RedactionModelHook } from '../capture/redactionModel.ts'
  */
 export function parseFiniteFlag(x: number | string | undefined): number | undefined {
   if (x === undefined) return undefined
-  return Number(x) || undefined // BUG (COST-01): 0 is falsy → becomes undefined
+  const n = Number(x)
+  return Number.isFinite(n) ? n : undefined
 }
 
 // ---------------------------------------------------------------------------

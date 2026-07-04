@@ -23,7 +23,7 @@ import { readdirSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { runAuthorizationGate } from './gate.ts';
 import { isValidUrl, openAndWait } from './browser.ts';
-import { runExplore } from './explore.ts';
+import { runExplore, parseFiniteFlag } from './explore.ts';
 import { profileDir } from './profile.ts';
 import { openForLogin } from './login.ts';
 import { clearOneSession, clearAllSessions } from './clearSession.ts';
@@ -320,8 +320,8 @@ cli
       const profileDirPath = profileDir(new URL(url).hostname);
 
       // Parse budget/pacing opts — NaN from non-numeric strings becomes undefined (no ceiling).
-      const maxTokens = opts.maxTokens !== undefined ? Number(opts.maxTokens) || undefined : undefined;
-      const maxCost = opts.maxCost !== undefined ? Number(opts.maxCost) || undefined : undefined;
+      const maxTokens = parseFiniteFlag(opts.maxTokens)
+      const maxCost = parseFiniteFlag(opts.maxCost)
       const paceMs = opts.paceMs !== undefined ? Number(opts.paceMs) : 500;
 
       // Model ID (without provider prefix) for BudgetTracker price lookup.
