@@ -122,4 +122,14 @@ export class CoverageGraph {
   get frontierSize(): number {
     return this.navQ.length + this.formQ.length + this.clickQ.length
   }
+
+  /**
+   * Return a snapshot of all currently-queued (not-yet-exercised) frontier items.
+   * Used by resume.ts to persist the frontier to resume.json.
+   * Returns items in priority order: nav, then form, then click; FIFO within each tier.
+   * Does NOT drain the queues — nextFrontier() still works after a snapshot.
+   */
+  snapshotFrontier(): FrontierItem[] {
+    return [...this.navQ, ...this.formQ, ...this.clickQ]
+  }
 }
