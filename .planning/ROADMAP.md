@@ -244,7 +244,20 @@ Plans:
   2. At least one example spec in `examples/` demonstrates real output generated against a public demo app
   3. Contributor docs exist with a clear in/out-of-scope statement
 
-**Plans**: TBD
+**Plans**: 3 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md — Truthful README rewrite (doc-vs-code verified): key-free manual quickstart first, then BYO-key autonomous mode, BYO-key config, and the safety model in plain language (OSS-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-02-PLAN.md — `examples/` with a real generated spec + provenance + secret-clean gate; CONTRIBUTING.md (dev setup, native-TS footguns, GATE-03 guard, architecture map, in/out-of-scope) + SECURITY.md; fold in the .gitignore cleanup (OSS-02, OSS-03)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-03-PLAN.md — Fresh-eyes cold-start verification (a stranger subagent produces a spec from the README quickstart alone) + doc-vs-code audit + phase close (OSS-01/02/03)
 
 ### Phase 8: Differential Validation
 
@@ -272,5 +285,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
-| 7. Open Source Readiness | 0/TBD | Not started | - |
+| 7. Open Source Readiness | 0/3 | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |
