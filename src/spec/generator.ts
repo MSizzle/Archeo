@@ -381,43 +381,115 @@ function stateName(path: string): string {
   return segments.join('-');
 }
 
+// ---------------------------------------------------------------------------
+// isApiState — SPEC-08 finding #5: classify flow state as 'page' or 'api'
+// ---------------------------------------------------------------------------
+
+/**
+ * API path prefix pattern: /api/…, /graphql/…, /rpc/… (or exactly /api, /graphql, /rpc).
+ */
+const API_PREFIX_RE = /^\/(api|graphql|rpc)(\/|$)/;
+
+/**
+ * Classify a flow state as 'api' or 'page' (SPEC-08, finding #5).
+ * A state is 'api' when its templated path:
+ *   (a) matches a captured API endpoint path template in the endpoint set, OR
+ *   (b) begins with a known API prefix: /api, /graphql, /rpc.
+ * Otherwise: 'page'.
+ */
+function isApiState(templatedPath: string, endpointPathTemplates: Set<string>): boolean {
+  if (endpointPathTemplates.has(templatedPath)) return true;
+  return API_PREFIX_RE.test(templatedPath);
+}
+
 /**
  * Infer UI flows from navigation records.
  * SPEC-05: filter records by type='navigation' in seq order; derive states and
  * count consecutive transitions.
+ *
+ * SPEC-08 enhancements (11-01):
+ *   finding #4 — states deduplicated on TEMPLATED path (not concrete path).
+ *     Three navigations to /app/users/1,2,3 → ONE state with pathTemplate='/app/users/{id}'.
+ *   finding #5 — each state carries kind:'page'|'api'.
+ *   SPEC-08 — back-edges detected via deterministic dual signal:
+ *     (a) a back agent-step (agentAction:'back') occurs with seq strictly between the two
+ *         consecutive navigation records (i.e. the back action fired from the 'from' state), OR
+ *     (b) the transition reverses a previously-observed forward transition (A→B already seen
+ *         as a forward edge → B→A is flagged back:true).
+ *
+ * @param records               All capture records (nav + agent-step + others).
+ * @param endpointPathTemplates Set of captured API endpoint path templates for kind classification.
  */
-export function inferFlows(records: CaptureRecord[]): Flow {
+export function inferFlows(records: CaptureRecord[], endpointPathTemplates: Set<string> = new Set()): Flow {
   const navRecords = records
     .filter((r) => (r.type as string) === 'navigation')
     .sort((a, b) => a.seq - b.seq);
 
-  // Build ordered state list (deduplicated per unique path)
-  const stateByPath = new Map<string, string>();
+  // Agent-step 'back' records sorted by seq — used for signal-a back-edge detection.
+  const agentBackRecords = records
+    .filter((r) => (r.type as string) === 'agent-step' && r.agentAction === 'back')
+    .sort((a, b) => a.seq - b.seq);
+
+  // Build ordered state list (deduplicated per TEMPLATED path — SPEC-08 finding #4).
+  // First concrete path observed for each template becomes the example `path`.
+  const stateByTemplatedPath = new Map<string, FlowState>();
   const stateList: FlowState[] = [];
 
   for (const rec of navRecords) {
-    const name = stateName(rec.path);
-    if (!stateByPath.has(rec.path)) {
-      stateByPath.set(rec.path, name);
-      stateList.push({ name, path: rec.path });
+    const tpath = templatePath(rec.path);
+    if (!stateByTemplatedPath.has(tpath)) {
+      const name = stateName(rec.path);
+      const kind: 'page' | 'api' = isApiState(tpath, endpointPathTemplates) ? 'api' : 'page';
+      const state: FlowState = { name, pathTemplate: tpath, path: rec.path, kind };
+      stateByTemplatedPath.set(tpath, state);
+      stateList.push(state);
     }
   }
 
-  // Build transitions from consecutive nav records
+  // Build transitions from consecutive nav records with dual-signal back-edge detection.
+  // Monotonic backPointer scans agentBackRecords in sync with the nav-pair loop (O(n) total).
   const transitionCounts = new Map<string, number>();
+  const forwardTransitionSet = new Set<string>(); // 'from→to' observed as forward edges
+  const backEdgeSet = new Set<string>();           // 'from→to' flagged as back-edges
+  let backPointer = 0;
+
   for (let i = 0; i < navRecords.length - 1; i++) {
     const from = stateName(navRecords[i].path);
     const to = stateName(navRecords[i + 1].path);
-    if (from !== to) {
-      const key = `${from}→${to}`;
-      transitionCounts.set(key, (transitionCounts.get(key) ?? 0) + 1);
+    if (from === to) continue;
+
+    const key = `${from}→${to}`;
+    transitionCounts.set(key, (transitionCounts.get(key) ?? 0) + 1);
+
+    // Signal (a): any back agent-step with seq strictly between navRecords[i].seq and navRecords[i+1].seq?
+    const fromSeq = navRecords[i].seq;
+    const toSeq = navRecords[i + 1].seq;
+    // Advance backPointer to first back-record strictly after fromSeq.
+    while (backPointer < agentBackRecords.length && agentBackRecords[backPointer].seq <= fromSeq) {
+      backPointer++;
+    }
+    const signalA = backPointer < agentBackRecords.length && agentBackRecords[backPointer].seq < toSeq;
+
+    // Signal (b): reversal of a previously-observed forward transition?
+    const reverseKey = `${to}→${from}`;
+    const signalB = forwardTransitionSet.has(reverseKey);
+
+    if (signalA || signalB) {
+      backEdgeSet.add(key);
+      // Do NOT add to forwardTransitionSet — it is classified as a back-edge.
+    } else {
+      forwardTransitionSet.add(key);
     }
   }
 
   const transitions: FlowTransition[] = [];
   for (const [key, count] of transitionCounts.entries()) {
     const [from, to] = key.split('→');
-    transitions.push({ from, to, count });
+    const transition: FlowTransition = { from, to, count };
+    if (backEdgeSet.has(key)) {
+      transition.back = true;
+    }
+    transitions.push(transition);
   }
 
   return { states: stateList, transitions };
@@ -643,7 +715,9 @@ export function generateSpec(sessionDir: string): ArcheoSpec {
   const dataModels = inferDataModels(templates);
 
   // UI flows (SPEC-05) — from navigation records in all records
-  const flows = inferFlows(records);
+  // Pass endpoint path templates for state kind classification (SPEC-08, finding #5).
+  const endpointPathTemplates = new Set(rawTemplates.map(t => t.pathTemplate));
+  const flows = inferFlows(records, endpointPathTemplates);
 
   // Rules (SPEC-06)
   const rules = inferRules(templates, apiRecords);
