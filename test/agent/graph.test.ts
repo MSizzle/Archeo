@@ -97,3 +97,44 @@ describe('CoverageGraph — frontier', () => {
     assert.equal(g.frontierSize, 0)
   })
 })
+
+describe('CoverageGraph — snapshotFrontier', () => {
+  test('snapshotFrontier returns all queued items in nav→form→click order', () => {
+    const g = new CoverageGraph()
+    g.addFrontier([
+      { fromSignature: 'a', ref: 0, kind: 'click' },
+      { fromSignature: 'a', ref: 1, kind: 'nav', url: 'http://x.com/b' },
+      { fromSignature: 'a', ref: 2, kind: 'form' },
+    ])
+    const snap = g.snapshotFrontier()
+    assert.equal(snap.length, 3)
+    // nav comes first
+    assert.equal(snap[0].kind, 'nav')
+    assert.equal(snap[1].kind, 'form')
+    assert.equal(snap[2].kind, 'click')
+  })
+
+  test('snapshotFrontier returns empty array when frontier is empty', () => {
+    const g = new CoverageGraph()
+    assert.deepEqual(g.snapshotFrontier(), [])
+  })
+
+  test('snapshotFrontier does not consume items (nextFrontier still works after)', () => {
+    const g = new CoverageGraph()
+    g.addFrontier([{ fromSignature: 'a', ref: 0, kind: 'nav', url: 'http://x.com/b' }])
+    const snap = g.snapshotFrontier()
+    assert.equal(snap.length, 1)
+    // snapshotFrontier should NOT drain the queue
+    assert.equal(g.frontierSize, 1, 'frontier still has items after snapshot')
+    const next = g.nextFrontier()
+    assert.ok(next, 'item still available after snapshot')
+  })
+
+  test('markExercised items are not in snapshotFrontier', () => {
+    const g = new CoverageGraph()
+    const item = { fromSignature: 'a', ref: 0, kind: 'nav' as const, url: 'http://x.com/b' }
+    g.addFrontier([item])
+    g.markExercised(item)
+    assert.deepEqual(g.snapshotFrontier(), [])
+  })
+})
