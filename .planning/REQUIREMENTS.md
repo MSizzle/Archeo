@@ -82,7 +82,7 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 ### Cost, Rate & Error Hardening
 
 - [ ] **COST-01**: Configurable step budget and model selection
-- [ ] **COST-02**: A semantic change detector calls the vision model only when the page has meaningfully changed (new interactive elements, route/major-container swap, modal) — cosmetic churn is ignored
+- [x] **COST-02**: A semantic change detector calls the vision model only when the page has meaningfully changed (new interactive elements, route/major-container swap, modal) — cosmetic churn is ignored
 - [ ] **COST-03**: A hard dollar/token ceiling runs alongside the step budget
 - [ ] **COST-04**: Polite request pacing against the target
 - [ ] **COST-05**: Error recovery for dead ends, loops, navigation failures, and model errors
@@ -175,7 +175,7 @@ Each requirement maps to exactly one phase.
 | DASH-06 | Phase 5 | Complete (05-04; verified live 05-05) |
 | DASH-07 | Phase 5 | Complete (05-04; verified live 05-05) |
 | COST-01 | Phase 6 | Pending |
-| COST-02 | Phase 6 | Pending |
+| COST-02 | Phase 6 | Complete |
 | COST-03 | Phase 6 | Pending |
 | COST-04 | Phase 6 | Pending |
 | COST-05 | Phase 6 | Pending |

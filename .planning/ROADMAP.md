@@ -210,7 +210,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 06-02-PLAN.md — Semantic change detector + vision-call gating + skip accounting (coverage block + dashboard counter) (COST-02)
+- [x] 06-02-PLAN.md — Semantic change detector + vision-call gating + skip accounting (coverage block + dashboard counter) (COST-02)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -267,6 +267,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 3. Spec Generator + Buildability Proof | 5/5 | Complete | 2026-07-03 |
 | 4. Authentication Handoff | 3/3 | Complete | 2026-07-03 |
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
-| 6. Hardening | 0/6 | Not started | - |
+| 6. Hardening | 2/6 | In Progress|  |
 | 7. Open Source Readiness | 0/TBD | Not started | - |
 | 8. Differential Validation | 0/TBD | Not started | - |

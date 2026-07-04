@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: 06-01 COMPLETE — Provider.chat → ChatResult, BudgetTracker (token/dollar ceilings), Pacer (paceMs), stopReason surfaced to manifest + spec coverage + CLI stdout. 13 atomic commits (7 test + 6 feat). 656 tests green (+45 from baseline 611). Next: 06-02 (semantic change detector).
-last_updated: "2026-07-04T00:00:00.000Z"
+stopped_at: Phase 2 context gathered
+last_updated: "2026-07-04T00:50:32.926Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 5
-  total_plans: 10
-  completed_plans: 21
-  percent: 64
+  total_plans: 26
+  completed_plans: 22
+  percent: 63
 ---
 
 # Project State
@@ -26,12 +26,12 @@ See: .planning/PROJECT.md (updated 2026-06-29)
 ## Current Position
 
 Phase: 06 (hardening) — IN PROGRESS (1/6)
-Plan: 1 of 6 — 06-01 complete
+Plan: 2 of 6 — 06-01 complete
 Next: 06-02 (semantic change detector — vision-call gating + skip accounting)
-Status: 06-01 complete. Provider.chat → ChatResult (text + TokenUsage). BudgetTracker (PRICE_TABLE, token ceiling ≥, cost ceiling > 0 guard for scripted). Pacer (injected clock, first-call baseline). STOP_REASONS.BUDGET. loop.ts wires budget.add + pacer.wait. stopReason flows: loop → explore.ts.recordStopReason → manifest.json → spec coverage.stopReason. CLI gains --max-tokens/--max-cost/--pace-ms flags; prints [archeo] exploration stopped: <reason> (<steps> steps, <tokens> tokens). 13 commits (7 test + 6 feat). 656 tests green (up from 611).
+Status: Ready to execute
 Last activity: 2026-07-04
 
-Progress: [█░░░░░] 1/6 plans done in Phase 6
+Progress: [█████████░] 85%
 
 ## Performance Metrics
 
@@ -65,6 +65,7 @@ Progress: [█░░░░░] 1/6 plans done in Phase 6
 | Phase 03-spec-generator-buildability P04 | ~3h (3 stages) | 3 tasks | 11 files |
 | Phase 03-spec-generator-buildability P05 | ~25min | 4 tasks | 8 files |
 | Phase 04-authentication-handoff P02 | ~35min (incl. crash/resume) | 3 tasks | 4 files |
+| Phase 06 P02 | ~2 sessions | 4 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -104,8 +105,10 @@ Phase 03-01 execution decisions:
 - groupRecords implemented in same source file and commit as templatePathSegment/templatePath
   (all three are the pure module's public API); TDD RED/GREEN was maintained at the commit
   level by deliberately stubbing groupRecords for the Task 2 RED commit, then restoring.
+
 - navigation record filtering uses string cast `(record.type as string) === 'navigation'`
   rather than adding 'navigation' to RECORD_TYPES — that constant is added in 03-02 per D3-03.
+
 - Purity guard comment in templater.ts rephrased to avoid the literal token strings that
   the acceptance-criteria grep would flag (grep is on raw source, not comment-stripped source).
 
@@ -114,12 +117,16 @@ Phase 03-02 execution decisions:
 - store.close() returns Promise<void> resolving on 'finish' OR 'error'; closePromise field provides
   idempotency. The previous WR-04 void-return guard (storeClosed bool) is retained in browser.ts
   as closeStore() for the synchronous path, while store.close() provides the async idempotency.
+
 - GATE-03 test uses src.includes() (not grep), so generator.ts comment text must not contain the
   literal import tokens ("node:http", "axios", "undici") — rephrased comments to avoid false positives.
+
 - Navigation URL percent-encoding: redactUrl uses the WHATWG URL class which encodes [ and ] in query
   values; the nav test asserts rec.url.includes('REDACTED') (without brackets) to match both forms.
+
 - archeo spec command registered BEFORE the positional <url> command in cac so it parses as a named
   subcommand; the <url> action's gate-first ordering is completely unchanged (GATE-01/T-01-09).
+
 - gracefulShutdown() uses closure-scoped shuttingDown boolean (not module-scoped) so each openAndWait
   call gets its own idempotent guard — safe for multiple session lifetimes in the same process.
 
@@ -128,14 +135,18 @@ Phase 03-03 execution decisions:
 - GATE-03 Task 3 RED used two-phase approach: RED commit added 127.0.0.1 structural assertion +
   DASHBOARD_FORBIDDEN while keeping node:http globally forbidden (producing RED failure from server.ts).
   GREEN commit moved node:http into NON_DASHBOARD_FORBIDDEN (non-dashboard check only).
+
 - Task 4 TDD used source-inspection tests (readFileSync + string assertions) because the CLI browser
   session is untestable in CI without Playwright. One deviation: initial RED test checked
   indexOf('startDashboard') which matched the import line; corrected to indexOf('startDashboard(')
   to match the call site only (no functional impact).
+
 - server.ts comment lines contain 'http.request' etc. for documentation. GATE-03's stripCommentLines()
   strips these before scanning — same safe pattern established in 03-02 for generator.ts.
+
 - Dashboard dataModel name heuristic: last non-placeholder lowercase path segment (e.g. 'users' from
   /api/users/{id}). Simpler than spec generator's full inference — intentionally cheap for live display.
+
 - openAndWait extended with optional dashboard? third param so CLI can pass the handle without changing
   the store param signature; backward-compatible with all existing tests.
 
@@ -146,15 +157,19 @@ Phase 03-04 execution decisions:
   builder (input = archeo-spec.json ONLY; no target source/repo/network) → ground-truth scoring.
   Scores: endpoint paths 17/17, logical-op fidelity 15/17, model fields 17/17, write→read-back 3/3,
   flows 4/4 pages + 3/3 transitions. Verdict: BUILD-01 PASS (03-04-BUILDABILITY.md).
+
 - Auto-spec-gen on graceful close WORKED live (archeo-spec.json present before the `archeo spec`
   subcommand re-ran deterministically). Zero planted secrets in spec + store. Target server ledger:
   0 mutations / 0 destructive hits under the full scripted session.
+
 - The consumed archeo-spec.json is saved as the repo's FIRST EXAMPLE CANDIDATE (Phase 7 / OSS-02);
   examples/ intentionally not created (D3-06).
+
 - Generator bug found (root-caused, NOT capture): capture held GraphQL query/mutation as separate
   correct records, but the templater merged them into one held:true "read" endpoint because
   graphqlOperationName is unpopulated for anonymous operations (key falls back to path) and the
   grouping key ignores operationType/held. Same merge hit JSON-RPC. Fix owned by 03-05.
+
 - Stage-A agent crashed on an API error after its artifacts were complete and verified; resumed for
   scoring with no artifact loss. Dashboard live cross-check (DASH-02/03 under real traffic) PASSED
   before the crash (SSE counts climbed 0→19 endpoints over 27 record events); raw SSE transcript was
@@ -287,6 +302,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-06-29T14:23:18.531Z
+Last session: 2026-07-04T00:50:32.918Z
 Stopped at: Phase 2 context gathered
 Resume file: None
