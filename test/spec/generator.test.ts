@@ -1428,3 +1428,564 @@ describe('11-02 SPEC-09: graphqlSchema on spec endpoints + Test C recursive no-r
       '11-02: endpoint with application/json body → bodyEncoding must be "json"');
   });
 });
+
+// ---------------------------------------------------------------------------
+// 11-03 SPEC-10: inferAuth — auth block from already-redacted records
+// ---------------------------------------------------------------------------
+
+describe('11-03 SPEC-10: inferAuth + auth block', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir(): string { const d = mkdtempSync(join(tmpdir(), 'archeo-11-03-auth-')); dirs.push(d); return d; }
+
+  // ---------------------------------------------------------------------------
+  // Auth-rich fixture: login endpoint + authorization header + role field
+  // ---------------------------------------------------------------------------
+  test('11-03 SPEC-10: auth-rich fixture → populated auth block with correct names (no values)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      // POST /api/auth/login — matches auth path pattern
+      {
+        id: 'auth1',
+        seq: 1,
+        timestamp: '2026-07-04T10:01:00.000Z',
+        type: 'request-response',
+        protocol: 'REST',
+        operationType: 'mutation',
+        method: 'POST',
+        url: 'https://app.example.com/api/auth/login',
+        path: '/api/auth/login',
+        held: false,
+        requestHeaders: { 'authorization': '[REDACTED]', 'content-type': 'application/json' },
+        requestBody: { username: 'string', password: 'string' },
+        responseStatus: 200,
+        responseHeaders: { 'content-type': 'application/json' },
+        responseBody: { token: 'string', role: 'string', userId: '550e8400-e29b-41d4-a716-446655440001' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    assert.ok(spec.auth, 'SPEC-10: spec.auth must be present when auth signals observed');
+
+    // loginEndpoints: templated path matching /auth/
+    assert.ok(
+      spec.auth!.loginEndpoints.some(p => p.includes('/auth') || p.includes('login')),
+      `loginEndpoints must include the login path, got: ${JSON.stringify(spec.auth!.loginEndpoints)}`,
+    );
+
+    // authHeaderNames: 'authorization' survives redaction (CAP-04), name not value
+    assert.ok(
+      spec.auth!.authHeaderNames.includes('authorization'),
+      `authHeaderNames must include 'authorization', got: ${JSON.stringify(spec.auth!.authHeaderNames)}`,
+    );
+
+    // tokenTransport: 'header' because authorization header is present
+    assert.ok(
+      spec.auth!.tokenTransport.includes('header'),
+      `tokenTransport must include 'header', got: ${JSON.stringify(spec.auth!.tokenTransport)}`,
+    );
+
+    // roleFieldNames: 'role' from response shape
+    assert.ok(
+      spec.auth!.roleFieldNames.includes('role'),
+      `roleFieldNames must include 'role', got: ${JSON.stringify(spec.auth!.roleFieldNames)}`,
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Non-auth fixture: no auth signals → spec.auth omitted (undefined)
+  // ---------------------------------------------------------------------------
+  test('11-03 SPEC-10: non-auth fixture → spec.auth omitted (undefined)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1 }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    assert.ok(spec.auth === undefined,
+      'spec.auth must be undefined when no auth signals are observed (non-auth apps get no empty block)');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Cookie transport: cookie/set-cookie header → tokenTransport includes 'cookie'
+  // ---------------------------------------------------------------------------
+  test('11-03 SPEC-10: cookie transport signal → tokenTransport includes cookie', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      {
+        id: 'auth2',
+        seq: 1,
+        timestamp: '2026-07-04T10:01:00.000Z',
+        type: 'request-response',
+        protocol: 'REST',
+        operationType: 'mutation',
+        method: 'POST',
+        url: 'https://app.example.com/api/session',
+        path: '/api/session',
+        held: false,
+        requestHeaders: { 'cookie': '[REDACTED]', 'content-type': 'application/json' },
+        requestBody: { username: 'string', password: 'string' },
+        responseStatus: 200,
+        responseHeaders: { 'set-cookie': '[REDACTED]', 'content-type': 'application/json' },
+        responseBody: { permissions: 'array', sessionId: '550e8400-e29b-41d4-a716-446655440001' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    assert.ok(spec.auth, 'spec.auth must be present when session/cookie auth observed');
+    assert.ok(
+      spec.auth!.tokenTransport.includes('cookie'),
+      `tokenTransport must include 'cookie' when cookie/set-cookie headers observed, got: ${JSON.stringify(spec.auth!.tokenTransport)}`,
+    );
+    // 'permissions' is a role-field name
+    assert.ok(
+      spec.auth!.roleFieldNames.includes('permissions'),
+      `roleFieldNames must include 'permissions', got: ${JSON.stringify(spec.auth!.roleFieldNames)}`,
+    );
+  });
+
+  // ---------------------------------------------------------------------------
+  // Recursive no-raw-value assertion over auth block
+  // No [REDACTED], no token values, no secrets — only NAMES/paths/enums
+  // ---------------------------------------------------------------------------
+  test('11-03 SPEC-10: auth block is recursively secret-clean (no values, no [REDACTED])', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const SECRET_TOKEN = 'Bearer eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.PLANTED_SECRET';
+
+    const records = [
+      {
+        id: 'auth3',
+        seq: 1,
+        timestamp: '2026-07-04T10:01:00.000Z',
+        type: 'request-response',
+        protocol: 'REST',
+        operationType: 'mutation',
+        method: 'POST',
+        url: 'https://app.example.com/api/auth/token',
+        path: '/api/auth/token',
+        held: false,
+        // Header NAME 'authorization' survives; VALUE is [REDACTED] (CAP-04)
+        requestHeaders: { 'authorization': '[REDACTED]', 'x-api-key': '[REDACTED]', 'content-type': 'application/json' },
+        requestBody: { grant_type: 'string' },
+        responseStatus: 200,
+        responseHeaders: { 'content-type': 'application/json' },
+        // SECRET_TOKEN is in the response body — it must NOT appear in auth block
+        responseBody: { access_token: SECRET_TOKEN, role: 'string', scope: 'string' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    assert.ok(spec.auth, 'spec.auth must be present');
+    const authJson = JSON.stringify(spec.auth);
+
+    // (a) No [REDACTED] markers in the auth block — only names, not redacted values
+    assert.ok(!authJson.includes('[REDACTED]'),
+      `auth block must not contain '[REDACTED]' markers — only names/paths/enums are emitted. Got: ${authJson.slice(0, 300)}`);
+
+    // (b) No planted secret in the auth block
+    assert.ok(!authJson.includes('PLANTED_SECRET'),
+      `auth block must not contain planted secret. Got: ${authJson.slice(0, 300)}`);
+    assert.ok(!authJson.includes(SECRET_TOKEN),
+      `auth block must not contain raw token value. Got: ${authJson.slice(0, 300)}`);
+
+    // (c) The four lists contain NAMES only — verify they are simple identifier strings
+    for (const name of spec.auth!.authHeaderNames) {
+      assert.ok(typeof name === 'string' && name.length > 0 && !name.startsWith('['),
+        `authHeaderNames entry must be a plain identifier, not a value: ${name}`);
+    }
+    for (const path of spec.auth!.loginEndpoints) {
+      assert.ok(typeof path === 'string' && path.startsWith('/'),
+        `loginEndpoints entry must be a path string: ${path}`);
+    }
+    for (const transport of spec.auth!.tokenTransport) {
+      assert.ok(transport === 'header' || transport === 'cookie',
+        `tokenTransport entry must be 'header' or 'cookie': ${transport}`);
+    }
+    for (const field of spec.auth!.roleFieldNames) {
+      assert.ok(typeof field === 'string' && field.length > 0 && !field.startsWith('['),
+        `roleFieldNames entry must be a plain identifier, not a value: ${field}`);
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // Both header + cookie transport signals present
+  // ---------------------------------------------------------------------------
+  test('11-03 SPEC-10: both header and cookie signals → tokenTransport is de-duplicated stable', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      {
+        id: 'auth4',
+        seq: 1,
+        timestamp: '2026-07-04T10:01:00.000Z',
+        type: 'request-response',
+        protocol: 'REST',
+        operationType: 'mutation',
+        method: 'POST',
+        url: 'https://app.example.com/api/oauth/token',
+        path: '/api/oauth/token',
+        held: false,
+        requestHeaders: { 'authorization': '[REDACTED]', 'cookie': '[REDACTED]', 'content-type': 'application/json' },
+        requestBody: { code: 'string' },
+        responseStatus: 200,
+        responseHeaders: { 'set-cookie': '[REDACTED]', 'content-type': 'application/json' },
+        responseBody: { isAdmin: 'boolean', grants: 'array' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    assert.ok(spec.auth, 'spec.auth must be present');
+    assert.ok(spec.auth!.tokenTransport.includes('header'), 'header transport must be present');
+    assert.ok(spec.auth!.tokenTransport.includes('cookie'), 'cookie transport must be present');
+
+    // De-duplicated: each value appears at most once
+    const headerCount = spec.auth!.tokenTransport.filter(t => t === 'header').length;
+    const cookieCount = spec.auth!.tokenTransport.filter(t => t === 'cookie').length;
+    assert.strictEqual(headerCount, 1, 'header must appear exactly once in tokenTransport');
+    assert.strictEqual(cookieCount, 1, 'cookie must appear exactly once in tokenTransport');
+
+    // roleFieldNames: 'isAdmin' and 'grants' from response shape
+    assert.ok(spec.auth!.roleFieldNames.includes('isAdmin') || spec.auth!.roleFieldNames.includes('grants'),
+      `roleFieldNames must include isAdmin or grants, got: ${JSON.stringify(spec.auth!.roleFieldNames)}`);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-03 #8: Human-readable portable rules.evidence
+// ---------------------------------------------------------------------------
+
+describe('11-03 #8: human-readable rules.evidence (no UUIDs)', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir(): string { const d = mkdtempSync(join(tmpdir(), 'archeo-11-03-evid-')); dirs.push(d); return d; }
+
+  const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+  test('11-03 #8: auth-required rule evidence is a human-readable descriptor (not a UUID)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-446655440001', seq: 1,
+        url: 'https://app.example.com/api/users/1', path: '/api/users/1', responseStatus: 401 }),
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-446655440002', seq: 2,
+        url: 'https://app.example.com/api/users/2', path: '/api/users/2', responseStatus: 403 }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 2 });
+
+    const spec = generateSpec(dir);
+    const authRule = spec.rules.find(r => r.rule.startsWith('auth-required'));
+    assert.ok(authRule, 'auth-required rule must be present');
+
+    for (const ev of authRule!.evidence) {
+      assert.ok(!UUID_RE.test(ev),
+        `evidence entry must NOT be a bare UUID — must be human-readable. Got: "${ev}"`);
+      // Should contain method + path + status info
+      assert.ok(
+        ev.includes('/api/') || ev.includes('->') || ev.includes('GET') || ev.includes('40'),
+        `evidence entry should be a human-readable descriptor. Got: "${ev}"`,
+      );
+    }
+  });
+
+  test('11-03 #8: pagination rule evidence is human-readable (no UUID)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-446655440003', seq: 1,
+        url: 'https://app.example.com/api/items?page=1&limit=20', path: '/api/items',
+        responseBody: { items: 'array', total: 100 } }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+    const paginationRule = spec.rules.find(r => r.rule === 'pagination');
+    assert.ok(paginationRule, 'pagination rule must be present');
+
+    for (const ev of paginationRule!.evidence) {
+      assert.ok(!UUID_RE.test(ev),
+        `pagination evidence must NOT be a bare UUID. Got: "${ev}"`);
+    }
+  });
+
+  test('11-03 #8: write-held-behavior rule evidence is human-readable (no UUID)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1 }),
+      {
+        id: '550e8400-e29b-41d4-a716-446655440004', seq: 2,
+        timestamp: '2026-07-04T10:02:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/api/settings',
+        path: '/api/settings', held: true,
+        requestHeaders: {}, requestBody: { theme: 'string' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 2, heldWriteCount: 1 });
+
+    const spec = generateSpec(dir);
+    const heldRule = spec.rules.find(r => r.rule === 'write-held-behavior');
+    assert.ok(heldRule, 'write-held-behavior rule must be present');
+
+    for (const ev of heldRule!.evidence) {
+      assert.ok(!UUID_RE.test(ev),
+        `write-held-behavior evidence must NOT be a bare UUID. Got: "${ev}"`);
+    }
+  });
+
+  test('11-03 #8: no evidence string in ANY rule matches a UUID pattern', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    // Build a fixture that exercises all rule types
+    const records = [
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-111111111111', seq: 1,
+        url: 'https://app.example.com/api/users/1', path: '/api/users/1', responseStatus: 401 }),
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-222222222222', seq: 2,
+        url: 'https://app.example.com/api/users/1', path: '/api/users/1', responseStatus: 200 }),
+      makeReadRecord({ id: '550e8400-e29b-41d4-a716-333333333333', seq: 3,
+        url: 'https://app.example.com/api/users?page=1&limit=10', path: '/api/users',
+        responseBody: { items: 'array', total: 5 } }),
+      {
+        id: '550e8400-e29b-41d4-a716-444444444444', seq: 4,
+        timestamp: '2026-07-04T10:04:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/api/users',
+        path: '/api/users', held: true, requestHeaders: {}, requestBody: { name: 'string' },
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 4, heldWriteCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    for (const rule of spec.rules) {
+      for (const ev of rule.evidence) {
+        assert.ok(!UUID_RE.test(ev),
+          `Rule "${rule.rule}" evidence must not be a bare UUID. Got: "${ev}"`);
+      }
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// 11-03 #3: dataModel overlap note + #2: responseUnobserved flag (no fabrication)
+// ---------------------------------------------------------------------------
+
+describe('11-03 #3 + #2: dataModel overlap note + responseUnobserved flag', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDir(): string { const d = mkdtempSync(join(tmpdir(), 'archeo-11-03-dm-')); dirs.push(d); return d; }
+
+  // ---------------------------------------------------------------------------
+  // #3: Profile vs User field overlap → note present
+  // ---------------------------------------------------------------------------
+  test('11-03 #3: Profile/User overlap (>=80% shared fields) → note present on overlapping model', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    // User model: id, name, email, status, role (5 fields)
+    // Profile model: id, name, email, status, bio (4/5 = 80% of smaller set shared with User)
+    const records = [
+      makeReadRecord({ id: 'u1', seq: 1, path: '/api/users/1', url: 'https://app.example.com/api/users/1',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'string', email: 'string', status: 'active', role: 'string' } }),
+      makeReadRecord({ id: 'u2', seq: 2, path: '/api/users/2', url: 'https://app.example.com/api/users/2',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440002', name: 'string', email: 'string', status: 'active', role: 'string' } }),
+      makeReadRecord({ id: 'u3', seq: 3, path: '/api/users/3', url: 'https://app.example.com/api/users/3',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440003', name: 'string', email: 'string', status: 'active', role: 'string' } }),
+      // Profile — shares id, name, email, status with User (4 of 5 User fields, 4 of 5 Profile fields)
+      makeReadRecord({ id: 'p1', seq: 4, path: '/api/profiles/1', url: 'https://app.example.com/api/profiles/1',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440004', name: 'string', email: 'string', status: 'active', bio: 'string' } }),
+      makeReadRecord({ id: 'p2', seq: 5, path: '/api/profiles/2', url: 'https://app.example.com/api/profiles/2',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440005', name: 'string', email: 'string', status: 'active', bio: 'string' } }),
+      makeReadRecord({ id: 'p3', seq: 6, path: '/api/profiles/3', url: 'https://app.example.com/api/profiles/3',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440006', name: 'string', email: 'string', status: 'active', bio: 'string' } }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 6 });
+
+    const spec = generateSpec(dir);
+
+    const userModel = spec.dataModels.find(m => m.name === 'User');
+    const profileModel = spec.dataModels.find(m => m.name === 'Profile');
+
+    assert.ok(userModel, 'User model must be present');
+    assert.ok(profileModel, 'Profile model must be present');
+
+    // At least one of the two models must carry a note explaining the overlap
+    const hasNote = (userModel?.note !== undefined) || (profileModel?.note !== undefined);
+    assert.ok(hasNote,
+      'At least one of User/Profile must carry a note explaining the heavy field overlap (#3)');
+
+    const noteText = profileModel?.note ?? userModel?.note ?? '';
+    assert.ok(
+      noteText.includes('User') || noteText.includes('Profile') || noteText.toLowerCase().includes('share') || noteText.toLowerCase().includes('field'),
+      `note must reference the overlap context. Got: "${noteText}"`,
+    );
+  });
+
+  test('11-03 #3: distinct models (low overlap) → no note', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    // Post and Order: completely different fields — no overlap
+    const records = [
+      makeReadRecord({ id: 'po1', seq: 1, path: '/api/posts/1', url: 'https://app.example.com/api/posts/1',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440001', title: 'string', content: 'string', published: 'boolean' } }),
+      makeReadRecord({ id: 'po2', seq: 2, path: '/api/posts/2', url: 'https://app.example.com/api/posts/2',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440002', title: 'string', content: 'string', published: 'boolean' } }),
+      makeReadRecord({ id: 'po3', seq: 3, path: '/api/posts/3', url: 'https://app.example.com/api/posts/3',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440003', title: 'string', content: 'string', published: 'boolean' } }),
+      makeReadRecord({ id: 'or1', seq: 4, path: '/api/orders/1', url: 'https://app.example.com/api/orders/1',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440004', total: 99, currency: 'string', shipped: 'boolean' } }),
+      makeReadRecord({ id: 'or2', seq: 5, path: '/api/orders/2', url: 'https://app.example.com/api/orders/2',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440005', total: 99, currency: 'string', shipped: 'boolean' } }),
+      makeReadRecord({ id: 'or3', seq: 6, path: '/api/orders/3', url: 'https://app.example.com/api/orders/3',
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440006', total: 99, currency: 'string', shipped: 'boolean' } }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 6 });
+
+    const spec = generateSpec(dir);
+
+    const postModel = spec.dataModels.find(m => m.name === 'Post');
+    const orderModel = spec.dataModels.find(m => m.name === 'Order');
+
+    assert.ok(postModel, 'Post model must be present');
+    assert.ok(orderModel, 'Order model must be present');
+
+    assert.ok(postModel!.note === undefined,
+      `Post model must NOT have a note when overlap is low. Got: "${postModel!.note}"`);
+    assert.ok(orderModel!.note === undefined,
+      `Order model must NOT have a note when overlap is low. Got: "${orderModel!.note}"`);
+  });
+
+  // ---------------------------------------------------------------------------
+  // #2: held endpoint with no observed response → responseUnobserved:true
+  // ---------------------------------------------------------------------------
+  test('11-03 #2: held endpoint (responseBodyShape null, statusCodes empty) → responseUnobserved:true', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1 }),
+      {
+        id: 'hw1', seq: 2, timestamp: '2026-07-04T10:02:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'POST', url: 'https://app.example.com/api/settings',
+        path: '/api/settings', held: true,
+        requestHeaders: {}, requestBody: { theme: 'string' },
+        // No responseStatus, no responseBody — response was never observed
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 2, heldWriteCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    const heldEndpoint = spec.endpoints.find(e => e.held === true);
+    assert.ok(heldEndpoint, 'held endpoint must be present');
+    assert.strictEqual(heldEndpoint!.responseUnobserved, true,
+      '#2: held endpoint with null responseBodyShape and empty statusCodes must have responseUnobserved:true');
+  });
+
+  test('11-03 #2: normal read endpoint → responseUnobserved absent (not set)', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      makeReadRecord({ id: 'r1', seq: 1, responseStatus: 200,
+        responseBody: { id: '550e8400-e29b-41d4-a716-446655440001', name: 'string' } }),
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    const readEndpoint = spec.endpoints.find(e => e.held === false);
+    assert.ok(readEndpoint, 'read endpoint must be present');
+    assert.ok(readEndpoint!.responseUnobserved === undefined || readEndpoint!.responseUnobserved === false,
+      '#2: normal read endpoint must NOT have responseUnobserved set');
+  });
+
+  test('11-03 #2: no fabricated response body or status on held endpoint', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDir();
+
+    const records = [
+      {
+        id: 'hw1', seq: 1, timestamp: '2026-07-04T10:01:00.000Z',
+        type: 'held-write', protocol: 'REST', operationType: 'mutation',
+        method: 'DELETE', url: 'https://app.example.com/api/users/1',
+        path: '/api/users/1', held: true,
+        requestHeaders: {}, requestBody: null,
+        // Deliberately no responseStatus or responseBody
+      },
+    ];
+
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL(records));
+    writeManifest(dir, { recordCount: 1, heldWriteCount: 1 });
+
+    const spec = generateSpec(dir);
+
+    const heldEndpoint = spec.endpoints.find(e => e.held === true);
+    assert.ok(heldEndpoint, 'held endpoint must be present');
+
+    // responseBodyShape must still be null — NOT a fabricated shape
+    assert.strictEqual(heldEndpoint!.responseBodyShape, null,
+      '#2: responseBodyShape must remain null — fabrication is forbidden (D11-08)');
+
+    // statusCodes must still be empty — NOT fabricated
+    assert.ok(
+      !heldEndpoint!.statusCodes || heldEndpoint!.statusCodes.length === 0,
+      `#2: statusCodes must remain empty for held endpoints — fabrication forbidden. Got: ${JSON.stringify(heldEndpoint!.statusCodes)}`,
+    );
+
+    // responseUnobserved must be true (factual marker only)
+    assert.strictEqual(heldEndpoint!.responseUnobserved, true,
+      '#2: responseUnobserved:true is the only thing added — no fabricated response');
+  });
+});
