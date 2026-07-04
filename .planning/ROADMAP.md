@@ -228,6 +228,10 @@ Plans:
 
 - [ ] 06-06-PLAN.md — Autonomous live verification (trapped app w/ REAL cross-document navigation) + phase close (D6-08)
 
+**Wave 7** *(closure — fixes from 06-06 live findings)*
+
+- [ ] 06-07-PLAN.md — Fix auth-resume readline race, zero-budget coercion, --resume self-seed (COST-06/01, DRIFT-01)
+
 ### Phase 7: Open Source Readiness
 
 **Goal**: A stranger who has never seen the repo can clone it, supply an API key, and produce a spec from the quickstart alone
