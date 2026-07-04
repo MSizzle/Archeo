@@ -187,17 +187,20 @@ function tryParseJson(raw: string | null): unknown {
  * @param context         The Playwright browser context to attach the handler to
  * @param targetHostname  Hostname extracted from the target URL (D-02 scope boundary)
  * @param store           The capture store to append redacted records to
+ * @param controls        Optional pause flag — when paused() returns true, ALL requests
+ *                        pass through unrecorded (D4-01 pass-through-unrecorded trust model)
  */
 export async function attachInterceptor(
   context: BrowserContext,
   targetHostname: string,
   store: CaptureStore,
+  controls?: { paused: () => boolean },
 ): Promise<void> {
   await context.route(
     (url) => isTargetScope(url, targetHostname),
     async (route, request) => {
       try {
-        await handleRoute(route, request, store);
+        await handleRoute(route, request, store, confirmDestructiveGet, controls);
       } catch {
         // Pitfall 2: fail-safe wrapper — handler error must not leave request pending AND
         // must not allow an unclassified (possibly mutating) request through to the server.
@@ -226,13 +229,40 @@ export async function attachInterceptor(
  * @param store      CaptureStore — receives one redacted record per call
  * @param confirmFn  Async y/N prompt for destructive GETs — injectable for testing.
  *                   Defaults to the real terminal prompt (confirmDestructiveGet).
+ * @param controls   Optional pause flag — when paused() returns true, the handler passes
+ *                   through UNRECORDED (D4-01 pass-through-unrecorded trust model).
  */
 export async function handleRoute(
   route: Route,
   request: Request,
   store: CaptureStore,
   confirmFn: (url: string) => Promise<boolean> = confirmDestructiveGet,
+  controls?: { paused: () => boolean },
 ): Promise<void> {
+  // ---------------------------------------------------------------------------
+  // D4-01 PASS-THROUGH-UNRECORDED — AUTH PAUSE MODE
+  // ---------------------------------------------------------------------------
+  // When the interceptor is paused (the human is re-authenticating after a
+  // mid-run session expiry), ALL requests — including credential POSTs — pass
+  // through UNRECORDED. This is the SAME trust model as `archeo login`:
+  //   • route.continue() forwards the request to the server without interception
+  //   • NO classify, NO redact, NO store.append — nothing is captured on disk
+  //   • Credential POSTs MUST pass so the re-login can complete in the browser
+  //
+  // This path is airtight: any truthy controls.paused() result exits immediately.
+  // The check runs before ANY other processing, so even a badly-shaped request
+  // cannot sneak a record in during the pause window.
+  //
+  // Safety: the pause flag is toggled atomically by the loop (single-threaded
+  // Node.js event loop), and the loop calls authControls.resume() only AFTER
+  // verifying the session is restored. Until resume() is called, this guard
+  // is the only active path for ALL requests in the browser context.
+  // ---------------------------------------------------------------------------
+  if (controls?.paused?.()) {
+    await route.continue()
+    return
+  }
+
   // Pitfall 3: use allHeaders() (async) not headers() (sync, excludes cookies).
   const headers = await request.allHeaders();
   const cls = classifyRequest(
