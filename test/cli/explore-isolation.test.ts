@@ -18,7 +18,7 @@ import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawn } from 'node:child_process'
 import { Readable, Writable } from 'node:stream'
-import { promptAuthResume } from '../../src/cli/explore.ts'
+import { promptAuthResume, parseFiniteFlag } from '../../src/cli/explore.ts'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
 const INDEX_PATH = resolve(__dirname, '../../src/cli/index.ts')
@@ -192,5 +192,28 @@ describe('promptAuthResume (COST-06 readline race)', () => {
     const out = new Writable({ write(_: unknown, __: unknown, cb: () => void) { cb() } })
     const result = await promptAuthResume(input, out)
     assert.equal(result, 'abort')
+  })
+})
+
+// 06-07: parseFiniteFlag (COST-01) — zero budget must NOT be coerced to undefined
+describe('parseFiniteFlag (COST-01 zero-budget coercion)', () => {
+  test('parseFiniteFlag("0") === 0 [FAILS against buggy Number(x)||undefined]', () => {
+    assert.strictEqual(parseFiniteFlag('0'), 0)
+  })
+
+  test('parseFiniteFlag(0) === 0 [FAILS against buggy Number(x)||undefined]', () => {
+    assert.strictEqual(parseFiniteFlag(0), 0)
+  })
+
+  test('parseFiniteFlag(undefined) === undefined', () => {
+    assert.strictEqual(parseFiniteFlag(undefined), undefined)
+  })
+
+  test('parseFiniteFlag("x") === undefined (NaN guard)', () => {
+    assert.strictEqual(parseFiniteFlag('x'), undefined)
+  })
+
+  test('parseFiniteFlag("5") === 5', () => {
+    assert.strictEqual(parseFiniteFlag('5'), 5)
   })
 })

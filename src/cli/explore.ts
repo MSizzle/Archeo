@@ -43,6 +43,23 @@ import type { ResumeState } from '../agent/resume.ts'
 import type { RedactionModelHook } from '../capture/redactionModel.ts'
 
 // ---------------------------------------------------------------------------
+// parseFiniteFlag — COST-01: numeric CLI flag parser (TDD buggy form)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse a numeric CLI option value.
+ * Returns the number for any finite numeric string/value (including 0),
+ * and undefined for absent or non-numeric flags.
+ *
+ * NOTE: This is the BUGGY form — `Number(x) || undefined` coerces 0 to undefined.
+ * Fixed in feat(06-07) Task 2 to use Number.isFinite.
+ */
+export function parseFiniteFlag(x: number | string | undefined): number | undefined {
+  if (x === undefined) return undefined
+  return Number(x) || undefined // BUG (COST-01): 0 is falsy → becomes undefined
+}
+
+// ---------------------------------------------------------------------------
 // promptAuthResume — COST-06: testable auth-resume prompt (TDD buggy form)
 // ---------------------------------------------------------------------------
 
