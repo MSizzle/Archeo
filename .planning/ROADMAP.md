@@ -403,7 +403,34 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
      transport (header vs cookie), role/permission field names — all from already-redacted records
   4. A recursive no-raw-value assertion confirms the enriched spec remains secret-clean
 
-**Plans**: TBD (planned at Phase 11 kickoff)
+**Plans**: 4 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 11-01-PLAN.md — Flow back-edges: template flow-state paths (finding #4), add a `kind: page|api`
+  tag (finding #5), and flag observed back/return transitions via a deterministic dual signal (the loop
+  `back` agent-step + reverse-of-observed-forward-edge) (SPEC-08)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 11-02-PLAN.md — GraphQL schema depth: a per-operation `graphqlSchema` fragment (argument names +
+  selection field names + value-stripped query) extracted PRE-redaction (CAP-05-safe, mirrors
+  `graphqlOperationName`; planted-secret regression on a variable value + inline literal) + surfaced on
+  the endpoint; fold in `bodyEncoding` (#1) and `pollingIntervalMs` (#6) (SPEC-09)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 11-03-PLAN.md — Auth semantics: a top-level `auth` block (login endpoints, auth header NAMES,
+  token transport, role/permission field names) inferred from ALREADY-redacted records (values never
+  emitted; recursive no-raw-value assertion); fold in dataModel overlap `note` (#3), human-readable
+  `rules.evidence` (#8), and a factual held `responseUnobserved` flag (#2, no fabrication) (SPEC-10)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 11-04-PLAN.md — Autonomous verification: regenerate one spec from a GraphQL + auth + back-nav
+  fixture and assert SPEC-08 + SPEC-09 + SPEC-10 hold TOGETHER, everything recursively secret-clean;
+  CLOSE Phase 11 AND milestone v1.1 (SPEC-08/09/10)
 
 ## Progress (v1.1)
 
@@ -413,6 +440,6 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
 | 10. Vision-drivable Demo Fixtures | 2/2 | Complete | 2026-07-04 |
-| 11. Spec-quality Enrichment | 0/TBD | Not started | — |
+| 11. Spec-quality Enrichment | 0/4 | Not started | — |
 
 **Milestone v1.1 status: executing — current focus Phase 11 (Spec-quality Enrichment).**
