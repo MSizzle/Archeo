@@ -498,3 +498,37 @@ describe('Dashboard server sendSkip (06-02)', () => {
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// sendDrift — DRIFT-02 SSE event
+// ---------------------------------------------------------------------------
+describe('sendDrift — DRIFT-02 SSE event', () => {
+  test('sendDrift emits a "drift" SSE event', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'archeo-dash-drift-'));
+    try {
+      const store = CaptureStore.create(dir, 'example.com');
+      const dashboard = await startDashboard(store, { port: 0 });
+
+      const events = collectSSE(dashboard.port, 2); // snapshot + drift
+
+      const report = {
+        newEndpoints: ['GET /api/new'],
+        removedEndpoints: [],
+        removedPages: [],
+        changedShapes: [],
+        heldStatusChanges: [],
+      };
+      (dashboard as unknown as Record<string, (r: unknown) => void>).sendDrift(report);
+
+      const collected = await events;
+      const driftEvent = collected.find((e) => e.event === 'drift');
+      assert.ok(driftEvent, 'drift event received');
+      assert.deepEqual((driftEvent!.data as { newEndpoints: string[] }).newEndpoints, ['GET /api/new']);
+
+      await dashboard.close();
+      await store.close();
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
