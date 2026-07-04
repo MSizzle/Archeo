@@ -414,10 +414,10 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 11-02-PLAN.md — GraphQL schema depth: a per-operation `graphqlSchema` fragment (argument names +
+- [x] 11-02-PLAN.md — GraphQL schema depth: a per-operation `graphqlSchema` fragment (argument names +
   selection field names + value-stripped query) extracted PRE-redaction (CAP-05-safe, mirrors
   `graphqlOperationName`; planted-secret regression on a variable value + inline literal) + surfaced on
-  the endpoint; fold in `bodyEncoding` (#1) and `pollingIntervalMs` (#6) (SPEC-09)
+  the endpoint; fold in `bodyEncoding` (#1) and `pollingIntervalMs` (#6) (SPEC-09) — CLOSED 2026-07-04 (935 pass)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -440,6 +440,6 @@ Plans:
 |-------|----------------|--------|-----------|
 | 9. Type-safety & Docs Hygiene | 2/2 | Complete | 2026-07-04 |
 | 10. Vision-drivable Demo Fixtures | 2/2 | Complete | 2026-07-04 |
-| 11. Spec-quality Enrichment | 1/4 | Executing | — |
+| 11. Spec-quality Enrichment | 2/4 | Executing | — |
 
 **Milestone v1.1 status: executing — current focus Phase 11 (Spec-quality Enrichment).**

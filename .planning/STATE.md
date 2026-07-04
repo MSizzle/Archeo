@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "11-01 COMPLETE — SPEC-08 flow enrichment + findings #4 + #5 delivered. inferFlows: states dedup on templatePath (3 × /app/users/1,2,3 → 1 × /app/users/{id}), FlowState.pathTemplate + kind added, FlowTransition.back? from dual-signal back-edge detection (agentAction:back + reversal-of-forward). 8 new tests, full suite 902 = 901 pass + 1 skip, tsc exit 0. Commits: test(11-01) + feat(11-01). Next: 11-02 (GraphQL schema fragment + bodyEncoding + pollingIntervalMs)."
-last_updated: "2026-07-04T18:00:00.000Z"
+stopped_at: "**PHASE 10 COMPLETE (2/2) — FIX-01 closed.** 10-02 authentic differential dogfood on the vision-drivable demo app: autonomous + manual specs regenerated from examples/demo-app (secret-clean); BUILD-01 re-proven via a fresh spec-only builder → examples/demo-app/rebuild/ (19/19 capturable, 55/55 self-tests); authentic `archeo compare` original-vs-rebuild (original explores 22 steps/7 states — the 08-02 gap closed; rebuild reachability-diverges via relative hrefs, contract faithful); self-compare control fully empty; floor clean on every target; examples/ regenerated. Milestone v1.1 now 2/3 phases complete. Next: Phase 11 (Spec-quality Enrichment)."
+last_updated: "2026-07-04T09:31:52.206Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 2
-  completed_plans: 2
-  percent: 67
+  total_plans: 8
+  completed_plans: 7
+  percent: 75
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 11 executing (1/4 plans complete).** 11-01 CLOSED (2026-07-04): SPEC-08 flow enrichment — templated states (finding #4: /app/users/1,2,3 → 1 state), kind tag (finding #5), dual-signal back-edge detection. Suite 902 = 901 pass + 1 skip; tsc exit 0. Next: 11-02 (GraphQL schema fragment + bodyEncoding + pollingIntervalMs — SPEC-09).
+**Current focus:** **MILESTONE v1.1 — Phase 11 executing (2/4 plans complete).** 11-02 CLOSED (2026-07-04): SPEC-09 GraphQL schema depth — extractGraphQLSchemaFragment (pre-redaction, value-stripped), wired at all 3 interceptor sites; bodyEncoding (finding #1); pollingIntervalMs (finding #6). Suite 935 = 934 pass + 1 skip; tsc exit 0. Next: 11-03 (auth block + dataModel note + rules.evidence + held-response inline — SPEC-10, findings #3, #8, #2).
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **11 executing (1/4 plans complete)**
-Plan: 11-02 (next)
+Phase: **11 executing (2/4 plans complete)**
+Plan: 11-03 (next)
 Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 + Phase 11 plan 11-01 closed
 Last activity: 2026-07-04
 
-Progress (v1.1): [███████░░░] ~67% (2/3 phases complete) — v1.0: [██████████] 100% (8/8, COMPLETE)
+Progress (v1.1): [███████░░░] ~67% (2/3 phases complete, Phase 11 at 2/4) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 
@@ -328,19 +328,23 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   for zero-budget COST-01; `latestSessionForHost` `excludeDir` for --resume self-seed DRIFT-01), +10
   unit tests. This 06-06 re-run confirmed the fixes hold under the REAL unmodified CLI and closed the
   phase.
+
 - **Re-run result:** all 7 stages GREEN, harness exit 0. Two harness edits (in `.planning/` only, no
   src/test touched) prove the fixes directly: Stage A now uses the **literal `--max-tokens 0`** (the
   `-1` workaround kept as an additional A2 check); Stage E **drops the lexical session pin** so
   `--resume` seeds the genuine prior session via the excludeDir fix (`seededFromPriorV1 &&
   !seededFromSelf`).
+
 - **Auth-resume (the previously blocking stage D):** server expired the cookie mid-run → pause prompt
   → harness drove the browser auto-relogin (`reLogins=1`) and pressed ENTER → run RESUMED and stopped
   at `empty-frontier` (NOT `auth-expired`); state count monotonic **3 → 7** across the pause; **zero
   capture records for /login or /mfa during the paused window** (`credCaptured=0`, `pwLeak=0`) — D4-01
   pass-through held. This FAILED pre-06-07 (every Enter aborted) and PASSES now.
+
 - **Real cross-document navigation exercised** (the 05-05 gap closed): Stage C recovered
   context-destroyed errors across multiple authenticated pages reached by full-page `<a href>`
   navigations, 0 halts, quiet stderr — D6-03 fix proven real-world-grade.
+
 - **Bookkeeping:** ROADMAP Phase 6 → 6/6 Complete (2026-07-04) + 06-06 ticked; REQUIREMENTS
   COST-01..06 / FLOOR-08 / DASH-08 / DRIFT-01/02 → Complete, CAP-06 → Complete-with-scope-note per
   D6-07 (external-command redaction seam, not a bundled local model) in both the checklist and the
@@ -385,6 +389,7 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   headed Chromium** with the `scripted` provider + **floor ON both**, then diffed via `diffSpecs`.
   Harness is `.planning/`-only (node built-ins, zero deps); **no `src/`/`test/` file touched**. Full
   evidence: `08-02-DOGFOOD-VERIFICATION.md`; reproducible: `08-02-live-verification/run-fallback.sh`.
+
 - **FALLBACK path taken + stated (the plan's documented safety net).** The primary 03-04 pair
   **stands** (launchers preserved; marquee `GET /api/settings` 404-vs-200 reproduced live) but is
   **not vision-drivable comparably**: the 03-04 ORIGINAL navigates only via JS `location.href`/
@@ -395,12 +400,14 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   Both are fixture properties (03-04 was authored for a bespoke `capture-driver.mjs`, not the vision
   agent) — NOT tool bugs. The primary compare produced a misleading empty report; reporting it as a
   pass would be dishonest, so the fallback was taken.
+
 - **The fallback pair:** a comparable, non-login-walled SPA (`fallback/app.mjs`, one source
   `makeApp({ variant })`) reusing the **proven 05-05 `data-spa` pushState navigation** (deterministic
   scripted traversal, no execution-context teardown) with the **06-06 3-drift design** — v1 ORIGINAL
   vs v2 diverged REBUILD, exactly three known divergences. v1 self-drives to **18 endpoints in 4
   steps**. Not login-walled because `archeo compare` has no login step and the floor would hold a
   login POST.
+
 - **Stage 1 (MATCH+FLAG) PASS** — `compare-report-main.json`: exactly **3** backend-contract findings
   = the 3 injected drifts — `newEndpoints:["GET /api/reports"]` (builder-added; the `/api/settings`
   analog), `removedEndpoints:["GET /api/teams"]` (rebuild dropped), `changedShapes:[GET
@@ -408,21 +415,26 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
   positives** on the ~11 shared endpoints incl. the held REST writes + the GraphQL query(pass)/
   mutation(held) split + the JSON-RPC read(pass)/write(held) split (held-write handling faithfully
   reproduced → correctly not flagged). Caveat present + honored (no frontier noise miscounted).
+
 - **Stage 2 (self-compare control) PASS** — v1 vs v1-clone → `compare-report-self.json` **0 entries in
   every category** (fully empty, not merely near-empty): identical apps → identical endpoint set /
   models / held behavior / shapes / flow coverage. The comparison is not spuriously noisy — the
   Stage-1 findings are trustworthy signal. (Key trust check.)
+
 - **Stage 3 (floor proof) PASS** — independent backend-side ledgers (injected at the `node:http`
   layer by `apps/ledger-wrap.mjs`, served at `/__ledger__`) after ALL runs: v1 `mutations=0
   destructiveHits=0`, v2 `0/0`, v1-clone `0/0`. Both live targets explored strictly read-only; no
   write-enabling flag.
+
 - **Observed vs inferred:** `compare`/`explore` does not print the loop stop-reason; deterministic
   completion inferred from the empty self-compare + the scripted provider's breadth-first exhaustion
   (same reporting gap recorded in 05-05/06-06; no source change).
+
 - **Gate:** `node --test 'test/**/*.test.ts'` → **892 (891 pass + 1 documented skip
   `test/agent/observation.test.ts`, 0 fail)** as BOTH pre- and post-gate; LICENSE/NOTICE intact;
   no-network guard (GATE-03) green. (Plan text names "858" = the pre-08-01 baseline; the live baseline
   after 08-01's 34 compare tests is 892.)
+
 - **Bookkeeping:** ROADMAP Phase 8 → 2/2 Complete + all-8 Complete + PROJECT COMPLETE banner;
   REQUIREMENTS VALID-01/VALID-02 → Complete (checklist + traceability) — all 59 requirements Complete;
   STATE completed_phases 8 / completed_plans 32 / percent 100 / status COMPLETE; PROJECT.md records
@@ -434,11 +446,14 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
 
 - **GraphQL schema depth** — generator covers GraphQL as endpoints but does not reconstruct a full
   schema; deeper type extraction is v1.1.
+
 - **Flow back-edges** — flow inference is largely forward-directed; back-edge/return-transition
   richness deferred.
+
 - **Auth-semantics richness** — credential-free auth handoff works; richer role/flow modeling is v1.1.
 - **18 pre-existing `tsc` typecheck diagnostics** (AN-1, 07-03) — runtime uses Node native TS
   stripping (all 892 tests pass); a `tsc`-hygiene pass is deferred, non-blocking.
+
 - **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — lists a `types/` row for an absent
   `test/types/` and omits the present `test/oss/`; cosmetic, non-blocking.
 
@@ -449,23 +464,29 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   annotation replaced from 15-line inline to `Promise<DashboardHandle>`. explore.ts local interface
   deleted and shared type imported. index.ts both `dashboardHandle` vars annotated as
   `DashboardHandle | undefined`. Runtime object unchanged — type-annotation correction only.
+
 - **Category B double-cast (D9-02):** 14 TS2352 + TS2571 diagnostics. The three comparison sites
   (loop.test.ts 808/844/981: `(result as Record<string,unknown>).issueCount >= n`) could not be fixed
   with double-cast alone — `Record<string,unknown>` values are `unknown` and TypeScript rejects
   `unknown >= n`. Used `result.issueCount` directly at those three sites (result is already typed as
   `ExploreResult & { issueCount: number }`), exactly as the plan documents as the valid executor
   simplification. All other B sites use the uniform `as unknown as Record<string,unknown>` double-cast.
+
 - **Category C (D9-02):** fake `waitForLoadState` in recovery.test.ts changed to match Playwright's
   optional-union param type (`_state?: 'load'|'domcontentloaded'|'networkidle'`, `_options?: {timeout?}`).
+
 - **Category D (D9-02):** `RequestInfo | URL` → `Parameters<typeof fetch>[0]` at both anthropic.test.ts
   sites. tsconfig.json and DOM lib are both unchanged.
+
 - **QUAL-02 guard (D9-03):** `test/types/typecheck.guard.ts` — node:test that spawns
   `node_modules/.bin/tsc --noEmit` via spawnSync, asserts exit 0, surfaces stdout/stderr in failure
   message. File is `.guard.ts` (not `.test.ts`) so the default `test/**/*.test.ts` glob skips it.
   `test:types` script added to package.json; NOT wired into the default `test` script.
+
 - **Baseline deviation:** plan stated 892 (891 pass + 1 skip); actual baseline confirmed by stash-check
   was 894 (893 pass + 1 skip). The +2 discrepancy predates 09-01 (likely test additions in later
   Phase 8 work). Suite count is unchanged by 09-01.
+
 - **test/types/ directory created** — satisfies D9-04: the `types/` row in the CONTRIBUTING diagram
   (previously stale, listed an absent dir) now refers to a real directory with the guard file.
 
@@ -478,12 +499,15 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   This is the implementation detail that makes cross-document `<a href>` nav drivable by the policy
   path. The scripted provider always returns `click` actions; the policy path uses `navigate` with
   absolute hrefs after the change-detector skips the model call on revisiting the same route.
+
 - **Real cross-document `<a href>` navigation used (not SPA fallback, D10-06 primary path):**
   The stop reason was `empty-frontier` (not `target-unreachable`), proving full cross-document nav
   worked. `observeWithRecovery` handled context-destroyed errors silently.
+
 - **Drivability numbers:** 22 steps, 7 states discovered, 15 endpoints captured (including
   POST /graphql, POST /rpc, 5 held writes), stop reason `empty-frontier`, floor clean
   (mutations=0, destructiveHits=0). FIX-01 closed.
+
 - **app at examples/demo-app/ (D10-03):** canonical shippable location; harness in .planning/
   references it by path. No ledger/monkeypatch coupling in the shipped app.
 
@@ -496,6 +520,7 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   55/55 self-tests, held mutations as real write→read-back, GraphQL/RPC dispatched distinctly.**
   Logical-op fidelity 2/2 — better than 03-04's 15/17, because this spec captured GraphQL/RPC as
   distinct operations (the 03-05 generator fix confirmed downstream).
+
 - **Manual-CLI CDP-pipe finding:** `openAndWait` launches Chromium with `--remote-debugging-pipe`
   (verified — no TCP port), so an external Playwright/CDP driver CANNOT attach. The plan's "Playwright
   click-driver" is architecturally impossible against the unmodified manual CLI. The harness instead
@@ -503,6 +528,7 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   byte-untouched; no `/api`/`/graphql`/`/rpc` response altered) — captured traffic is identical to a
   human clicking. Both specs regenerated (autonomous 15ep/5held/7states; manual 15ep/5held/5states),
   secret-clean.
+
 - **Authentic compare = the FIX-01 payoff (the 08-02 gap closed):** the ORIGINAL explores with
   **22 steps / 7 states / empty-frontier** (08-02 could only get 0 steps → it fell back to an injected
   twin). Real `archeo compare` original-vs-rebuild: `removedEndpoints:11, removedPages:6,
@@ -512,16 +538,19 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   batching. **Backend contract is faithful** (0 changedShapes/heldStatusChanges on the shared surface;
   19/19 direct probe) — the removedEndpoints are unreachable-by-walker, not absent. Stronger, more
   honest than an injected twin.
+
 - **Self-compare control fully empty** (original vs original-clone → all backend-contract fields 0,
   both 22 steps) → the comparison is trustworthy. **Floor clean on EVERY target across EVERY run**
   (mutations=0, destructiveHits=0). Rebuild booted with a CommonJS `ledger-preload.cjs` (the
   `ledger-wrap` equivalent).
+
 - **8 spec-quality findings carried to Phase 11** (verbatim in 10-02-DOGFOOD-VERIFICATION.md §5):
   #7 GraphQL query text → core SPEC-09; #4 (concrete-vs-templated flow states) + #5 (state kind) →
   generator flow-templating fix pairing with SPEC-08; #8/#1/#3/#6 → small clarity items; #2 (held
   responses) stays a documented structural gap. PLUS the phase-10 compare finding: the spec cannot
   encode affordance drivability (relative-vs-absolute hrefs, per-page batching) — consider affordance
   hints or an unreachable-vs-absent distinction in compare.
+
 - **Bookkeeping:** ROADMAP Phase 10 → 2/2 Complete (2026-07-04) + 10-02 ticked + Progress row +
   current focus → Phase 11; REQUIREMENTS FIX-01 → Complete (checklist + traceability, tally 4/7);
   STATE → completed_phases 2, focus Phase 11. Reproducible harness in 10-02-live-verification/.
@@ -537,12 +566,19 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
 - **`back?: boolean` is optional** on FlowTransition — absent for forward transitions (additive, no consumer breaks). Present+true only for detected back-edges.
 - **Suite count:** baseline 894 → after 11-01: 902 (+8 new tests). tsc exit 0 at both test(11-01) and feat(11-01) commits.
 
+### Phase 11-02 execution decisions (SPEC-09, findings #1, #6, #7):
+
+- **`GraphQLSchemaFragment` defined in `src/types/index.ts`, not `src/types/spec.ts`.** `spec.ts` already imports from `index.ts` (`Protocol`, `OperationType`), and `CaptureRecord` in `index.ts` also needs `GraphQLSchemaFragment`. Defining it in `spec.ts` would create a circular dependency. `spec.ts` re-exports it via `export type { GraphQLSchemaFragment }`. This follows the existing import direction (index.ts is the base layer).
+- **`extractGraphQLSchemaFragment` is called PRE-redaction at all 3 interceptor sites (D11-02 discipline).** Same placement as `extractGraphQLIdentifier` (03-05 precedent). `redactHeaders()` + `redactBody()` ordering UNCHANGED.
+- **Inline literal values stripped to `<redacted>` inside the returned `query` field.** `$variable` references kept (they are identifiers, not values). The `variables` object is NEVER read by this function — it is redacted by `redactBody` as before (CAP-05).
+- **`bodyEncoding` absent when there is no request body.** A missing content-type header also yields `undefined` (not an error) — not every request has a body or typed content. This matches builder expectation for GET/DELETE endpoints.
+- **`pollingIntervalMs` absent when `polling: false`.** Only computed when `polling: true` AND at least 2 timestamps for the most-repeated URL exist. Median of sorted inter-arrival intervals (standard floor-median formula).
+- **`normalizeShapeLeaves` in `generateSpec` explicitly skips `graphqlSchema`.** `graphqlSchema` passes through via `...t` spread. Only `responseBodyShape` and `requestBodyShape` go through normalization. A comment is added to `generator.ts` documenting this invariant (T-11-02b).
+- **Suite count:** baseline 902 → after 11-02: 935 (+33 new tests). tsc exit 0 at both test(11-02) and feat(11-02) commits.
+
 ### Blockers/Concerns
 
-None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases).** v1.0 remains COMPLETE and
-preserved. The authentic capture→spec→rebuild→compare loop is proven on a vision-drivable app
-(FIX-01 closed). Next: Phase 11 (Spec-quality Enrichment — SPEC-08 flow back-edges, SPEC-09 GraphQL
-schema depth, SPEC-10 auth semantics), informed by the 8 builder-flagged findings above.
+None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 2/4 plans complete.** v1.0 remains COMPLETE and preserved. SPEC-09 (partial — full close deferred to 11-04 e2e). Builder findings #1, #6, #7 closed. Next: 11-03 (auth block + dataModel note + rules.evidence + held-response — SPEC-10, findings #2, #3, #8).
 
 ## Deferred Items
 
@@ -552,6 +588,6 @@ schema depth, SPEC-10 auth semantics), informed by the 8 builder-flagged finding
 
 ## Session Continuity
 
-Last session: 2026-07-04T17:00:00.000Z
-Stopped at: **PHASE 10 COMPLETE (2/2) — FIX-01 closed.** 10-02 authentic differential dogfood on the vision-drivable demo app: autonomous + manual specs regenerated from examples/demo-app (secret-clean); BUILD-01 re-proven via a fresh spec-only builder → examples/demo-app/rebuild/ (19/19 capturable, 55/55 self-tests); authentic `archeo compare` original-vs-rebuild (original explores 22 steps/7 states — the 08-02 gap closed; rebuild reachability-diverges via relative hrefs, contract faithful); self-compare control fully empty; floor clean on every target; examples/ regenerated. Milestone v1.1 now 2/3 phases complete. Next: Phase 11 (Spec-quality Enrichment).
+Last session: 2026-07-04T09:30:34Z
+Stopped at: **PHASE 11: 11-02 COMPLETE (2/4 plans).** extractGraphQLSchemaFragment, bodyEncoding, pollingIntervalMs wired. Suite 935 = 934 pass + 1 skip; tsc exit 0. Safety tests A+B+C+D pass. Builder findings #1, #6, #7 closed. Next: 11-03 (SPEC-10 auth semantics, findings #2, #3, #8).
 Resume file: None
