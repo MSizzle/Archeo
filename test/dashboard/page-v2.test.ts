@@ -170,4 +170,28 @@ describe('Dashboard page v2 (DASH-04..07)', () => {
       'page must keep the recent endpoints list element',
     );
   });
+
+  // ─�� 06-02 skip counter (COST-02) ──────────────────────────────────────────
+
+  test('page has a "model calls skipped" counter element (06-02 / COST-02)', () => {
+    assert.ok(
+      page.includes('modelCallsSkipped') || page.includes('model calls skipped'),
+      'page must have a model-calls-skipped counter element',
+    );
+  });
+
+  test('page has EventSource handler for "skip" events (06-02 / COST-02)', () => {
+    assert.ok(
+      page.includes("'skip'") || page.includes('"skip"'),
+      'page must register an EventSource handler for "skip" events',
+    );
+  });
+
+  test('skip handler uses textContent — not innerHTML — to update the counter (DASH-06 safety)', () => {
+    // The skip counter element must be updated via textContent (no XSS surface).
+    assert.ok(
+      page.includes('textContent'),
+      'skip counter update must use textContent (not innerHTML)',
+    );
+  });
 });

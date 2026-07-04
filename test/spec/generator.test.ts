@@ -857,6 +857,42 @@ describe('generateSpec — stopReason propagation (06-01)', () => {
 });
 
 // ---------------------------------------------------------------------------
+// Task 4 (06-02): modelCallsSkipped surfaced into coverage block
+// ---------------------------------------------------------------------------
+describe('generateSpec — modelCallsSkipped propagation (06-02)', () => {
+  const dirs: string[] = [];
+  after(() => { for (const d of dirs) rmSync(d, { recursive: true, force: true }); });
+  function newDirMS() { const d = makeSessionDir(); dirs.push(d); return d; }
+
+  test('manifest with modelCallsSkipped:5 → coverage.modelCallsSkipped === 5', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirMS();
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL([makeReadRecord({ id: 'r1', seq: 1 })]));
+    writeManifest(dir, { recordCount: 1, modelCallsSkipped: 5 });
+    const spec = generateSpec(dir);
+    assert.equal(spec.coverage.modelCallsSkipped, 5, 'modelCallsSkipped must propagate from manifest to coverage');
+  });
+
+  test('manifest with modelCallsSkipped:0 → coverage.modelCallsSkipped === 0', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirMS();
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL([makeReadRecord({ id: 'r1', seq: 1 })]));
+    writeManifest(dir, { recordCount: 1, modelCallsSkipped: 0 });
+    const spec = generateSpec(dir);
+    assert.equal(spec.coverage.modelCallsSkipped, 0, 'zero modelCallsSkipped must propagate too');
+  });
+
+  test('manifest without modelCallsSkipped → coverage.modelCallsSkipped field absent', async () => {
+    const { generateSpec } = await import('../../src/spec/generator.ts');
+    const dir = newDirMS();
+    writeFileSync(join(dir, 'capture.jsonl'), makeJSONL([makeReadRecord({ id: 'r1', seq: 1 })]));
+    writeManifest(dir, { recordCount: 1 });
+    const spec = generateSpec(dir);
+    assert.ok(!('modelCallsSkipped' in spec.coverage), 'modelCallsSkipped must be absent when not in manifest');
+  });
+});
+
+// ---------------------------------------------------------------------------
 // GATE-03 guard: generator must not import HTTP client or Playwright
 // ---------------------------------------------------------------------------
 describe('GATE-03 guard — generator source', () => {

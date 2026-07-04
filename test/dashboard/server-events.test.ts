@@ -320,3 +320,69 @@ describe('Dashboard server typed emitters (DASH-04..07)', () => {
     await store.close();
   });
 });
+
+// ---------------------------------------------------------------------------
+// sendSkip — COST-02 / D6-02 skip counter (06-02 Task 4)
+// ---------------------------------------------------------------------------
+describe('Dashboard server sendSkip (06-02)', () => {
+  test('dashboard handle exposes a sendSkip method', async () => {
+    // This test fails (RED) until sendSkip is added to the dashboard handle return value.
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    try {
+      assert.ok(
+        typeof (dash as unknown as Record<string, unknown>).sendSkip === 'function',
+        'dashboard handle must expose a sendSkip(info:{count}) method',
+      );
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('sendSkip broadcasts a "skip" SSE event to connected clients', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendSkip = (dash as unknown as Record<string, unknown>).sendSkip as
+      ((info: { count: number }) => void) | undefined;
+    try {
+      assert.ok(typeof sendSkip === 'function', 'sendSkip must be a function');
+      // snapshot + skip = 2 events
+      const eventsPromise = collectSSE(dash.port, 2);
+      await new Promise(r => setTimeout(r, 50));
+      sendSkip!({ count: 3 });
+      const events = await eventsPromise;
+      const skipEvent = events.find(e => e.event === 'skip');
+      assert.ok(skipEvent, 'should receive a "skip" SSE event');
+      const data = skipEvent!.data as { count: number };
+      assert.equal(data.count, 3, 'skip event data must carry the count');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+
+  test('snapshot carries modelCallsSkipped count after sendSkip calls', async () => {
+    const store = CaptureStore.create(tmpRoot, 'example.com');
+    const dash = await startDashboard(store);
+    const sendSkip = (dash as unknown as Record<string, unknown>).sendSkip as
+      ((info: { count: number }) => void) | undefined;
+    try {
+      assert.ok(typeof sendSkip === 'function', 'sendSkip must be a function');
+      // Call sendSkip twice before connecting (last count wins for the snapshot)
+      sendSkip!({ count: 1 });
+      sendSkip!({ count: 2 });
+      await new Promise(r => setTimeout(r, 20));
+      // Late-connect: snapshot should carry modelCallsSkipped
+      const events = await collectSSE(dash.port, 1);
+      const snap = events[0].data as Record<string, unknown>;
+      assert.ok(typeof snap.modelCallsSkipped === 'number',
+        'snapshot must carry modelCallsSkipped count');
+      assert.equal(snap.modelCallsSkipped, 2,
+        'snapshot modelCallsSkipped must reflect the last sendSkip count');
+    } finally {
+      await dash.close();
+      await store.close();
+    }
+  });
+});
