@@ -1115,22 +1115,31 @@ describe('explore — auth expiry + pause/resume (COST-06)', () => {
     rmSync(dir, { recursive: true, force: true })
   })
 
-  test('onAuthExpired resolves "abort" → stopReason auth-expired or max-steps', async () => {
+  test('onAuthExpired resolves "abort" → stopReason auth-expired', async () => {
     const dir = makeTmpDir()
     const store = CaptureStore.create(dir, 'app.test')
 
-    // Page with password input + different URL than start → triggers looksLikeLoginState
-    let stepCount = 0
+    // Page that starts on app URL with a link, then "navigates" to login page.
+    // This ensures prevUrl is set in step 0 (app URL) and step 1 sees login page.
+    // looksLikeLoginState fires in step 1: password input + URL changed from app to auth.
+    // We trigger navigation via both goto AND mouse.click (scripted provider uses 'click' action).
+    let navigated = false
     const page = {
-      url: () => stepCount >= 1 ? 'http://auth.test/login' : 'http://app.test/',
-      title: async () => stepCount >= 1 ? 'Login' : 'App',
-      evaluate: async () => stepCount >= 1
-        ? [{ tag: 'input', inputType: 'password', bbox: { x: 0, y: 0, w: 10, h: 10 }, visible: true }]
-        : [],
-      screenshot: async () => { stepCount++; return Buffer.from('') },
-      mouse: { click: async () => {}, wheel: async () => {} },
+      url: () => navigated ? 'http://auth.test/login' : 'http://app.test/',
+      title: async () => navigated ? 'Login' : 'App',
+      evaluate: async () => {
+        if (navigated) {
+          // Step 1+: show password input (triggers looksLikeLoginState)
+          return [{ tag: 'input', inputType: 'password', bbox: { x: 0, y: 0, w: 10, h: 10 }, visible: true }]
+        }
+        // Step 0: show a nav link so the frontier is non-empty (loop proceeds to step 1)
+        return [{ tag: 'a', href: 'http://auth.test/login', text: 'Login', bbox: { x: 0, y: 0, w: 10, h: 10 }, visible: true }]
+      },
+      screenshot: async () => Buffer.from(''),
+      // mouse.click triggers navigation (scripted provider uses 'click' action for nav items)
+      mouse: { click: async () => { navigated = true }, wheel: async () => {} },
       keyboard: { type: async () => {}, press: async () => {} },
-      goto: async () => {},
+      goto: async (_url: string) => { navigated = true },
       goBack: async () => {},
     }
 
