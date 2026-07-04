@@ -113,6 +113,31 @@ Archeo is an open-source TypeScript tool that autonomously explores a *running* 
 | D13: Run shown through a local web dashboard, not a desktop app, built early | Archeo already runs a browser; a second bundled Chromium is a part that should not exist; the live view is the demo | — Pending |
 | Phase 7 (differential validation) included in v1 | "May be the actual product" — a blueprint generator with a built-in "did the rebuild come out right" check is far more valuable; architect Phases 4–6 to run against two targets | — Pending |
 
+## Milestone Status
+
+**Milestone v1.0 — COMPLETE (2026-07-04).** All 8 phases and all 59 requirements Complete. The full
+arc is proven live, end-to-end: capture (P2) → JSON build spec (P3) → buildability (P3) →
+credential-free auth handoff (P4) → autonomous vision loop + dashboard (P5) → hardening (P6) → OSS
+readiness (P7) → **differential validation of the rebuild against the original (P8)**.
+
+Phase 8 closed with a live dogfood of the real, unmodified `archeo compare` in real headed Chromium
+(scripted provider, read-only floor ON for both targets): it MATCHED the faithfully-rebuilt surface
+with **zero false positives**, FLAGGED the real backend-contract divergences (added endpoint / removed
+endpoint / changed response shape), passed a clean **self-compare control** (identical apps → empty
+divergence), and held the floor for both live targets (**zero mutations reached either backend**).
+Suite 892 (891 pass + 1 documented skip, 0 fail). Full evidence:
+`.planning/phases/08-differential-validation/08-02-DOGFOOD-VERIFICATION.md`.
+
+### Standing v1.1 enhancement backlog (non-blocking — enhancements on a complete v1.0, not gaps in it)
+
+- **GraphQL schema depth** — GraphQL is covered as endpoints; full-schema/type reconstruction is v1.1.
+- **Flow back-edges** — flow inference is largely forward-directed; return-transition richness deferred.
+- **Auth-semantics richness** — credential-free auth handoff works; richer role/flow modeling is v1.1.
+- **18 pre-existing `tsc` typecheck diagnostics** (AN-1, 07-03) — runtime uses Node native TS
+  stripping (all 892 tests pass); a `tsc`-hygiene pass is deferred.
+- **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — cosmetic (lists an absent `test/types/`,
+  omits the present `test/oss/`).
+
 ## Evolution
 
 This document evolves at phase transitions and milestone boundaries.
@@ -131,4 +156,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-06-29 after Phase 1 (Foundation)*
+*Last updated: 2026-07-04 — Milestone v1.0 COMPLETE (all 8 phases; Phase 8 differential validation closed).*

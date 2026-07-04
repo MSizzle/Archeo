@@ -95,8 +95,8 @@ Requirements for initial release. Each maps to roadmap phases. Derived from the 
 
 ### Differential Validation (closes the open loop)
 
-- [ ] **VALID-01**: Archeo can run the same exploration against both an original and a rebuild and diff their observed behavior, reporting where they diverge
-- [ ] **VALID-02**: The capture and exploration layers are architected so they can be run against two targets and compared
+- [x] **VALID-01**: Archeo can run the same exploration against both an original and a rebuild and diff their observed behavior, reporting where they diverge
+- [x] **VALID-02**: The capture and exploration layers are architected so they can be run against two targets and compared
 
 ### Open Source Readiness
 
@@ -188,8 +188,8 @@ Each requirement maps to exactly one phase.
 | OSS-01 | Phase 7 | Complete (07-01; verified live cold-start 07-03) |
 | OSS-02 | Phase 7 | Complete (07-02; secret-clean re-audited 07-03) |
 | OSS-03 | Phase 7 | Complete (07-02; scope statement + cross-links verified 07-03) |
-| VALID-01 | Phase 8 | Pending |
-| VALID-02 | Phase 8 | Pending |
+| VALID-01 | Phase 8 | Complete (08-01 `archeo compare`; verified live 08-02 — MATCH+FLAG, self-compare clean, floor held) |
+| VALID-02 | Phase 8 | Complete (08-01 no-duplication structural proof; two-target run exercised live 08-02) |
 
 **Coverage:**
 - v1 requirements: 59 total (header previously stated 49; actual count is 59)

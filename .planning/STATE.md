@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 8 IN PROGRESS (1/2) — 08-01 archeo compare command + formatDivergence + compare-report.json + VALID-02 structural proof COMPLETE; 892 tests (891 pass + 1 skip); next 08-02 live dogfood
+status: COMPLETE
+stopped_at: MILESTONE v1.0 COMPLETE — Phase 8 CLOSED (2/2). 08-02 live differential-validation dogfood PASS (real `archeo compare` in real headed Chromium, floor ON both; MATCH+FLAG with zero false positives; self-compare clean; both ledgers 0 mutations). All 8 phases + all 59 requirements Complete. 892 tests (891 pass + 1 skip, 0 fail).
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
-  completed_phases: 7
-  total_plans: 31
-  completed_plans: 30
-  percent: 97
+  completed_phases: 8
+  total_plans: 32
+  completed_plans: 32
+  percent: 100
 ---
 
 # Project State
@@ -21,17 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 08 (Differential Validation) — IN PROGRESS (1/2). 08-01 shipped `archeo compare <urlA> <urlB>`: thin orchestration wrapper that runs the same exploration config against two targets via an injected per-target runner (child process, isolated run roots), then diffs with the existing `diffSpecs` engine. `formatDivergence` relabels the DriftReport for original-vs-rebuild framing with a first-class determinism caveat. VALID-02 structural proof green (14 source-inspection assertions). Suite 892 (891 pass + 1 skip, 0 fail). Next: 08-02 live dogfood against the real 03-04 original+rebuild pair + phase close.
+**Current focus:** **MILESTONE v1.0 COMPLETE.** All 8 phases + all 59 requirements Complete. The capture → spec → rebuild → differential-validation loop is closed and proven live. Next work is the non-blocking **v1.1 enhancement backlog** (see Accumulated Context) — GraphQL schema depth, flow back-edges, auth-semantics richness, the 18 pre-existing `tsc` diagnostics, the CONTRIBUTING test-layout diagram fix. No v1.0 gaps remain.
 
 ## Current Position
 
-Phase: 08 (differential-validation) — IN PROGRESS (1/2)
-Plan: 08-01 COMPLETE (2026-07-04) — archeo compare command + formatDivergence + VALID-02 structural proof; 892 tests
-Next: 08-02 — live dogfood (original vs rebuild, self-compare control, floor proof, phase + PROJECT close)
-Status: Phase 8 in progress; 08-02 is the final plan
+Phase: 08 (differential-validation) — **COMPLETE (2/2)** — final phase
+Plan: 08-02 COMPLETE (2026-07-04) — live differential-validation dogfood PASS; Phase 8 + milestone v1.0 CLOSED
+Status: **MILESTONE v1.0 COMPLETE** — all 8 phases done
 Last activity: 2026-07-04
 
-Progress: [█████████░] 97% (7/8 phases complete + Phase 8 in progress)
+Progress: [██████████] 100% (8/8 phases complete — milestone v1.0 COMPLETE)
 
 ## Performance Metrics
 
@@ -378,9 +377,75 @@ None for 06-05. Next: 06-06 (autonomous live verification + phase close).
 - **Gate:** `node --test 'test/**/*.test.ts'` → 858 (857 pass + 1 documented skip `test/agent/observation.test.ts`, 0 fail) as BOTH pre-gate and post-gate; LICENSE/NOTICE intact; no-network guard (GATE-03) green within the suite.
 - **Bookkeeping:** ROADMAP Phase 7 → 3/3 Complete (2026-07-04) + 07-03 ticked + Progress row; REQUIREMENTS OSS-01/02/03 → Complete in both the checklist and the traceability table; STATE → Phase 8 (Differential Validation), completed_phases 7, completed_plans 29, percent 88.
 
+### Phase 08-02 execution decisions (PHASE 8 + MILESTONE v1.0 CLOSE):
+
+- **VALID-01 verified AUTONOMOUSLY** per explicit user directive (mirrors 02-04 / 03-04 / 04-03 /
+  05-05 / 06-06). The **real, unmodified `archeo compare` CLI** explored two live targets in **real
+  headed Chromium** with the `scripted` provider + **floor ON both**, then diffed via `diffSpecs`.
+  Harness is `.planning/`-only (node built-ins, zero deps); **no `src/`/`test/` file touched**. Full
+  evidence: `08-02-DOGFOOD-VERIFICATION.md`; reproducible: `08-02-live-verification/run-fallback.sh`.
+- **FALLBACK path taken + stated (the plan's documented safety net).** The primary 03-04 pair
+  **stands** (launchers preserved; marquee `GET /api/settings` 404-vs-200 reproduced live) but is
+  **not vision-drivable comparably**: the 03-04 ORIGINAL navigates only via JS `location.href`/
+  `setTimeout` (no clickable DOM affordances) → the scripted breadth-first walker sees an **empty
+  frontier (0 steps)** and captures only page 1, while the rebuild (real `<a href>` nav) captures
+  more → asymmetric, non-comparable coverage. Compounding: the marquee `GET /api/settings` divergence
+  is a curl-only GET **no frontend fetches**, so a capture-driven diff structurally cannot flag it.
+  Both are fixture properties (03-04 was authored for a bespoke `capture-driver.mjs`, not the vision
+  agent) — NOT tool bugs. The primary compare produced a misleading empty report; reporting it as a
+  pass would be dishonest, so the fallback was taken.
+- **The fallback pair:** a comparable, non-login-walled SPA (`fallback/app.mjs`, one source
+  `makeApp({ variant })`) reusing the **proven 05-05 `data-spa` pushState navigation** (deterministic
+  scripted traversal, no execution-context teardown) with the **06-06 3-drift design** — v1 ORIGINAL
+  vs v2 diverged REBUILD, exactly three known divergences. v1 self-drives to **18 endpoints in 4
+  steps**. Not login-walled because `archeo compare` has no login step and the floor would hold a
+  login POST.
+- **Stage 1 (MATCH+FLAG) PASS** — `compare-report-main.json`: exactly **3** backend-contract findings
+  = the 3 injected drifts — `newEndpoints:["GET /api/reports"]` (builder-added; the `/api/settings`
+  analog), `removedEndpoints:["GET /api/teams"]` (rebuild dropped), `changedShapes:[GET
+  /api/account.accountId number→string]`; `heldStatusChanges:[]` and `removedPages:[]`. **Zero false
+  positives** on the ~11 shared endpoints incl. the held REST writes + the GraphQL query(pass)/
+  mutation(held) split + the JSON-RPC read(pass)/write(held) split (held-write handling faithfully
+  reproduced → correctly not flagged). Caveat present + honored (no frontier noise miscounted).
+- **Stage 2 (self-compare control) PASS** — v1 vs v1-clone → `compare-report-self.json` **0 entries in
+  every category** (fully empty, not merely near-empty): identical apps → identical endpoint set /
+  models / held behavior / shapes / flow coverage. The comparison is not spuriously noisy — the
+  Stage-1 findings are trustworthy signal. (Key trust check.)
+- **Stage 3 (floor proof) PASS** — independent backend-side ledgers (injected at the `node:http`
+  layer by `apps/ledger-wrap.mjs`, served at `/__ledger__`) after ALL runs: v1 `mutations=0
+  destructiveHits=0`, v2 `0/0`, v1-clone `0/0`. Both live targets explored strictly read-only; no
+  write-enabling flag.
+- **Observed vs inferred:** `compare`/`explore` does not print the loop stop-reason; deterministic
+  completion inferred from the empty self-compare + the scripted provider's breadth-first exhaustion
+  (same reporting gap recorded in 05-05/06-06; no source change).
+- **Gate:** `node --test 'test/**/*.test.ts'` → **892 (891 pass + 1 documented skip
+  `test/agent/observation.test.ts`, 0 fail)** as BOTH pre- and post-gate; LICENSE/NOTICE intact;
+  no-network guard (GATE-03) green. (Plan text names "858" = the pre-08-01 baseline; the live baseline
+  after 08-01's 34 compare tests is 892.)
+- **Bookkeeping:** ROADMAP Phase 8 → 2/2 Complete + all-8 Complete + PROJECT COMPLETE banner;
+  REQUIREMENTS VALID-01/VALID-02 → Complete (checklist + traceability) — all 59 requirements Complete;
+  STATE completed_phases 8 / completed_plans 32 / percent 100 / status COMPLETE; PROJECT.md records
+  milestone v1.0 COMPLETE + the v1.1 backlog.
+
+### Standing v1.1 enhancement backlog (non-blocking — recorded at project close, NOT built)
+
+All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in it:
+
+- **GraphQL schema depth** — generator covers GraphQL as endpoints but does not reconstruct a full
+  schema; deeper type extraction is v1.1.
+- **Flow back-edges** — flow inference is largely forward-directed; back-edge/return-transition
+  richness deferred.
+- **Auth-semantics richness** — credential-free auth handoff works; richer role/flow modeling is v1.1.
+- **18 pre-existing `tsc` typecheck diagnostics** (AN-1, 07-03) — runtime uses Node native TS
+  stripping (all 892 tests pass); a `tsc`-hygiene pass is deferred, non-blocking.
+- **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — lists a `types/` row for an absent
+  `test/types/` and omits the present `test/oss/`; cosmetic, non-blocking.
+
 ### Blockers/Concerns
 
-None. Phase 7 closed. Phase 8 (Differential Validation, VALID-01/02) is next and needs discuss → plan → execute.
+None. **Milestone v1.0 COMPLETE — all 8 phases + all 59 requirements done.** The
+capture→spec→rebuild→differential-validation loop is closed and proven live. Next work is the
+non-blocking v1.1 enhancement backlog above (start via `/gsd-new-milestone` or `/gsd-review-backlog`).
 
 ## Deferred Items
 
@@ -391,5 +456,5 @@ None. Phase 7 closed. Phase 8 (Differential Validation, VALID-01/02) is next and
 ## Session Continuity
 
 Last session: 2026-07-04T00:00:00.000Z
-Stopped at: Phase 7 COMPLETE (3/3) — 07-03 fresh-eyes cold-start PASS (stranger produced a spec from the README quickstart alone, key-free, in real headed Chromium) + doc-vs-code audit green + phase close; OSS-01/02/03 Complete; 858/858 suite green. Next: Phase 8 (Differential Validation — VALID-01/02).
+Stopped at: **MILESTONE v1.0 COMPLETE.** Phase 8 CLOSED (2/2) — 08-02 live differential-validation dogfood PASS (real `archeo compare` in real headed Chromium, floor ON both; MATCH+FLAG exactly the 3 injected drifts with zero false positives; self-compare control fully empty; both target ledgers 0 mutations/0 destructive; FALLBACK path taken + stated). All 8 phases + all 59 requirements Complete; 892 tests (891 pass + 1 skip, 0 fail). Next: v1.1 enhancement backlog (non-blocking).
 Resume file: None

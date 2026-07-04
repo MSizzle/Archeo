@@ -20,7 +20,9 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 5: Autonomous Agent Loop + Full Dashboard** - Vision-driven exploration; full live dashboard (completed 2026-07-04)
 - [x] **Phase 6: Hardening** - Cost/rate control, error recovery, drift re-run (completed 2026-07-04)
 - [x] **Phase 7: Open Source Readiness** - Strangers can clone, supply a key, and produce a spec (completed 2026-07-04)
-- [ ] **Phase 8: Differential Validation** - Diff original vs. rebuild observed behavior
+- [x] **Phase 8: Differential Validation** - Diff original vs. rebuild observed behavior (completed 2026-07-04)
+
+**PROJECT COMPLETE — all 8 phases Complete. Milestone v1.0 COMPLETE (2026-07-04).**
 
 ## Phase Details
 
@@ -279,7 +281,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-02-PLAN.md — Live dogfood: `archeo compare` against the real 03-04 original+rebuild pair (MATCH on faithful surface + FLAG the documented differences) + self-compare control + floor proof + phase & PROJECT close (VALID-01 live)
+- [x] 08-02-PLAN.md — Live dogfood: `archeo compare` (MATCH on faithful surface + FLAG the divergences) + self-compare control + floor proof + phase & PROJECT close (VALID-01 live) (verified autonomously 2026-07-04: PASS — real unmodified `archeo compare` in real headed Chromium, scripted provider, floor ON both; exactly 3 backend-contract findings = the 3 injected drifts [+GET /api/reports, −GET /api/teams, GET /api/account.accountId number→string] with ZERO false positives on the ~11 shared endpoints incl. held GraphQL/RPC writes; self-compare control fully empty [comparison not spuriously noisy]; both target ledgers mutations=0/destructiveHits=0; suite 892 = 891 pass + 1 skip. FALLBACK path taken + stated: the 03-04 ORIGINAL is not vision-drivable [JS-only nav → empty frontier] and its marquee `GET /api/settings` divergence is a curl-only GET no frontend fetches — a comparable 06-06-family SPA pair [05-05 data-spa nav + 06-06 3-drift design] was used instead)
 
 ## Progress
 
@@ -295,4 +297,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
 | 7. Open Source Readiness | 3/3 | Complete | 2026-07-04 |
-| 8. Differential Validation | 1/2 | In progress | - |
+| 8. Differential Validation | 2/2 | Complete | 2026-07-04 |
+
+**All 8 phases Complete — milestone v1.0 COMPLETE (2026-07-04).**

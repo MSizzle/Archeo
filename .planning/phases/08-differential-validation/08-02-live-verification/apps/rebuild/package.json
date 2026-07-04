@@ -1,0 +1,4 @@
+{
+  "type": "commonjs",
+  "_comment": "Packaging shim only — the builder produced CommonJS server.js/self-test.js in an isolated dir with no package.json; the Archeo repo root sets type:module, so this file scopes the rebuild back to CJS. No builder code was modified."
+}
