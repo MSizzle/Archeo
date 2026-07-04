@@ -335,9 +335,9 @@ silently drifting back, and the CONTRIBUTING test-layout diagram matches the rea
 Plans:
 **Wave 1**
 
-- [ ] 09-01-PLAN.md — Fix all 18 `tsc` diagnostics → 0 (unify DashboardHandle for the one src/ error;
+- [x] 09-01-PLAN.md — Fix all 18 `tsc` diagnostics → 0 (unify DashboardHandle for the one src/ error;
   narrowest-correct test-side fixes for the rest) + QUAL-02 typecheck regression guard (`test:types`
-  script + guard test spawning `tsc --noEmit`, off the fast path) (QUAL-01, QUAL-02)
+  script + guard test spawning `tsc --noEmit`, off the fast path) (QUAL-01, QUAL-02) (completed 2026-07-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -391,7 +391,7 @@ auth-semantics block — all secret-clean (values still stripped). Closes milest
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 9. Type-safety & Docs Hygiene | 0/2 | Not started | — |
+| 9. Type-safety & Docs Hygiene | 1/2 | In progress | — |
 | 10. Vision-drivable Demo Fixtures | 0/TBD | Not started | — |
 | 11. Spec-quality Enrichment | 0/TBD | Not started | — |
 

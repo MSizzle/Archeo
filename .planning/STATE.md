@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: MILESTONE v1.1 OPENED (Phases 9–11, enhancement + hygiene). Phase 9 (type-safety & docs hygiene) planned — 09-CONTEXT + 09-01 (QUAL-01/QUAL-02) + 09-02 (DOC-01) written. Current focus Phase 9, 0/2 plans executed. Milestone v1.0 remains COMPLETE (all 8 phases + 59 requirements; 892 tests = 891 pass + 1 skip).
-last_updated: "2026-07-04T12:00:00.000Z"
+stopped_at: "09-01 COMPLETE — 18 tsc diagnostics → 0 (QUAL-01); DashboardHandle unified in src/dashboard/types.ts; 17 test-side fixes (Categories B/C/D, no production type weakened); QUAL-02 typecheck guard at test/types/typecheck.guard.ts + test:types script. tsc exits 0, guard passes, suite 894 (893 pass + 1 skip, 0 fail). Next: 09-02 (DOC-01 — fix CONTRIBUTING test-layout diagram now that test/types/ exists)."
+last_updated: "2026-07-04T14:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
   completed_phases: 0
   total_plans: 2
-  completed_plans: 0
-  percent: 0
+  completed_plans: 1
+  percent: 33
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 9 (Type-safety & Docs Hygiene).** v1.0 is COMPLETE and stays complete; v1.1 clears the enhancement + hygiene backlog in three phases (9 → 10 → 11). Phase 9 first: drive `npx tsc --noEmit` to zero (18 diagnostics today: 1 in src/cli/index.ts + 17 in test/), add a typecheck regression guard, and fix the CONTRIBUTING test-layout diagram. Plans 09-01 (QUAL-01/QUAL-02) and 09-02 (DOC-01) are written and ready to execute.
+**Current focus:** **MILESTONE v1.1 — Phase 9 (Type-safety & Docs Hygiene), plan 09-02 next.** 09-01 COMPLETE (2026-07-04): tsc diagnostic count 18 → 0; DashboardHandle unified; QUAL-01 and QUAL-02 met; test:types guard passes. 09-02 (DOC-01) is the next step — fix the CONTRIBUTING test-layout diagram now that `test/types/` exists.
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: 09 (type-safety & docs hygiene) — **NOT STARTED (0/2)** — first v1.1 phase
-Plan: 09-01 and 09-02 planned (2026-07-04); execution pending
+Phase: 09 (type-safety & docs hygiene) — **IN PROGRESS (1/2)** — plan 09-01 COMPLETE, 09-02 next
+Plan: 09-02 planned (2026-07-04); execution pending
 Status: **v1.1 executing** — v1.0 COMPLETE and preserved
 Last activity: 2026-07-04
 
-Progress (v1.1): [░░░░░░░░░░] 0% (0/3 phases) — v1.0: [██████████] 100% (8/8, COMPLETE)
+Progress (v1.1): [█░░░░░░░░░] ~17% (0/3 phases complete, but Phase 9 is 1/2) — v1.0: [██████████] 100% (8/8, COMPLETE)
 
 ## Performance Metrics
 
@@ -441,6 +441,33 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
   stripping (all 892 tests pass); a `tsc`-hygiene pass is deferred, non-blocking.
 - **CONTRIBUTING test-layout diagram fix** (AN-2, 07-03) — lists a `types/` row for an absent
   `test/types/` and omits the present `test/oss/`; cosmetic, non-blocking.
+
+### Phase 09-01 execution decisions (QUAL-01, QUAL-02):
+
+- **DashboardHandle unification (D9-01):** single `interface DashboardHandle` in `src/dashboard/types.ts`
+  with precise member types (IssueLogEntry, ErrorClass, DriftReport via `import type`). server.ts return
+  annotation replaced from 15-line inline to `Promise<DashboardHandle>`. explore.ts local interface
+  deleted and shared type imported. index.ts both `dashboardHandle` vars annotated as
+  `DashboardHandle | undefined`. Runtime object unchanged — type-annotation correction only.
+- **Category B double-cast (D9-02):** 14 TS2352 + TS2571 diagnostics. The three comparison sites
+  (loop.test.ts 808/844/981: `(result as Record<string,unknown>).issueCount >= n`) could not be fixed
+  with double-cast alone — `Record<string,unknown>` values are `unknown` and TypeScript rejects
+  `unknown >= n`. Used `result.issueCount` directly at those three sites (result is already typed as
+  `ExploreResult & { issueCount: number }`), exactly as the plan documents as the valid executor
+  simplification. All other B sites use the uniform `as unknown as Record<string,unknown>` double-cast.
+- **Category C (D9-02):** fake `waitForLoadState` in recovery.test.ts changed to match Playwright's
+  optional-union param type (`_state?: 'load'|'domcontentloaded'|'networkidle'`, `_options?: {timeout?}`).
+- **Category D (D9-02):** `RequestInfo | URL` → `Parameters<typeof fetch>[0]` at both anthropic.test.ts
+  sites. tsconfig.json and DOM lib are both unchanged.
+- **QUAL-02 guard (D9-03):** `test/types/typecheck.guard.ts` — node:test that spawns
+  `node_modules/.bin/tsc --noEmit` via spawnSync, asserts exit 0, surfaces stdout/stderr in failure
+  message. File is `.guard.ts` (not `.test.ts`) so the default `test/**/*.test.ts` glob skips it.
+  `test:types` script added to package.json; NOT wired into the default `test` script.
+- **Baseline deviation:** plan stated 892 (891 pass + 1 skip); actual baseline confirmed by stash-check
+  was 894 (893 pass + 1 skip). The +2 discrepancy predates 09-01 (likely test additions in later
+  Phase 8 work). Suite count is unchanged by 09-01.
+- **test/types/ directory created** — satisfies D9-04: the `types/` row in the CONTRIBUTING diagram
+  (previously stale, listed an absent dir) now refers to a real directory with the guard file.
 
 ### Blockers/Concerns
 
