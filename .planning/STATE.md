@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: Phase 7 COMPLETE (3/3) — 07-03 fresh-eyes cold-start verification PASS (stranger produced a spec from the README quickstart alone, key-free) + doc-vs-code audit green + phase close; OSS-01/02/03 Complete; next Phase 8 (Differential Validation)
+stopped_at: Phase 8 IN PROGRESS (1/2) — 08-01 archeo compare command + formatDivergence + compare-report.json + VALID-02 structural proof COMPLETE; 892 tests (891 pass + 1 skip); next 08-02 live dogfood
 last_updated: "2026-07-04T00:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 8
   completed_phases: 7
-  total_plans: 29
-  completed_plans: 29
-  percent: 88
+  total_plans: 31
+  completed_plans: 30
+  percent: 97
 ---
 
 # Project State
@@ -21,17 +21,17 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** Phase 07 (Open Source Readiness) — COMPLETE (3/3). 07-03 closed the phase: a fresh-eyes stranger subagent (forbidden from reading .planning/ or src/ for how-to) ran the README key-free manual quickstart against a live local target in real headed Chromium and produced a valid archeo-spec.json with all 6 ArcheoSpec keys and no API key — OSS-01 proven live. Doc-vs-code audit green: every README/CONTRIBUTING command+flag maps to src/cli, both examples secret-clean with provenance, scope statement present, cross-links resolve, LICENSE/NOTICE intact. One minor README gap fixed (Ctrl+C scripted-end note — matches src/cli/browser.ts D-06). Two non-blocking notes recorded for follow-up (pre-existing `npm run typecheck` diagnostics; CONTRIBUTING test-layout diagram lists absent `test/types` / omits `test/oss`). Suite 858/858. OSS-01/02/03 Complete. Next: Phase 8 (Differential Validation) — VALID-01/02.
+**Current focus:** Phase 08 (Differential Validation) — IN PROGRESS (1/2). 08-01 shipped `archeo compare <urlA> <urlB>`: thin orchestration wrapper that runs the same exploration config against two targets via an injected per-target runner (child process, isolated run roots), then diffs with the existing `diffSpecs` engine. `formatDivergence` relabels the DriftReport for original-vs-rebuild framing with a first-class determinism caveat. VALID-02 structural proof green (14 source-inspection assertions). Suite 892 (891 pass + 1 skip, 0 fail). Next: 08-02 live dogfood against the real 03-04 original+rebuild pair + phase close.
 
 ## Current Position
 
-Phase: 07 (open-source-readiness) — COMPLETE (3/3, 2026-07-04)
-Plan: 07-03 COMPLETE (2026-07-04) — fresh-eyes cold-start PASS + doc-vs-code audit green + phase close; evidence in 07-03-COLDSTART-VERIFICATION.md, recorded in 07-03-SUMMARY.md
-Next: Phase 8 (Differential Validation) — VALID-01/02 (needs discuss → plan → execute)
-Status: Phase 7 closed; Phase 8 not started
+Phase: 08 (differential-validation) — IN PROGRESS (1/2)
+Plan: 08-01 COMPLETE (2026-07-04) — archeo compare command + formatDivergence + VALID-02 structural proof; 892 tests
+Next: 08-02 — live dogfood (original vs rebuild, self-compare control, floor proof, phase + PROJECT close)
+Status: Phase 8 in progress; 08-02 is the final plan
 Last activity: 2026-07-04
 
-Progress: [█████████░] 88% (7/8 phases)
+Progress: [█████████░] 97% (7/8 phases complete + Phase 8 in progress)
 
 ## Performance Metrics
 

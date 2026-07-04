@@ -275,7 +275,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md — `archeo compare <urlA> <urlB>` command (thin wrapper over the shipped runExplore→generateSpec path + reused diffSpecs) + formatDivergence + compare-report.json + VALID-02 no-duplication structural proof (VALID-01, VALID-02)
+- [x] 08-01-PLAN.md — `archeo compare <urlA> <urlB>` command (thin wrapper over the shipped runExplore→generateSpec path + reused diffSpecs) + formatDivergence + compare-report.json + VALID-02 no-duplication structural proof (VALID-01, VALID-02) (completed 2026-07-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -295,4 +295,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8
 | 5. Autonomous Agent Loop + Full Dashboard | 5/5 | Complete | 2026-07-04 |
 | 6. Hardening | 6/6 | Complete   | 2026-07-04 |
 | 7. Open Source Readiness | 3/3 | Complete | 2026-07-04 |
-| 8. Differential Validation | 0/2 | Not started | - |
+| 8. Differential Validation | 1/2 | In progress | - |
