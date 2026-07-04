@@ -421,10 +421,11 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 11-03-PLAN.md — Auth semantics: a top-level `auth` block (login endpoints, auth header NAMES,
+- [x] 11-03-PLAN.md — Auth semantics: a top-level `auth` block (login endpoints, auth header NAMES,
   token transport, role/permission field names) inferred from ALREADY-redacted records (values never
   emitted; recursive no-raw-value assertion); fold in dataModel overlap `note` (#3), human-readable
   `rules.evidence` (#8), and a factual held `responseUnobserved` flag (#2, no fabrication) (SPEC-10)
+  — CLOSED 2026-07-04 (949 pass)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 

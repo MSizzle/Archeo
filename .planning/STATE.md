@@ -3,15 +3,15 @@ gsd_state_version: 1.0
 milestone: v1.1
 milestone_name: enhancement-hygiene
 status: executing
-stopped_at: "**PHASE 10 COMPLETE (2/2) — FIX-01 closed.** 10-02 authentic differential dogfood on the vision-drivable demo app: autonomous + manual specs regenerated from examples/demo-app (secret-clean); BUILD-01 re-proven via a fresh spec-only builder → examples/demo-app/rebuild/ (19/19 capturable, 55/55 self-tests); authentic `archeo compare` original-vs-rebuild (original explores 22 steps/7 states — the 08-02 gap closed; rebuild reachability-diverges via relative hrefs, contract faithful); self-compare control fully empty; floor clean on every target; examples/ regenerated. Milestone v1.1 now 2/3 phases complete. Next: Phase 11 (Spec-quality Enrichment)."
-last_updated: "2026-07-04T09:31:52.206Z"
+stopped_at: "**PHASE 11: 11-03 COMPLETE (3/4 plans).** inferAuth (SPEC-10): auth block inferred from already-redacted records — loginEndpoints, authHeaderNames (CAP-04), tokenTransport, roleFieldNames. Human-readable rules.evidence (#8): no bare UUIDs, descriptors like 'GET /api/users/{id} -> 401'. DataModel overlap note (#3): >=80% field overlap annotated with a note. responseUnobserved:true flag (#2): factual marker on held endpoints with no observed response, no fabrication. Suite 949 = 948 pass + 1 skip; tsc exit 0. Next: 11-04 (autonomous verification + milestone v1.1 CLOSE)."
+last_updated: "2026-07-04T11:00:00.000Z"
 last_activity: 2026-07-04
 progress:
   total_phases: 3
   completed_phases: 2
-  total_plans: 8
-  completed_plans: 7
-  percent: 75
+  total_plans: 9
+  completed_plans: 8
+  percent: 80
 ---
 
 # Project State
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-06-29)
 
 **Core value:** Vision for coverage, network for truth — produce a build spec valuable enough to hand to a coding agent, generated safely (read-only by default) against a live web app.
-**Current focus:** **MILESTONE v1.1 — Phase 11 executing (2/4 plans complete).** 11-02 CLOSED (2026-07-04): SPEC-09 GraphQL schema depth — extractGraphQLSchemaFragment (pre-redaction, value-stripped), wired at all 3 interceptor sites; bodyEncoding (finding #1); pollingIntervalMs (finding #6). Suite 935 = 934 pass + 1 skip; tsc exit 0. Next: 11-03 (auth block + dataModel note + rules.evidence + held-response inline — SPEC-10, findings #3, #8, #2).
+**Current focus:** **MILESTONE v1.1 — Phase 11 executing (3/4 plans complete).** 11-03 CLOSED (2026-07-04): SPEC-10 auth block, dataModel overlap note (#3), human-readable evidence (#8), responseUnobserved flag (#2). Suite 949 = 948 pass + 1 skip; tsc exit 0. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
 
 ## Current Position
 
 **Milestone:** v1.1 (enhancement + hygiene) — executing
-Phase: **11 executing (2/4 plans complete)**
-Plan: 11-03 (next)
-Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 + Phase 11 plan 11-01 closed
+Phase: **11 executing (3/4 plans complete)**
+Plan: 11-04 (next)
+Status: **v1.1 executing** — v1.0 COMPLETE and preserved; Phase 9 + Phase 10 + Phase 11 plans 11-01, 11-02, 11-03 closed
 Last activity: 2026-07-04
 
 Progress (v1.1): [███████░░░] ~67% (2/3 phases complete, Phase 11 at 2/4) — v1.0: [██████████] 100% (8/8, COMPLETE)
@@ -576,9 +576,21 @@ All are v1.1 candidates on top of a complete, live-verified v1.0 — not gaps in
 - **`normalizeShapeLeaves` in `generateSpec` explicitly skips `graphqlSchema`.** `graphqlSchema` passes through via `...t` spread. Only `responseBodyShape` and `requestBodyShape` go through normalization. A comment is added to `generator.ts` documenting this invariant (T-11-02b).
 - **Suite count:** baseline 902 → after 11-02: 935 (+33 new tests). tsc exit 0 at both test(11-02) and feat(11-02) commits.
 
+### Phase 11-03 execution decisions (SPEC-10, findings #2, #3, #8):
+
+- **`inferAuth` reads ONLY already-redacted records (D11-02).** No pre-redaction read. AUTH_HEADER_BLOCKLIST imported from redactor.ts — names on the blocklist that appear in requestHeaders/responseHeaders are surfaced as `authHeaderNames`. Values (`[REDACTED]`) are never emitted.
+- **loginEndpoints matched by `AUTH_PATH_RE`** covering `/login|/logout|/auth|/signin|/signout|/token|/session|/oauth|/mfa` case-insensitively on the TEMPLATED path.
+- **tokenTransport: stable order header before cookie.** `seenHeaderTransport` fires on HEADER_TRANSPORT_NAMES (authorization, x-*-token, x-api-key, proxy-authorization); `seenCookieTransport` on COOKIE_TRANSPORT_NAMES (cookie, set-cookie). Both request and response headers scanned.
+- **roleFieldNames from already-normalized response shapes.** `normalizeShapeLeaves` has already run before `inferAuth` is called; leaf values are type keywords, not data. ROLE_FIELD_RE matches role|roles|permission|permissions|scope|scopes|isAdmin|admin|grants.
+- **`spec.auth` uses spread-with-conditional to keep undefined out of the serialized JSON** — `...(auth !== undefined ? { auth } : {})` — so non-auth apps have no `auth` key at all.
+- **Human-readable evidence descriptors (#8):** auth-required → `"GET /api/users/{id} -> 401"`; pagination → `"GET /api/items?page,limit"` (param names extracted from URL); resource-crud → `"GET+GET/{id}+held-POST on /api/users"`; write-held-behavior → `"POST /api/settings (held)"`. URL is parsed with `new URL()` — malformed URLs produce a descriptor without params (never throws).
+- **Overlap threshold = 0.8 (80% of smaller set).** Pairwise over all inferred models; both models in an overlapping pair receive a note. Wording: `"shares N/M field names with ModelX; likely a projection/session view"`. Only applied when `smaller.size > 0`.
+- **`responseUnobserved: true as const`** — TypeScript type is `true | undefined` (never `false`). Set only when `held === true && responseBodyShape === null && statusCodes.length === 0`. Coverage `buildCoverage` and `inferRules` receive `templatesWithUnobserved` so all downstream sees the flag.
+- **Suite count:** baseline 935 → after 11-03: 949 (+14 new tests — 13 new tests + 1 test-assertion fix for the `responseUnobserved === false` TypeScript error). tsc exit 0 at both test(11-03) and feat(11-03) commits.
+
 ### Blockers/Concerns
 
-None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 2/4 plans complete.** v1.0 remains COMPLETE and preserved. SPEC-09 (partial — full close deferred to 11-04 e2e). Builder findings #1, #6, #7 closed. Next: 11-03 (auth block + dataModel note + rules.evidence + held-response — SPEC-10, findings #2, #3, #8).
+None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 3/4 plans complete.** SPEC-10 closed (partial — full close deferred to 11-04 e2e). Builder findings #2, #3, #8 closed. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
 
 ## Deferred Items
 
@@ -588,6 +600,6 @@ None. **Milestone v1.1: Phase 9 + Phase 10 COMPLETE (2/3 phases). Phase 11: 2/4 
 
 ## Session Continuity
 
-Last session: 2026-07-04T09:30:34Z
-Stopped at: **PHASE 11: 11-02 COMPLETE (2/4 plans).** extractGraphQLSchemaFragment, bodyEncoding, pollingIntervalMs wired. Suite 935 = 934 pass + 1 skip; tsc exit 0. Safety tests A+B+C+D pass. Builder findings #1, #6, #7 closed. Next: 11-03 (SPEC-10 auth semantics, findings #2, #3, #8).
+Last session: 2026-07-04T11:00:00Z
+Stopped at: **PHASE 11: 11-03 COMPLETE (3/4 plans).** inferAuth (SPEC-10), human-readable evidence (#8), dataModel overlap note (#3), responseUnobserved flag (#2). Suite 949 = 948 pass + 1 skip; tsc exit 0. Builder findings #2, #3, #8 closed. Next: 11-04 (autonomous verification + MILESTONE v1.1 CLOSE).
 Resume file: None
